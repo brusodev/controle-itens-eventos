@@ -496,11 +496,28 @@ function visualizarOS() {
 
     const preview = gerarPreviewOS(dadosOS);
     document.getElementById('preview-os').innerHTML = preview;
+    
+    // ✅ RESTAURAR BOTÕES ORIGINAIS DO MODAL (para nova O.S.)
+    const modalButtons = document.querySelector('#modal-visualizar-os .modal-content > div:last-child');
+    modalButtons.innerHTML = `
+        <button class="btn btn-success" onclick="confirmarEmissaoOS()">✅ Confirmar e Emitir</button>
+        <button class="btn btn-secondary" onclick="fecharModalVisualizarOS()">Voltar</button>
+    `;
+    
     document.getElementById('modal-visualizar-os').style.display = 'flex';
 }
 
 function fecharModalVisualizarOS() {
     document.getElementById('modal-visualizar-os').style.display = 'none';
+    
+    // ✅ RESTAURAR BOTÕES PADRÃO AO FECHAR MODAL
+    const modalButtons = document.querySelector('#modal-visualizar-os .modal-content > div:last-child');
+    if (modalButtons) {
+        modalButtons.innerHTML = `
+            <button class="btn btn-success" onclick="confirmarEmissaoOS()">✅ Confirmar e Emitir</button>
+            <button class="btn btn-secondary" onclick="fecharModalVisualizarOS()">Voltar</button>
+        `;
+    }
 }
 
 function coletarDadosOS() {

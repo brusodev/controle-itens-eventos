@@ -108,6 +108,7 @@ class OrdemServico(db.Model):
     cnpj = db.Column(db.String(20))
     servico = db.Column(db.String(200))          # Ex: "COFFEE BREAK"
     grupo = db.Column(db.String(50))             # Número do grupo
+    regiao_estoque = db.Column(db.Integer)       # Região do estoque (1-6) vinculada ao grupo
     
     # Dados do evento
     evento = db.Column(db.String(200))
@@ -129,6 +130,7 @@ class OrdemServico(db.Model):
     
     # Relacionamentos
     itens = db.relationship('ItemOrdemServico', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
+    movimentacoes = db.relationship('MovimentacaoEstoque', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self, incluir_itens=True):
         data = {
@@ -151,6 +153,7 @@ class OrdemServico(db.Model):
             'fiscalContrato': self.fiscal_contrato,
             'fiscalTipo': self.fiscal_tipo,  # ✅ Adicionar tipo de fiscal
             'responsavel': self.responsavel,
+            'regiaoEstoque': self.regiao_estoque,  # Região do estoque vinculada
             'dataEmissao': self.data_emissao.isoformat() if self.data_emissao else None,
             'dataEmissaoCompleta': self.data_emissao_completa
         }
@@ -189,4 +192,35 @@ class ItemOrdemServico(db.Model):
             'diarias': self.diarias or 1,
             'qtdSolicitada': self.quantidade_solicitada,
             'qtdTotal': self.quantidade_total
+        }
+
+
+class MovimentacaoEstoque(db.Model):
+    """Histórico de movimentações de estoque vinculadas a O.S."""
+    __tablename__ = 'movimentacoes_estoque'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id', ondelete='CASCADE'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('itens.id'), nullable=False)
+    estoque_regional_id = db.Column(db.Integer, db.ForeignKey('estoque_regional.id'), nullable=False)
+    
+    quantidade = db.Column(db.Float, nullable=False)  # Quantidade movimentada
+    tipo = db.Column(db.String(20), nullable=False)  # 'SAIDA' ou 'ENTRADA' (reversão)
+    data_movimentacao = db.Column(db.DateTime, default=datetime.utcnow)
+    observacao = db.Column(db.Text)  # Motivo da movimentação (ex: "Emissão O.S. 1/2025")
+    
+    # Relacionamentos
+    item = db.relationship('Item', backref='movimentacoes')
+    estoque = db.relationship('EstoqueRegional', backref='movimentacoes')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ordemServicoId': self.ordem_servico_id,
+            'itemId': self.item_id,
+            'estoqueRegionalId': self.estoque_regional_id,
+            'quantidade': self.quantidade,
+            'tipo': self.tipo,
+            'dataMovimentacao': self.data_movimentacao.isoformat() if self.data_movimentacao else None,
+            'observacao': self.observacao
         }

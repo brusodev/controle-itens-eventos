@@ -18,7 +18,6 @@ from controle_estoque import (
 
 os_bp = Blueprint('ordens_servico', __name__)
 
-
 def gerar_proximo_numero_os():
     """Gera automaticamente o próximo número de O.S. no formato N/ANO"""
     ano_atual = datetime.now().year
@@ -42,7 +41,6 @@ def gerar_proximo_numero_os():
     
     return f"{proximo_numero}/{ano_atual}"
 
-
 @os_bp.route('/proximo-numero', methods=['GET'])
 def obter_proximo_numero():
     """Retorna o próximo número de O.S. disponível"""
@@ -51,7 +49,6 @@ def obter_proximo_numero():
         return jsonify({'proximoNumero': proximo_numero}), 200
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
-
 
 @os_bp.route('/', methods=['GET'])
 def listar_ordens():
@@ -112,7 +109,7 @@ def criar_ordem():
         numero_os_gerado = gerar_proximo_numero_os()
         print(f"🔢 Número da O.S. gerado automaticamente: {numero_os_gerado}")
         
-        # ✅ VALIDAR E OBTER REGIÃO DO GRUPO
+        # Validar e obter região do grupo
         grupo = dados.get('grupo')
         try:
             regiao_estoque = int(grupo) if grupo else None
@@ -137,7 +134,7 @@ def criar_ordem():
             cnpj=dados.get('cnpj'),
             servico=dados.get('servico'),
             grupo=grupo,
-            regiao_estoque=regiao_estoque,  # ✅ VINCULAR REGIÃO
+            regiao_estoque=regiao_estoque,  # ✅ Vincular região
             evento=dados.get('evento'),
             data=dados.get('data'),
             horario=dados.get('horario'),
@@ -208,24 +205,54 @@ def criar_ordem():
         return jsonify({'erro': str(e)}), 500
 
 
+@os_bp.route('/<int:id>', methods=['PUT'])
+def editar_ordem(id):
+        return
+    
+    # Buscar regiões com estoque disponível
+    estoques = EstoqueRegional.query.filter_by(item_id=item.id).all()
+    
+    regioes_disponiveis = []
+    for est in estoques:
+        try:
+            inicial = float(est.quantidade_inicial.replace('.', '').replace(',', '.'))
+            gasto = float(est.quantidade_gasto.replace('.', '').replace(',', '.'))
+            if inicial > 0 and (inicial - gasto) > 0:
+                regioes_disponiveis.append(est)
+        except:
+            continue
+    
+    # Distribuir quantidade entre regiões
+    if regioes_disponiveis:
+        qtd_por_regiao = quantidade / len(regioes_disponiveis)
+        
+        for est in regioes_disponiveis:
+            try:
+                gasto_atual = float(est.quantidade_gasto.replace('.', '').replace(',', '.'))
+                novo_gasto = gasto_atual + qtd_por_regiao
+                est.quantidade_gasto = str(novo_gasto).replace('.', ',')
+            except:
+                continue
+
+
 @os_bp.route('/<int:os_id>', methods=['PUT'])
 def atualizar_ordem(os_id):
-    """Atualiza uma ordem de serviço existente COM CONTROLE DE ESTOQUE"""
+    """Atualiza uma ordem de serviço existente"""
     try:
         os = OrdemServico.query.get_or_404(os_id)
         dados = request.get_json()
         
-        print(f"\n🔄 Editando O.S. {os.numero_os}...")
-        
-        # ✅ REVERTER ESTOQUE DOS ITENS ANTIGOS
-        print(f"↩️  Revertendo estoque da O.S. {os_id}...")
-        total_revertido = reverter_baixa_estoque(os_id)
-        print(f"   ✅ {total_revertido} movimentações revertidas!")
+        # Reverter estoque dos itens antigos
+        for item_os in os.itens:
+            reverter_estoque_item(
+                categoria_nome=item_os.categoria,
+                item_codigo=item_os.item_codigo,
+                quantidade=item_os.quantidade_total
+            )
         
         # Deletar itens antigos
         for item_os in os.itens:
             db.session.delete(item_os)
-        db.session.flush()
         
         # Atualizar dados principais da O.S.
         # NOTA: numero_os NÃO é alterado - é gerado automaticamente na criação
@@ -235,38 +262,19 @@ def atualizar_ordem(os_id):
         os.detentora = dados.get('detentora', os.detentora)
         os.cnpj = dados.get('cnpj', os.cnpj)
         os.servico = dados.get('servico', os.servico)
-        
-        # Atualizar grupo e região
-        grupo = dados.get('grupo', os.grupo)
-        try:
-            regiao_estoque = int(grupo) if grupo else os.regiao_estoque
-            if not regiao_estoque or regiao_estoque < 1 or regiao_estoque > 6:
-                db.session.rollback()
-                return jsonify({
-                    'erro': f'Grupo/Região inválida: {grupo}. Deve ser um número entre 1 e 6.'
-                }), 400
-        except (ValueError, TypeError):
-            db.session.rollback()
-            return jsonify({
-                'erro': f'Grupo inválido: {grupo}. Deve ser um número entre 1 e 6.'
-            }), 400
-        
-        os.grupo = grupo
-        os.regiao_estoque = regiao_estoque
-        
+        os.grupo = dados.get('grupo', os.grupo)
         os.evento = dados.get('evento', os.evento)
         os.data = dados.get('data', os.data)
         os.horario = dados.get('horario', os.horario)
         os.local = dados.get('local', os.local)
         os.justificativa = dados.get('justificativa', os.justificativa)
-        os.observacoes = dados.get('observacoes', os.observacoes)
+        os.observacoes = dados.get('observacoes', os.observacoes)  # ✅ Adicionar observações
         os.gestor_contrato = dados.get('gestorContrato', os.gestor_contrato)
         os.fiscal_contrato = dados.get('fiscalContrato', os.fiscal_contrato)
-        os.fiscal_tipo = dados.get('fiscalTipo', os.fiscal_tipo)
+        os.fiscal_tipo = dados.get('fiscalTipo', os.fiscal_tipo)  # ✅ Adicionar tipo de fiscal
         os.responsavel = dados.get('responsavel', os.responsavel)
         
-        # Adicionar novos itens
-        itens_os = []
+        # Adicionar novos itens e atualizar estoque
         for item_os_data in dados.get('itens', []):
             # Buscar o item no banco de dados
             item = Item.query.filter_by(item_codigo=item_os_data['itemId']).first()
@@ -280,87 +288,83 @@ def atualizar_ordem(os_id):
                 item_id=item.id,
                 categoria=item_os_data['categoria'],
                 item_codigo=item_os_data['itemId'],
-                item_bec=item_os_data.get('itemBec', ''),
+                item_bec=item_os_data.get('itemBec', ''),  # Código BEC
                 descricao=item_os_data['descricao'],
                 unidade=item_os_data.get('unidade', 'Unidade'),
-                diarias=item_os_data.get('diarias', 1),
-                quantidade_solicitada=item_os_data.get('qtdSolicitada'),
-                quantidade_total=item_os_data['qtdTotal']
+                diarias=item_os_data.get('diarias', 1),  # Multiplicador de diárias
+                quantidade_solicitada=item_os_data.get('qtdSolicitada'),  # Qtd por diária
+                quantidade_total=item_os_data['qtdTotal']  # Qtd total
             )
             db.session.add(item_os)
-            itens_os.append(item_os)
-        
-        db.session.flush()
-        
-        # ✅ PROCESSAR NOVAS BAIXAS DE ESTOQUE
-        try:
-            print(f"📦 Processando novas baixas de estoque para região {regiao_estoque}...")
-            movimentacoes = processar_baixas_os(
-                ordem_servico_id=os.id,
-                itens_os=itens_os,
-                regiao_numero=regiao_estoque,
-                numero_os=os.numero_os
-            )
-            print(f"✅ {len(movimentacoes)} novas movimentações registradas!")
             
-        except (ErroEstoqueInsuficiente, ErroRegiaoInvalida) as e:
-            db.session.rollback()
-            print(f"❌ ERRO de estoque: {str(e)}")
-            return jsonify({'erro': str(e)}), 400
+            # Atualizar estoque com nova quantidade
+            atualizar_estoque_item(
+                categoria_nome=item_os_data['categoria'],
+                item_codigo=item_os_data['itemId'],
+                quantidade=item_os_data['qtdTotal']
+            )
         
         db.session.commit()
-        print(f"✅ O.S. {os.numero_os} atualizada com sucesso!\n")
+        
         return jsonify(os.to_dict()), 200
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERRO ao atualizar O.S.: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'erro': str(e)}), 500
 
 
 @os_bp.route('/<int:os_id>', methods=['DELETE'])
 def deletar_ordem(os_id):
-    """Deleta uma ordem de serviço e reverte o estoque automaticamente"""
+    """Deleta uma ordem de serviço (opcional: reverter estoque)"""
     try:
         os = OrdemServico.query.get_or_404(os_id)
-        numero_os = os.numero_os
         
-        print(f"\n🗑️  Deletando O.S. {numero_os}...")
+        # Opcional: reverter estoque antes de deletar
+        reverter = request.args.get('reverter_estoque', 'false').lower() == 'true'
         
-        # ✅ REVERTER ESTOQUE ANTES DE DELETAR
-        print(f"↩️  Revertendo estoque da O.S. {os_id}...")
-        total_revertido = reverter_baixa_estoque(os_id)
-        print(f"   ✅ {total_revertido} movimentações revertidas!")
+        if reverter:
+            for item_os in os.itens:
+                reverter_estoque_item(
+                    categoria_nome=item_os.categoria,
+                    item_codigo=item_os.item_codigo,
+                    quantidade=item_os.quantidade_total
+                )
         
-        # As movimentações serão deletadas automaticamente devido ao CASCADE
         db.session.delete(os)
         db.session.commit()
-        
-        print(f"✅ O.S. {numero_os} deletada com sucesso!\n")
-        return jsonify({'mensagem': f'O.S. {numero_os} deletada com sucesso'}), 200
+        return jsonify({'mensagem': 'O.S. deletada com sucesso'}), 200
     
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERRO ao deletar O.S.: {str(e)}")
         return jsonify({'erro': str(e)}), 500
 
 
-@os_bp.route('/estoque/regiao/<int:regiao>', methods=['GET'])
-def relatorio_estoque_regiao(regiao):
-    """Retorna relatório de estoque de uma região específica"""
-    try:
-        relatorio = obter_relatorio_estoque_por_regiao(regiao)
-        return jsonify({
-            'regiao': regiao,
-            'itens': relatorio
-        }), 200
+def reverter_estoque_item(categoria_nome, item_codigo, quantidade):
+    """Função auxiliar para reverter estoque ao deletar O.S."""
+    categoria = Categoria.query.filter_by(nome=categoria_nome).first()
+    if not categoria:
+        return
     
-    except ErroRegiaoInvalida as e:
-        return jsonify({'erro': str(e)}), 400
-    except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+    item = Item.query.filter_by(
+        categoria_id=categoria.id,
+        item_codigo=item_codigo
+    ).first()
+    
+    if not item:
+        return
+    
+    estoques = EstoqueRegional.query.filter_by(item_id=item.id).all()
+    
+    if estoques:
+        qtd_por_regiao = quantidade / len(estoques)
+        
+        for est in estoques:
+            try:
+                gasto_atual = float(est.quantidade_gasto.replace('.', '').replace(',', '.'))
+                novo_gasto = max(0, gasto_atual - qtd_por_regiao)
+                est.quantidade_gasto = str(novo_gasto).replace('.', ',')
+            except:
+                continue
 
 
 @os_bp.route('/estatisticas', methods=['GET'])
