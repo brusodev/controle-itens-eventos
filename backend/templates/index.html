@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="theme-color" content="#667eea">
+        <meta name="apple-mobile-web-app-status-bar-style" content="#667eea">
+        <title>Sistema de Controle de Itens</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <!-- Favicon com emoji 📦 -->
+        <link rel="icon"
+            href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+    </head>
+    <body>
+        
+        <!-- Menu Hamburger Mobile -->
+        <div class="mobile-menu-toggle">
+            <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+
+        <!-- Sidebar Mobile -->
+        <nav id="mobile-sidebar" class="sidebar-mobile" aria-label="Menu de navegação">
+            <div class="sidebar-mobile-header">
+                <h2>Menu</h2>
+                <button class="close-sidebar" aria-label="Fechar menu">×</button>
+            </div>
+            <div id="sidebar-tabs" class="sidebar-tabs">
+                <!-- Tabs serão geradas automaticamente pelo JavaScript -->
+            </div>
+        </nav>
+
+        <!-- Overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+        <div class="container">
+            <header>
+                <h1>📦 Sistema de Controle de Itens</h1>
+                <p style="margin-top: 10px; font-size: 0.9rem; opacity: 0.9;">
+                    <a href="{{ url_for('views.importar_os') }}" target="_blank" style="color: white; text-decoration: underline;">
+                        🔄 Importar O.S. Antigas do localStorage
+                    </a>
+                </p>
+            </header>
+
+            <!-- Navegação por Abas -->
+            <nav class="tabs">
+                <button class="tab-btn active"
+                    data-tab="estoque">Estoque</button>
+                <button class="tab-btn" data-tab="alimentacao">🍽️ Itens do Coffee</button>
+                <button class="tab-btn" data-tab="emitir-os">📄 Emitir O.S.</button>
+                <button class="tab-btn" data-tab="ordens-servico">📋 Ordens de Serviço</button>
+                <button class="tab-btn" data-tab="kits">🎁 Kits</button>
+                <button class="tab-btn" data-tab="requisicao">Nova
+                    Requisição</button>
+                <button class="tab-btn" data-tab="pendentes">Pendentes <span
+                        class="badge" id="badge-pendentes">0</span></button>
+                <button class="tab-btn" data-tab="historico">Histórico</button>
+            </nav>
+
+            <!-- Aba: Estoque -->
+            <section id="tab-estoque" class="tab-content active">
+                <div class="section-header">
+                    <h2>Estoque Atual</h2>
+                    <button class="btn btn-primary"
+                        onclick="mostrarModalNovoItem()">+ Adicionar
+                        Item</button>
+                </div>
+
+                <div class="filter-section">
+                    <input type="text" id="filtro-estoque"
+                        placeholder="Buscar item..." onkeyup="filtrarEstoque()">
+                    <select id="filtro-categoria" onchange="filtrarEstoque()">
+                        <option value>Todas as categorias</option>
+                    </select>
+                </div>
+
+                <div id="lista-estoque" class="cards-grid"></div>
+            </section>
+
+            <!-- Aba: Alimentação -->
+            <section id="tab-alimentacao" class="tab-content">
+                <div class="section-header">
+                    <h2>🍽️ Estoque do Coffee Break</h2>
+                </div>
+
+                <div class="filter-section">
+                    <input type="text" id="filtro-alimentacao" placeholder="Buscar item..." onkeyup="filtrarAlimentacao()">
+                    <select id="filtro-categoria-alimentacao" onchange="filtrarAlimentacao()">
+                        <option value="">Todas as categorias</option>
+                        <option value="coffee_break_bebidas_quentes">Coffee Break e Bebidas Quentes</option>
+                        <option value="fornecimento_agua_mineral">Fornecimento de Água Mineral</option>
+                        <option value="kit_lanche">Kit Lanche</option>
+                        <option value="fornecimento_biscoitos">Fornecimento de Biscoitos</option>
+                        <option value="almoco_jantar">Almoço/Jantar</option>
+                    </select>
+                </div>
+
+                <div id="lista-alimentacao" class="cards-grid"></div>
+            </section>
+
+            <!-- Aba: Emitir O.S. -->
+            <section id="tab-emitir-os" class="tab-content">
+                <div class="section-header">
+                    <h2>📄 Emitir Ordem de Serviço</h2>
+                </div>
+
+                <div class="form-container">
+                    <form id="form-emitir-os" class="form-card">
+                        <h3>Dados do Contrato</h3>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="os-contrato-num">Contrato Nº *</label>
+                                <input type="text" id="os-contrato-num" required placeholder="014/DA/2024">
+                            </div>
+                            <div class="form-group flex-1">
+                                <label for="os-data-assinatura">Data da Assinatura *</label>
+                                <input type="date" id="os-data-assinatura" required>
+                            </div>
+                        <div class="form-group flex-1">
+                            <label for="os-prazo-vigencia">Prazo de Vigência *</label>
+                            <input type="text" id="os-prazo-vigencia" required placeholder="12 MESES">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label for="os-detentora">Nome da Detentora *</label>
+                            <input type="text" id="os-detentora" required placeholder="AMBP PROMOÇÕES E EVENTOS EMPRESARIAIS LTDA-EPP">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="os-cnpj">CNPJ *</label>
+                            <input type="text" id="os-cnpj" required placeholder="08.472.572/0001-85">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label for="os-servico">Serviço *</label>
+                            <input type="text" id="os-servico" required placeholder="COFFEE BREAK">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="os-grupo">Grupo</label>
+                            <input type="text" id="os-grupo" placeholder="1">
+                        </div>
+                    </div>
+
+                    <h3>Dados do Evento</h3>
+                    <div class="form-group">
+                        <label for="os-evento">Evento *</label>
+                        <input type="text" id="os-evento" required placeholder="Orientação técnica para a APEOESP...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="os-data-evento">Data do Evento *</label>
+                        <input type="text" id="os-data-evento" required placeholder="Ex: 25 à 28/08/2025">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="os-horario">Horário do Evento *</label>
+                        <textarea id="os-horario" rows="2" required placeholder="Ex: 08:00 às 17:00 Hrs&#10;Manhã: 08:00&#10;Tarde: 14:30"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="os-local">Local do Evento *</label>
+                        <textarea id="os-local" rows="2" required placeholder="CGRH – Largo do Arouche, 302..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="os-responsavel">Responsável</label>
+                        <input type="text" id="os-responsavel" placeholder="Ex: Nome - (11) 1234-5678">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="os-justificativa">Justificativa *</label>
+                        <textarea id="os-justificativa" rows="6" required placeholder="Conviva&#10;25/08/2025 - 200 unidades de Bebidas quentes e 200 unidades de Água Mineral - 08:00 às 17:00 Hrs&#10;26/08/2025 - 200 unidades de Coffee Break - 15:30 Hrs&#10;27/08/2025 - 800 unidades de Bebidas quentes - 08:00 às 17:00 Hrs"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="os-observacoes">Observações</label>
+                        <textarea id="os-observacoes" rows="6" placeholder="Informações adicionais sobre a ordem de serviço..."></textarea>
+                    </div>
+
+                    <h3>Responsáveis</h3>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="os-gestor">Gestor do Contrato *</label>
+                            <input type="text" id="os-gestor" required placeholder="Marcia Cristina Gallo">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="os-fiscal-tipo">Tipo de Fiscal *</label>
+                            <select id="os-fiscal-tipo" required>
+                                <option value="Fiscal do Contrato">Fiscal do Contrato</option>
+                                <option value="Fiscal Técnico(a)">Fiscal Técnico(a)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="os-fiscal">Nome do(a) Fiscal *</label>
+                        <input type="text" id="os-fiscal" required placeholder="Julia Nascimento Tomas">
+                    </div>
+
+                    <h3>Itens da Ordem de Serviço</h3>
+                    <div id="itens-os" class="itens-container">
+                        <!-- Itens serão adicionados dinamicamente -->
+                    </div>
+
+                    <button type="button" class="btn btn-secondary" onclick="adicionarItemOS()">+ Adicionar Item</button>
+                    <br><br>
+                    
+                    <!-- Botões de ação do formulário -->
+                    <div id="botoes-formulario-os" class="form-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-primary" onclick="visualizarOS()">👁️ Visualizar O.S.</button>
+                        <button type="submit" class="btn btn-success">✅ Emitir O.S.</button>
+                    </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Modal: Visualizar O.S. -->
+            <div id="modal-visualizar-os" class="modal">
+                <div class="modal-content modal-large">
+                    <span class="close" onclick="fecharModalVisualizarOS()">&times;</span>
+                    <div id="preview-os" class="os-preview"></div>
+                    <div style="text-align: center; margin-top: 20px;" id="modal-os-buttons">
+                        <button class="btn btn-success" onclick="confirmarEmissaoOS()">✅ Confirmar e Emitir</button>
+                        <button class="btn btn-secondary" onclick="fecharModalVisualizarOS()">Voltar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aba: Ordens de Serviço -->
+            <section id="tab-ordens-servico" class="tab-content">
+                <div class="section-header">
+                    <h2>📋 Ordens de Serviço Emitidas</h2>
+                </div>
+
+                <div class="filter-section">
+                    <input type="text" id="filtro-os" placeholder="Buscar O.S..." onkeyup="filtrarOS()">
+                </div>
+
+                <div id="lista-ordens-servico" class="cards-grid"></div>
+            </section>
+
+            <!-- Aba: Kits -->
+            <section id="tab-kits" class="tab-content">
+                <div class="section-header">
+                    <h2>🎁 Kits de Itens</h2>
+                    <button class="btn btn-primary"
+                        onclick="mostrarModalNovoKit()">+ Criar Kit</button>
+                </div>
+
+                <div class="filter-section">
+                    <input type="text" id="filtro-kits"
+                        placeholder="Buscar kit..." onkeyup="filtrarKits()">
+                </div>
+
+                <div id="lista-kits" class="cards-grid"></div>
+            </section>
+
+            <!-- Aba: Nova Requisição -->
+            <section id="tab-requisicao" class="tab-content">
+                <h2>Nova Requisição de Itens</h2>
+
+                <form id="form-requisicao" class="form-card">
+                    <div class="form-group">
+                        <label for="req-solicitante">Solicitante *</label>
+                        <input type="text" id="req-solicitante" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="req-recebedor">Quem vai receber *</label>
+                        <input type="text" id="req-recebedor" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="req-data-uso">Data de uso *</label>
+                        <input type="date" id="req-data-uso" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="req-observacao">Observações</label>
+                        <textarea id="req-observacao" rows="3"></textarea>
+                    </div>
+
+                    <h3>Itens Solicitados</h3>
+                    
+                    <div class="kit-selector">
+                        <label>Ou adicione um kit completo:</label>
+                        <div class="form-row">
+                            <select id="select-kit" class="flex-2">
+                                <option value="">Selecione um kit</option>
+                            </select>
+                            <button type="button" class="btn btn-secondary" onclick="adicionarKitNaRequisicao()">📦 Adicionar Kit</button>
+                        </div>
+                    </div>
+
+                    <div id="itens-requisicao">
+                        <!-- Itens serão adicionados dinamicamente -->
+                    </div>
+
+                    <button type="button" class="btn btn-secondary"
+                        onclick="adicionarItemRequisicao()">+ Adicionar
+                        Item Individual</button>
+                    <button type="submit" class="btn btn-success">Enviar
+                        Requisição</button>
+                </form>
+            </section>
+
+            <!-- Aba: Requisições Pendentes -->
+            <section id="tab-pendentes" class="tab-content">
+                <h2>Requisições Pendentes de Aprovação</h2>
+                <div id="lista-pendentes"></div>
+            </section>
+
+            <!-- Aba: Histórico -->
+            <section id="tab-historico" class="tab-content">
+                <h2>Histórico de Movimentações</h2>
+
+                <div class="filter-section">
+                    <input type="text" id="filtro-historico"
+                        placeholder="Buscar..." onkeyup="filtrarHistorico()">
+                    <select id="filtro-status" onchange="filtrarHistorico()">
+                        <option value>Todos os status</option>
+                        <option value="aprovada">Aprovadas</option>
+                        <option value="rejeitada">Rejeitadas</option>
+                    </select>
+                </div>
+
+                <div id="lista-historico" class="historico-lista"></div>
+            </section>
+        </div>
+
+        <!-- Modal: Adicionar/Editar Item -->
+        <div id="modal-item" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="fecharModalItem()">&times;</span>
+                <h2 id="modal-titulo">Adicionar Item ao Estoque</h2>
+
+                <form id="form-item">
+                    <div class="form-group">
+                        <label for="item-categoria">Categoria *</label>
+                        <select id="item-categoria" required>
+                            <option value="estrutura_e_espaco">Estrutura e
+                                Espaço</option>
+                            <option value="equipamentos">Equipamentos</option>
+                            <option value="materiais_de_apoio">Materiais de
+                                Apoio</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="item-nome">Nome do Item *</label>
+                        <input type="text" id="item-nome" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="item-quantidade">Quantidade *</label>
+                        <input type="number" id="item-quantidade" min="0"
+                            required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="item-unidade">Unidade</label>
+                        <input type="text" id="item-unidade"
+                            placeholder="Ex: unidade, kg, metros"
+                            value="unidade">
+                    </div>
+
+                    <button type="submit"
+                        class="btn btn-success">Salvar</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="fecharModalItem()">Cancelar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Detalhes da Requisição -->
+        <div id="modal-requisicao" class="modal">
+            <div class="modal-content modal-large">
+                <span class="close"
+                    onclick="fecharModalRequisicao()">&times;</span>
+                <div id="detalhes-requisicao"></div>
+            </div>
+        </div>
+
+        <!-- Modal: Criar/Editar Kit -->
+        <div id="modal-kit" class="modal">
+            <div class="modal-content modal-large">
+                <span class="close" onclick="fecharModalKit()">&times;</span>
+                <h2 id="modal-kit-titulo">Criar Novo Kit</h2>
+                
+                <form id="form-kit">
+                    <div class="form-group">
+                        <label for="kit-nome">Nome do Kit *</label>
+                        <input type="text" id="kit-nome" required placeholder="Ex: Kit Evento Básico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="kit-descricao">Descrição</label>
+                        <textarea id="kit-descricao" rows="2" placeholder="Descrição do kit"></textarea>
+                    </div>
+
+                    <h3>Itens do Kit</h3>
+                    <div id="itens-kit">
+                        <!-- Itens serão adicionados dinamicamente -->
+                    </div>
+
+                    <button type="button" class="btn btn-secondary" onclick="adicionarItemKit()">+ Adicionar Item ao Kit</button>
+                    <br><br>
+                    <button type="submit" class="btn btn-success">Salvar Kit</button>
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalKit()">Cancelar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Detalhes do Kit -->
+        <div id="modal-detalhes-kit" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="fecharModalDetalhesKit()">&times;</span>
+                <div id="conteudo-detalhes-kit"></div>
+            </div>
+        </div>
+
+        <!-- Modal: Editar Alimentação -->
+        <div id="modal-alimentacao" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="fecharModalAlimentacao()">&times;</span>
+                <h2 id="modal-alimentacao-titulo">Editar Item de Alimentação</h2>
+
+                <form id="form-alimentacao">
+                    <div class="form-group">
+                        <label>Descrição:</label>
+                        <input type="text" id="alimentacao-descricao" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Unidade:</label>
+                        <input type="text" id="alimentacao-unidade" readonly>
+                    </div>
+
+                    <div id="regioes-quantidades">
+                        <!-- Campos dinâmicos para regiões -->
+                    </div>
+
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalAlimentacao()">Cancelar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Carregando...</p>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="{{ url_for('static', filename='js/api-client.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    </body>
+</html>
