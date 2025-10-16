@@ -434,9 +434,19 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
 // ========================================
 
 function renderizarEmitirOS() {
-    // Limpar itens anteriores
-    document.getElementById('itens-os').innerHTML = '';
-    // Adicionar um item inicial
+    // ✅ LIMPAR COMPLETAMENTE O FORMULÁRIO
+    const form = document.getElementById('form-emitir-os');
+    if (form) {
+        form.reset(); // Limpa todos os inputs, selects, textareas
+    }
+    
+    // Limpar container de itens
+    const containerItens = document.getElementById('itens-os');
+    if (containerItens) {
+        containerItens.innerHTML = '';
+    }
+    
+    // Adicionar um item inicial limpo
     adicionarItemOS();
 }
 
@@ -472,9 +482,10 @@ function atualizarItensOS(select) {
     if (categoria && dadosAlimentacao[categoria]) {
         dadosAlimentacao[categoria].itens.forEach(item => {
             const option = document.createElement('option');
-            option.value = item.item;
+            option.value = item.id;  // ✅ CORRIGIDO: Usa ID único em vez de item_codigo
             option.textContent = item.descricao;
             option.setAttribute('data-unidade', item.unidade);
+            option.setAttribute('data-item-codigo', item.item);  // Guarda código para referência
             itemSelect.appendChild(option);
         });
     }
@@ -527,13 +538,18 @@ function coletarDadosOS() {
     itemDivs.forEach((div, index) => {
         const categoria = div.querySelector('.os-categoria').value;
         const itemSelect = div.querySelector('.os-item');
-        const itemId = itemSelect.value;
+        const itemId = parseInt(itemSelect.value);  // ✅ CORRIGIDO: Converte para número
         const diarias = parseInt(div.querySelector('.os-diarias').value) || 1;
         const quantidade = parseFloat(div.querySelector('.os-quantidade').value) || 0;
         
         if (categoria && itemId && quantidade) {
-            const item = dadosAlimentacao[categoria].itens.find(i => i.item === itemId);
-            const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+            // ✅ CORRIGIDO: Busca pelo ID único em vez de item_codigo
+            const item = dadosAlimentacao[categoria].itens.find(i => i.id === itemId);
+            
+            if (!item) {
+                console.error(`Item com ID ${itemId} não encontrado na categoria ${categoria}`);
+                return;
+            }
             
             itensOS.push({
                 num: index + 1,
@@ -544,7 +560,7 @@ function coletarDadosOS() {
                 qtdTotal: diarias * quantidade,
                 valorUnit: 25.60, // Valor exemplo - pode ser configurável
                 categoria,
-                itemId
+                itemId  // Agora é o ID único correto
             });
         }
     });
@@ -717,13 +733,23 @@ async function confirmarEmissaoOS() {
         const novaOS = await APIClient.criarOrdemServico(dadosOS);
         
         alert('O.S. emitida com sucesso! Estoque atualizado.');
-        document.getElementById('form-emitir-os').reset();
-        fecharModalVisualizarOS();
+        
+        // ✅ LIMPAR FORMULÁRIO COMPLETAMENTE
+        const form = document.getElementById('form-emitir-os');
+        form.reset(); // Limpa campos de texto, selects, etc.
+        
+        // Limpar itens da O.S. e adicionar um item inicial limpo
         renderizarEmitirOS();
         
-        // Recarregar dados
+        // Fechar modal de visualização
+        fecharModalVisualizarOS();
+        
+        // Recarregar dados de estoque e lista de O.S.
         await renderizarAlimentacao();
         await renderizarOrdensServico();
+        
+        // Voltar para a aba de Ordens de Serviço para ver a O.S. criada
+        abrirAba(null, 'ordens-servico');
         
     } catch (error) {
         console.error('Erro ao emitir O.S.:', error);
