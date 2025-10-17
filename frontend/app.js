@@ -464,15 +464,145 @@ function adicionarItemOS() {
                 <option value="fornecimento_biscoitos">Fornecimento de Biscoitos</option>
                 <option value="almoco_jantar">Almoço/Jantar</option>
             </select>
-            <select class="os-item flex-2">
+            <select class="os-item flex-2" onchange="verificarEstoqueDisponivel(this)">
                 <option value="">Selecione Item</option>
             </select>
-            <input type="number" class="os-diarias flex-1" placeholder="Diárias" min="1" value="1">
-            <input type="number" class="os-quantidade flex-1" placeholder="Qtd" min="0">
+            <input type="number" class="os-diarias flex-1" placeholder="Diárias" min="1" value="1" onchange="verificarEstoqueDisponivel(this)">
+            <input type="number" class="os-quantidade flex-1" placeholder="Qtd" min="0" onchange="verificarEstoqueDisponivel(this)">
         </div>
+        <div class="estoque-info-os" style="margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 0.85rem;"></div>
         <button type="button" class="btn-small btn-danger" onclick="removerItemOS(this)">Remover</button>
     `;
     container.appendChild(itemDiv);
+}
+
+/**
+ * Verificar estoque disponível em tempo real
+ */
+async function verificarEstoqueDisponivel(element) {
+    const itemDiv = element.closest('.item-os');
+    const itemSelect = itemDiv.querySelector('.os-item');
+    const itemId = parseInt(itemSelect.value);
+    const diarias = parseInt(itemDiv.querySelector('.os-diarias').value) || 1;
+    const quantidade = parseFloat(itemDiv.querySelector('.os-quantidade').value) || 0;
+    const infoDiv = itemDiv.querySelector('.estoque-info-os');
+    
+    // Limpar mensagem se não há item selecionado
+    if (!itemId || !quantidade) {
+        infoDiv.innerHTML = '';
+        infoDiv.style.background = '';
+        infoDiv.style.border = '';
+        return;
+    }
+    
+    // Obter região do grupo selecionado
+    const grupo = document.getElementById('os-grupo').value;
+    if (!grupo) {
+        infoDiv.innerHTML = '<span style="color: #ff9800; font-weight: 600;">⚠️ Selecione o grupo primeiro para verificar o estoque disponível</span>';
+        infoDiv.style.background = '#fff3cd';
+        infoDiv.style.border = '1px solid #ff9800';
+        return;
+    }
+    
+    // Mapear grupo para região
+    const regiaoMap = {
+        '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6
+    };
+    const regiao = regiaoMap[grupo];
+    
+    if (!regiao) {
+        infoDiv.innerHTML = '<span style="color: #dc3545; font-weight: 600;">❌ Grupo inválido</span>';
+        infoDiv.style.background = '#f8d7da';
+        infoDiv.style.border = '1px solid #dc3545';
+        return;
+    }
+    
+    // Buscar dados do item
+    const categoriaSelect = itemDiv.querySelector('.os-categoria');
+    const categoria = categoriaSelect.value;
+    
+    if (!categoria || !dadosAlimentacao[categoria]) {
+        return;
+    }
+    
+    const item = dadosAlimentacao[categoria].itens.find(i => i.id === itemId);
+    if (!item || !item.regioes) {
+        infoDiv.innerHTML = '<span style="color: #dc3545; font-weight: 600;">❌ Item sem estoque cadastrado</span>';
+        infoDiv.style.background = '#f8d7da';
+        infoDiv.style.border = '1px solid #dc3545';
+        return;
+    }
+    
+    // Verificar estoque da região
+    const estoqueRegiao = item.regioes[regiao];
+    if (!estoqueRegiao) {
+        infoDiv.innerHTML = `<span style="color: #dc3545; font-weight: 600;">❌ Sem estoque cadastrado na Região ${regiao}</span>`;
+        infoDiv.style.background = '#f8d7da';
+        infoDiv.style.border = '1px solid #dc3545';
+        return;
+    }
+    
+    // Calcular disponível
+    const inicial = parseFloat(estoqueRegiao.inicial.replace('.', '').replace(',', '.')) || 0;
+    const gasto = parseFloat(estoqueRegiao.gasto.replace('.', '').replace(',', '.')) || 0;
+    const disponivel = inicial - gasto;
+    const necessario = diarias * quantidade;
+    
+    // Gerar mensagem com cores
+    let mensagem = '';
+    
+    if (disponivel === 0) {
+        mensagem = `<strong style="color: #dc3545;">❌ ESTOQUE ZERADO na Região ${regiao}</strong><br>` +
+                   `<span style="color: #721c24;">Não é possível emitir esta O.S. Cadastre estoque primeiro.</span>`;
+        infoDiv.style.background = '#f8d7da';
+        infoDiv.style.border = '2px solid #dc3545';
+    } else if (necessario > disponivel) {
+        const falta = necessario - disponivel;
+        mensagem = `<strong style="color: #dc3545;">❌ ESTOQUE INSUFICIENTE na Região ${regiao}</strong><br>` +
+                   `<span style="color: #721c24;">` +
+                   `📦 Disponível: <strong>${disponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong> | ` +
+                   `📋 Necessário: <strong>${necessario.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong> | ` +
+                   `⚠️ Faltam: <strong>${falta.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong>` +
+                   `</span>`;
+        infoDiv.style.background = '#f8d7da';
+        infoDiv.style.border = '2px solid #dc3545';
+    } else if (necessario > disponivel * 0.8) {
+        const restara = disponivel - necessario;
+        mensagem = `<strong style="color: #ff9800;">⚠️ ATENÇÃO - Estoque ficará baixo na Região ${regiao}</strong><br>` +
+                   `<span style="color: #856404;">` +
+                   `📦 Disponível: <strong>${disponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong> | ` +
+                   `📋 Será usado: <strong>${necessario.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong> | ` +
+                   `📉 Restará: <strong>${restara.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong>` +
+                   `</span>`;
+        infoDiv.style.background = '#fff3cd';
+        infoDiv.style.border = '2px solid #ff9800';
+    } else {
+        const restara = disponivel - necessario;
+        const percentualUso = (necessario / disponivel * 100).toFixed(1);
+        mensagem = `<strong style="color: #28a745;">✅ Estoque Suficiente na Região ${regiao}</strong><br>` +
+                   `<span style="color: #155724;">` +
+                   `📦 Disponível: <strong>${disponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong> | ` +
+                   `📋 Será usado: <strong>${necessario.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong> (${percentualUso}%) | ` +
+                   `📈 Restará: <strong>${restara.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ${item.unidade}</strong>` +
+                   `</span>`;
+        infoDiv.style.background = '#d4edda';
+        infoDiv.style.border = '2px solid #28a745';
+    }
+    
+    infoDiv.innerHTML = mensagem;
+}
+
+/**
+ * Atualizar todos os indicadores de estoque quando o grupo mudar
+ */
+function atualizarTodosEstoques() {
+    const itemDivs = document.querySelectorAll('.item-os');
+    itemDivs.forEach(itemDiv => {
+        const itemSelect = itemDiv.querySelector('.os-item');
+        if (itemSelect && itemSelect.value) {
+            verificarEstoqueDisponivel(itemSelect);
+        }
+    });
 }
 
 function atualizarItensOS(select) {
@@ -1950,3 +2080,521 @@ window.onclick = function(event) {
         event.target.style.display = 'none';
     }
 }
+
+// ========================================
+// RELATÓRIOS
+// ========================================
+
+/**
+ * Carregar categorias no filtro de relatório de estoque
+ */
+async function carregarCategoriasRelatorio() {
+    try {
+        const response = await fetch('/api/alimentacao/categorias');
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('rel-estoque-categoria');
+            select.innerHTML = '<option value="">Todas</option>';
+            
+            data.categorias.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.nome;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar categorias:', error);
+    }
+}
+
+// Carregar categorias quando abrir aba de relatórios
+document.addEventListener('DOMContentLoaded', function() {
+    const tabRelatorios = document.querySelector('[data-tab="relatorios"]');
+    if (tabRelatorios) {
+        tabRelatorios.addEventListener('click', carregarCategoriasRelatorio);
+    }
+});
+
+/**
+ * Gerar Relatório de Ordens de Serviço
+ */
+async function gerarRelatorioOS() {
+    const dataInicio = document.getElementById('rel-os-data-inicio').value;
+    const dataFim = document.getElementById('rel-os-data-fim').value;
+    const regiao = document.getElementById('rel-os-regiao').value;
+    const contratada = document.getElementById('rel-os-contratada').value;
+    const servico = document.getElementById('rel-os-servico').value;
+    
+    const params = new URLSearchParams();
+    if (dataInicio) params.append('data_inicio', dataInicio);
+    if (dataFim) params.append('data_fim', dataFim);
+    if (regiao) params.append('regiao', regiao);
+    if (contratada) params.append('contratada', contratada);
+    if (servico) params.append('servico', servico);
+    
+    try {
+        const response = await fetch(`/api/relatorios/ordens-servico?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            exibirResultadoRelatorioOS(data);
+        } else {
+            alert('Erro ao gerar relatório: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao gerar relatório');
+    }
+}
+
+function exibirResultadoRelatorioOS(data) {
+    const resultado = document.getElementById('resultado-rel-os');
+    const stats = document.getElementById('stats-rel-os');
+    const tabela = document.getElementById('tabela-rel-os');
+    
+    // Mostrar resultado
+    resultado.style.display = 'block';
+    
+    // Estatísticas
+    stats.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-value">${data.estatisticas.total_os}</div>
+            <div class="stat-label">Total de O.S.</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.estatisticas.regioes_atendidas}</div>
+            <div class="stat-label">Regiões Atendidas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${Object.keys(data.estatisticas.por_servico).length}</div>
+            <div class="stat-label">Tipos de Serviço</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${Object.keys(data.estatisticas.por_contratada).length}</div>
+            <div class="stat-label">Contratadas</div>
+        </div>
+    `;
+    
+    // Tabela
+    let tabelaHTML = `
+        <div class="relatorio-tabela">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nº O.S.</th>
+                        <th>Data Emissão</th>
+                        <th>Serviço</th>
+                        <th>Evento</th>
+                        <th>Contratada</th>
+                        <th>Região</th>
+                        <th>Itens</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    data.ordens.forEach(os => {
+        const dataEmissao = os.dataEmissao ? new Date(os.dataEmissao).toLocaleDateString('pt-BR') : '-';
+        tabelaHTML += `
+            <tr>
+                <td><strong>${os.numeroOS}</strong></td>
+                <td>${dataEmissao}</td>
+                <td>${os.servico || '-'}</td>
+                <td>${os.evento || '-'}</td>
+                <td>${os.detentora || '-'}</td>
+                <td>${os.regiaoEstoque || '-'}</td>
+                <td>${os.itens ? os.itens.length : 0}</td>
+            </tr>
+        `;
+    });
+    
+    tabelaHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    tabela.innerHTML = tabelaHTML;
+}
+
+/**
+ * Gerar PDF do Relatório de O.S.
+ */
+function gerarPDFRelatorioOS() {
+    const dataInicio = document.getElementById('rel-os-data-inicio').value;
+    const dataFim = document.getElementById('rel-os-data-fim').value;
+    const regiao = document.getElementById('rel-os-regiao').value;
+    
+    const params = new URLSearchParams();
+    if (dataInicio) params.append('data_inicio', dataInicio);
+    if (dataFim) params.append('data_fim', dataFim);
+    if (regiao) params.append('regiao', regiao);
+    
+    window.open(`/api/relatorios/pdf/ordens-servico?${params}`, '_blank');
+}
+
+/**
+ * Gerar Relatório de Estoque
+ */
+async function gerarRelatorioEstoque() {
+    const categoriaId = document.getElementById('rel-estoque-categoria').value;
+    const regiao = document.getElementById('rel-estoque-regiao').value;
+    
+    const params = new URLSearchParams();
+    if (categoriaId) params.append('categoria_id', categoriaId);
+    if (regiao) params.append('regiao', regiao);
+    
+    try {
+        const response = await fetch(`/api/relatorios/estoque-posicao?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            exibirResultadoRelatorioEstoque(data);
+        } else {
+            alert('Erro ao gerar relatório: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao gerar relatório');
+    }
+}
+
+function exibirResultadoRelatorioEstoque(data) {
+    const resultado = document.getElementById('resultado-rel-estoque');
+    const stats = document.getElementById('stats-rel-estoque');
+    const tabela = document.getElementById('tabela-rel-estoque');
+    
+    resultado.style.display = 'block';
+    
+    // Estatísticas
+    stats.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.total_itens}</div>
+            <div class="stat-label">Total de Itens</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.total_inicial.toLocaleString('pt-BR')}</div>
+            <div class="stat-label">Quantidade Inicial</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.total_gasto.toLocaleString('pt-BR')}</div>
+            <div class="stat-label">Quantidade Gasta</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.percentual_uso_geral.toFixed(1)}%</div>
+            <div class="stat-label">Percentual de Uso</div>
+        </div>
+    `;
+    
+    // Tabela
+    let tabelaHTML = `
+        <div class="relatorio-tabela">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th>Item</th>
+                        <th>Unidade</th>
+                        <th>Região</th>
+                        <th>Inicial</th>
+                        <th>Gasto</th>
+                        <th>Disponível</th>
+                        <th>% Uso</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    data.estoque.forEach(item => {
+        const corUso = item.percentual_uso > 80 ? 'color: #dc3545; font-weight: bold;' : 
+                       item.percentual_uso > 50 ? 'color: #ff9800; font-weight: bold;' : '';
+        
+        tabelaHTML += `
+            <tr>
+                <td>${item.categoria}</td>
+                <td>${item.descricao}</td>
+                <td>${item.unidade}</td>
+                <td>${item.regiao}</td>
+                <td>${item.quantidade_inicial.toLocaleString('pt-BR')}</td>
+                <td>${item.quantidade_gasto.toLocaleString('pt-BR')}</td>
+                <td>${item.quantidade_disponivel.toLocaleString('pt-BR')}</td>
+                <td style="${corUso}">${item.percentual_uso.toFixed(1)}%</td>
+            </tr>
+        `;
+    });
+    
+    tabelaHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    tabela.innerHTML = tabelaHTML;
+}
+
+/**
+ * Gerar PDF do Relatório de Estoque
+ */
+function gerarPDFRelatorioEstoque() {
+    const categoriaId = document.getElementById('rel-estoque-categoria').value;
+    const regiao = document.getElementById('rel-estoque-regiao').value;
+    
+    const params = new URLSearchParams();
+    if (categoriaId) params.append('categoria_id', categoriaId);
+    if (regiao) params.append('regiao', regiao);
+    
+    window.open(`/api/relatorios/pdf/estoque?${params}`, '_blank');
+}
+
+/**
+ * Gerar Relatório de Movimentações
+ */
+async function gerarRelatorioMovimentacoes() {
+    const dataInicio = document.getElementById('rel-mov-data-inicio').value;
+    const dataFim = document.getElementById('rel-mov-data-fim').value;
+    const regiao = document.getElementById('rel-mov-regiao').value;
+    const tipo = document.getElementById('rel-mov-tipo').value;
+    
+    const params = new URLSearchParams();
+    if (dataInicio) params.append('data_inicio', dataInicio);
+    if (dataFim) params.append('data_fim', dataFim);
+    if (regiao) params.append('regiao', regiao);
+    if (tipo) params.append('tipo', tipo);
+    
+    try {
+        const response = await fetch(`/api/relatorios/movimentacoes?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            exibirResultadoRelatorioMovimentacoes(data);
+        } else {
+            alert('Erro ao gerar relatório: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao gerar relatório');
+    }
+}
+
+function exibirResultadoRelatorioMovimentacoes(data) {
+    const resultado = document.getElementById('resultado-rel-mov');
+    const stats = document.getElementById('stats-rel-mov');
+    const tabela = document.getElementById('tabela-rel-mov');
+    
+    resultado.style.display = 'block';
+    
+    // Estatísticas
+    stats.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.total_movimentacoes}</div>
+            <div class="stat-label">Total de Movimentações</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.total_saidas.toLocaleString('pt-BR')}</div>
+            <div class="stat-label">Total de Saídas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.total_entradas.toLocaleString('pt-BR')}</div>
+            <div class="stat-label">Total de Entradas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.resumo.saldo.toLocaleString('pt-BR')}</div>
+            <div class="stat-label">Saldo</div>
+        </div>
+    `;
+    
+    // Tabela
+    let tabelaHTML = `
+        <div class="relatorio-tabela">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Item</th>
+                        <th>O.S.</th>
+                        <th>Região</th>
+                        <th>Quantidade</th>
+                        <th>Tipo</th>
+                        <th>Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    data.movimentacoes.forEach(mov => {
+        const badgeClass = mov.tipo === 'SAIDA' ? 'badge-saida' : 'badge-entrada';
+        
+        tabelaHTML += `
+            <tr>
+                <td>${mov.data}</td>
+                <td>${mov.item_descricao}</td>
+                <td>${mov.numero_os}</td>
+                <td>${mov.regiao}</td>
+                <td>${mov.quantidade.toLocaleString('pt-BR')}</td>
+                <td><span class="${badgeClass}">${mov.tipo}</span></td>
+                <td>${mov.observacao || '-'}</td>
+            </tr>
+        `;
+    });
+    
+    tabelaHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    tabela.innerHTML = tabelaHTML;
+}
+
+/**
+ * Gerar Relatório de Consumo por Categoria
+ */
+async function gerarRelatorioCategoria() {
+    const dataInicio = document.getElementById('rel-cat-data-inicio').value;
+    const dataFim = document.getElementById('rel-cat-data-fim').value;
+    
+    const params = new URLSearchParams();
+    if (dataInicio) params.append('data_inicio', dataInicio);
+    if (dataFim) params.append('data_fim', dataFim);
+    
+    try {
+        const response = await fetch(`/api/relatorios/consumo-por-categoria?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            exibirResultadoRelatorioCategoria(data);
+        } else {
+            alert('Erro ao gerar relatório: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao gerar relatório');
+    }
+}
+
+function exibirResultadoRelatorioCategoria(data) {
+    const resultado = document.getElementById('resultado-rel-cat');
+    const tabela = document.getElementById('tabela-rel-cat');
+    
+    resultado.style.display = 'block';
+    
+    // Tabela agrupada por categoria
+    let tabelaHTML = '<div class="relatorio-tabela">';
+    
+    data.categorias.forEach(cat => {
+        tabelaHTML += `
+            <h5 style="margin-top: 20px; color: #667eea;">${cat.categoria} (BEC: ${cat.natureza || 'N/A'})</h5>
+            <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 10px;">
+                Total de itens diferentes: ${cat.total_itens_diferentes} | 
+                Consumo total: ${cat.total_consumo.toLocaleString('pt-BR')}
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Unidade</th>
+                        <th>Quantidade Consumida</th>
+                        <th>Vezes Utilizado</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        cat.itens.forEach(item => {
+            tabelaHTML += `
+                <tr>
+                    <td>${item.descricao}</td>
+                    <td>${item.unidade}</td>
+                    <td>${item.total_consumido.toLocaleString('pt-BR')}</td>
+                    <td>${item.vezes_utilizado}</td>
+                </tr>
+            `;
+        });
+        
+        tabelaHTML += `
+                </tbody>
+            </table>
+        `;
+    });
+    
+    tabelaHTML += '</div>';
+    tabela.innerHTML = tabelaHTML;
+}
+
+/**
+ * Gerar Relatório de Top Itens
+ */
+async function gerarRelatorioTopItens() {
+    const dataInicio = document.getElementById('rel-top-data-inicio').value;
+    const dataFim = document.getElementById('rel-top-data-fim').value;
+    const limite = document.getElementById('rel-top-limite').value;
+    
+    const params = new URLSearchParams();
+    if (dataInicio) params.append('data_inicio', dataInicio);
+    if (dataFim) params.append('data_fim', dataFim);
+    if (limite) params.append('limite', limite);
+    
+    try {
+        const response = await fetch(`/api/relatorios/itens-mais-utilizados?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            exibirResultadoRelatorioTopItens(data);
+        } else {
+            alert('Erro ao gerar relatório: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao gerar relatório');
+    }
+}
+
+function exibirResultadoRelatorioTopItens(data) {
+    const resultado = document.getElementById('resultado-rel-top');
+    const tabela = document.getElementById('tabela-rel-top');
+    
+    resultado.style.display = 'block';
+    
+    // Tabela com ranking
+    let tabelaHTML = `
+        <div class="relatorio-tabela">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Posição</th>
+                        <th>Item</th>
+                        <th>Categoria</th>
+                        <th>Unidade</th>
+                        <th>Quantidade Consumida</th>
+                        <th>Vezes Utilizado</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    data.ranking.forEach(item => {
+        const posClass = item.posicao <= 3 ? `top-${item.posicao}` : '';
+        
+        tabelaHTML += `
+            <tr>
+                <td><span class="ranking-position ${posClass}">${item.posicao}</span></td>
+                <td><strong>${item.descricao}</strong></td>
+                <td>${item.categoria}</td>
+                <td>${item.unidade}</td>
+                <td>${item.total_consumido.toLocaleString('pt-BR')}</td>
+                <td>${item.vezes_utilizado}</td>
+            </tr>
+        `;
+    });
+    
+    tabelaHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    tabela.innerHTML = tabelaHTML;
+}
+

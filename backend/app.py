@@ -25,10 +25,12 @@ def create_app():
     from routes.itens_routes import itens_bp
     from routes.alimentacao_routes import alimentacao_bp
     from routes.os_routes import os_bp
+    from routes.relatorios_routes import relatorios_bp
     
     app.register_blueprint(itens_bp, url_prefix='/api/itens')
     app.register_blueprint(alimentacao_bp, url_prefix='/api/alimentacao')
     app.register_blueprint(os_bp, url_prefix='/api/ordens-servico')
+    app.register_blueprint(relatorios_bp)
     
     # Criar tabelas
     with app.app_context():

@@ -200,73 +200,8 @@ header h1 {
     font-size: 1rem;
 }
 
-/* ========================================
-   BOTÕES
-   ======================================== */
-
-.btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin: 5px;
-}
-
-.btn-primary {
-    background: var(--primary-color);
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #0056b3;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
-}
-
-.btn-success {
-    background: var(--success-color);
-    color: white;
-}
-
-.btn-success:hover {
-    background: #218838;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
-}
-
-.btn-secondary {
-    background: var(--secondary-color);
-    color: white;
-}
-
-.btn-secondary:hover {
-    background: #5a6268;
-}
-
-.btn-warning {
-    background: #ffc107;
-    color: #000;
-}
-
-.btn-warning:hover {
-    background: #e0a800;
-}
-
-.btn-danger {
-    background: var(--danger-color);
-    color: white;
-}
-
-.btn-danger:hover {
-    background: #c82333;
-}
-
-.btn-small {
-    padding: 8px 15px;
-    font-size: 0.9rem;
+.filter-section button {
+    flex-shrink: 0;
 }
 
 /* ========================================
@@ -1159,6 +1094,13 @@ header h1 {
     gap: 8px;
     text-decoration: none;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    min-width: 120px;
+}
+
+.btn-small{
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    min-width: 80px;
 }
 
 .btn:hover {
@@ -1218,11 +1160,13 @@ header h1 {
 .btn-sm {
     padding: 6px 12px;
     font-size: 0.875rem;
+    min-width: 80px;
 }
 
 .btn-lg {
     padding: 14px 28px;
     font-size: 1.125rem;
+    min-width: 160px;
 }
 
 /* ========================================
@@ -1366,6 +1310,16 @@ header h1 {
     padding-right: 10px;
 }
 
+/* Lista de itens da OS */
+.itens-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
 /* Cards de O.S. - Correção de botões */
 .os-card {
     position: relative;
@@ -1384,7 +1338,7 @@ header h1 {
 
 .os-card-footer .btn {
     flex: 1 1 auto;
-    min-width: 100px;
+    min-width: 120px;
 }
 
 /* ========================================
@@ -1556,6 +1510,7 @@ header h1 {
     
     .os-card-footer .btn {
         width: 100%;
+        min-width: 120px;
     }
     
     .form-actions {
@@ -1565,6 +1520,7 @@ header h1 {
     
     .form-actions .btn {
         width: 100%;
+        min-width: 120px;
     }
     
     /* Tabelas com scroll horizontal */
@@ -1607,11 +1563,13 @@ header h1 {
     .btn {
         padding: 8px 12px;
         font-size: 0.875rem;
+        min-width: 100px;
     }
     
     .btn-sm {
         padding: 6px 10px;
         font-size: 0.8rem;
+        min-width: 70px;
     }
     
     .sidebar-mobile {
@@ -1715,7 +1673,7 @@ body, html {
 /* Formulários - Evitar overflow em itens */
 #itens-os {
     width: 100%;
-    overflow-y: auto;
+    min-height: 100px;
 }
 
 .form-card {
@@ -1753,4 +1711,391 @@ body, html {
         width: 100%;
     }
 }
+
+/* ========================================
+   RELATÓRIOS
+   ======================================== */
+
+.relatorios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 25px;
+    padding: 20px;
+}
+
+.relatorio-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    padding: 25px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--border-color);
+}
+
+.relatorio-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+.relatorio-header h3 {
+    color: #667eea;
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.relatorio-header p {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.relatorio-filtros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.relatorio-filtros .form-group {
+    margin-bottom: 0;
+}
+
+.relatorio-filtros label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.relatorio-filtros input,
+.relatorio-filtros select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+}
+
+.relatorio-filtros input:focus,
+.relatorio-filtros select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.relatorio-acoes {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.relatorio-acoes button {
+    flex: 1;
+    min-width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    font-weight: 600;
+}
+
+.relatorio-resultado {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 2px solid #e9ecef;
+}
+
+.relatorio-resultado h4 {
+    color: #495057;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stat-card .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.stat-card .stat-label {
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.relatorio-tabela {
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+.relatorio-tabela table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.relatorio-tabela th {
+    background: #667eea;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.relatorio-tabela td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.relatorio-tabela tr:hover {
+    background: #f8f9fa;
+}
+
+.relatorio-tabela tr:nth-child(even) {
+    background: #fafbfc;
+}
+
+.relatorio-tabela tr:nth-child(even):hover {
+    background: #f1f3f5;
+}
+
+/* Badges de status */
+.badge-saida {
+    background: #dc3545;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-entrada {
+    background: #28a745;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ranking-position {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #667eea;
+    color: white;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.ranking-position.top-1 {
+    background: #ffd700;
+    color: #333;
+}
+
+.ranking-position.top-2 {
+    background: #c0c0c0;
+    color: #333;
+}
+
+.ranking-position.top-3 {
+    background: #cd7f32;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .relatorios-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .relatorio-filtros {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .relatorio-acoes {
+        flex-direction: column;
+    }
+    
+    .relatorio-acoes button {
+        width: 100%;
+    }
+}
+
+/* ========================================
+   ALERTAS DE ESTOQUE (O.S.)
+   ======================================== */
+
+.estoque-info-os {
+    display: none; /* Oculto por padrão, aparece quando tem conteúdo */
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    animation: slideDown 0.3s ease-out;
+}
+
+.estoque-info-os:not(:empty) {
+    display: block; /* Mostra quando tem conteúdo */
+}
+
+.estoque-info-os strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.estoque-info-os span {
+    font-size: 0.8rem;
+}
+
+/* Cores dos alertas já são aplicadas inline via JavaScript para melhor controle */
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Ajuste no layout dos itens da O.S. para acomodar os alertas */
+.item-os {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.item-os .form-row {
+    margin-bottom: 8px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+/* Inputs e selects dentro de item-os */
+.item-os input,
+.item-os select {
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    background-color: white;
+    transition: border-color 0.3s ease;
+    min-width: 0;
+}
+
+.item-os input:focus,
+.item-os select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.os-categoria {
+    flex: 0 1 150px;
+    min-width: 140px;
+}
+
+.os-item {
+    flex: 2;
+    min-width: 200px;
+}
+
+.os-diarias {
+    flex: 0 1 70px;
+    min-width: 60px;
+}
+
+.os-quantidade {
+    flex: 0 1 70px;
+    min-width: 60px;
+}
+
+
+/* ========================================
+   VALIDAÇÃO DE ESTOQUE EM TEMPO REAL
+   ======================================== */
+
+.estoque-info-os {
+    padding: 12px;
+    margin-top: 8px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.estoque-info-os.verde {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.estoque-info-os.amarelo {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+}
+
+.estoque-info-os.vermelho {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+
 
