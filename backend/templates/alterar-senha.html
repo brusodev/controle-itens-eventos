@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alterar Senha - Sistema</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+
+        .container-senha {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 450px;
+            width: 100%;
+            padding: 50px 40px;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .header-senha {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .icon-senha {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .header-senha h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .header-senha p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .strength-meter {
+            margin-top: 8px;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            background: #dc3545;
+            transition: all 0.3s ease;
+        }
+
+        .strength-bar.weak {
+            width: 33%;
+            background: #dc3545;
+        }
+
+        .strength-bar.medium {
+            width: 66%;
+            background: #ffc107;
+        }
+
+        .strength-bar.strong {
+            width: 100%;
+            background: #28a745;
+        }
+
+        .strength-text {
+            font-size: 0.75rem;
+            margin-top: 4px;
+            color: #666;
+        }
+
+        .password-requirements {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .requirement {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .requirement:last-child {
+            margin-bottom: 0;
+        }
+
+        .requirement-icon {
+            width: 20px;
+            margin-right: 8px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .requirement.met .requirement-icon {
+            color: #28a745;
+        }
+
+        .requirement.unmet .requirement-icon {
+            color: #dc3545;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .link-back {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .link-back a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        .link-back a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-senha">
+        <div class="header-senha">
+            <span class="icon-senha">🔐</span>
+            <h1>Alterar Senha</h1>
+            <p>Crie uma senha forte para proteger sua conta</p>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <form id="formAlterarSenha" onsubmit="procesarSenha(event)">
+            <!-- Senha Atual -->
+            <div class="form-group">
+                <label for="senhaAtual">Senha Atual *</label>
+                <input type="password" id="senhaAtual" name="senhaAtual" required placeholder="Digite sua senha atual">
+            </div>
+
+            <!-- Nova Senha -->
+            <div class="form-group">
+                <label for="senhaNova">Nova Senha *</label>
+                <input type="password" id="senhaNova" name="senhaNova" required placeholder="Digite uma nova senha" onkeyup="verificarForca()">
+                <div class="strength-meter">
+                    <div id="strengthBar" class="strength-bar"></div>
+                </div>
+                <div class="strength-text" id="strengthText"></div>
+            </div>
+
+            <!-- Confirmar Senha -->
+            <div class="form-group">
+                <label for="senhaConfirma">Confirmar Senha *</label>
+                <input type="password" id="senhaConfirma" name="senhaConfirma" required placeholder="Confirme sua nova senha" onkeyup="verificarCoincidia()">
+            </div>
+
+            <!-- Requisitos de Senha -->
+            <div class="password-requirements">
+                <div class="requirement" id="req-length">
+                    <span class="requirement-icon">○</span>
+                    <span>Mínimo 8 caracteres</span>
+                </div>
+                <div class="requirement" id="req-uppercase">
+                    <span class="requirement-icon">○</span>
+                    <span>Pelo menos 1 letra maiúscula</span>
+                </div>
+                <div class="requirement" id="req-lowercase">
+                    <span class="requirement-icon">○</span>
+                    <span>Pelo menos 1 letra minúscula</span>
+                </div>
+                <div class="requirement" id="req-number">
+                    <span class="requirement-icon">○</span>
+                    <span>Pelo menos 1 número</span>
+                </div>
+                <div class="requirement" id="req-special">
+                    <span class="requirement-icon">○</span>
+                    <span>Pelo menos 1 caractere especial (!@#$%)</span>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button type="button" class="btn btn-secondary" onclick="voltarParaPerfil()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnSubmit">Alterar Senha</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>Processando...</span>
+            </div>
+        </form>
+
+        <div class="link-back">
+            <a href="/gerenciar-conta">← Voltar para Gerenciamento de Conta</a>
+        </div>
+    </div>
+
+    <script>
+        function verificarForca() {
+            const senha = document.getElementById('senhaNova').value;
+            const requirements = {
+                length: senha.length >= 8,
+                uppercase: /[A-Z]/.test(senha),
+                lowercase: /[a-z]/.test(senha),
+                number: /\d/.test(senha),
+                special: /[!@#$%^&*]/.test(senha)
+            };
+
+            // Atualizar requisitos
+            atualizarRequisito('req-length', requirements.length);
+            atualizarRequisito('req-uppercase', requirements.uppercase);
+            atualizarRequisito('req-lowercase', requirements.lowercase);
+            atualizarRequisito('req-number', requirements.number);
+            atualizarRequisito('req-special', requirements.special);
+
+            // Calcular força
+            const metidos = Object.values(requirements).filter(Boolean).length;
+            const bar = document.getElementById('strengthBar');
+            const text = document.getElementById('strengthText');
+
+            bar.className = 'strength-bar';
+            if (metidos < 2) {
+                bar.classList.add('weak');
+                text.textContent = 'Senha fraca';
+            } else if (metidos < 4) {
+                bar.classList.add('medium');
+                text.textContent = 'Senha média';
+            } else {
+                bar.classList.add('strong');
+                text.textContent = 'Senha forte ✓';
+            }
+        }
+
+        function atualizarRequisito(id, atendido) {
+            const elem = document.getElementById(id);
+            if (atendido) {
+                elem.classList.add('met');
+                elem.classList.remove('unmet');
+                elem.querySelector('.requirement-icon').textContent = '✓';
+            } else {
+                elem.classList.add('unmet');
+                elem.classList.remove('met');
+                elem.querySelector('.requirement-icon').textContent = '○';
+            }
+        }
+
+        function verificarCoincidia() {
+            const nova = document.getElementById('senhaNova').value;
+            const confirma = document.getElementById('senhaConfirma').value;
+            
+            if (confirma && nova !== confirma) {
+                document.getElementById('senhaConfirma').style.borderColor = '#dc3545';
+            } else {
+                document.getElementById('senhaConfirma').style.borderColor = '#e0e0e0';
+            }
+        }
+
+        async function procesarSenha(event) {
+            event.preventDefault();
+
+            const senhaAtual = document.getElementById('senhaAtual').value;
+            const senhaNova = document.getElementById('senhaNova').value;
+            const senhaConfirma = document.getElementById('senhaConfirma').value;
+
+            // Validações
+            if (!senhaAtual || !senhaNova || !senhaConfirma) {
+                mostrarAlerta('Todos os campos são obrigatórios', 'error');
+                return;
+            }
+
+            if (senhaNova.length < 8) {
+                mostrarAlerta('A nova senha deve ter no mínimo 8 caracteres', 'error');
+                return;
+            }
+
+            if (senhaNova !== senhaConfirma) {
+                mostrarAlerta('As senhas não coincidem', 'error');
+                return;
+            }
+
+            if (senhaAtual === senhaNova) {
+                mostrarAlerta('A nova senha deve ser diferente da atual', 'error');
+                return;
+            }
+
+            // Mostrar loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('btnSubmit').disabled = true;
+
+            try {
+                const response = await fetch('/auth/alterar-senha', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        senha_atual: senhaAtual,
+                        senha_nova: senhaNova
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    mostrarAlerta('✓ Senha alterada com sucesso! Redirecionando...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/gerenciar-conta';
+                    }, 2000);
+                } else {
+                    mostrarAlerta(data.erro || 'Erro ao alterar senha', 'error');
+                }
+            } catch (error) {
+                mostrarAlerta('Erro na requisição: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('btnSubmit').disabled = false;
+            }
+        }
+
+        function mostrarAlerta(mensagem, tipo) {
+            const alert = document.getElementById('alert');
+            alert.textContent = mensagem;
+            alert.className = `alert ${tipo === 'success' ? 'alert-success' : tipo === 'error' ? 'alert-error' : 'alert-info'} show`;
+            alert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function voltarParaPerfil() {
+            if (confirm('Descartar alterações?')) {
+                window.location.href = '/gerenciar-conta';
+            }
+        }
+    </script>
+</body>
+</html>

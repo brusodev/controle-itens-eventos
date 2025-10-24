@@ -11,6 +11,12 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JSON_AS_ASCII'] = False
     
+    # Segurança e Sessão
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-mudareemprodução')
+    app.config['SESSION_COOKIE_SECURE'] = False  # True em produção com HTTPS
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 horas
+    
     # CORS para permitir requisições do frontend
     CORS(app)
     
@@ -19,7 +25,9 @@ def create_app():
     
     # Registrar rotas de views (templates HTML)
     from routes.views_routes import views_bp
+    from routes.auth_routes import auth_bp
     app.register_blueprint(views_bp)
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     
     # Registrar rotas de API
     from routes.itens_routes import itens_bp

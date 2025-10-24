@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import db, Categoria, Item, EstoqueRegional
+from routes.auth_routes import login_requerido, admin_requerido
 
 alimentacao_bp = Blueprint('alimentacao', __name__)
 
@@ -34,6 +35,8 @@ def listar_categorias():
 
 
 @alimentacao_bp.route('/categorias', methods=['POST'])
+@login_requerido
+@admin_requerido
 def criar_categoria():
     """Cria uma nova categoria de alimentação"""
     try:
@@ -81,6 +84,8 @@ def filtrar_alimentacao():
 
 
 @alimentacao_bp.route('/item/<int:item_id>/estoque', methods=['PUT'])
+@login_requerido
+@admin_requerido
 def atualizar_estoque(item_id):
     """Atualiza quantidades de estoque de um item específico"""
     try:

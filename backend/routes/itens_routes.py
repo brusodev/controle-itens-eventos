@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import db, Item, Categoria, EstoqueRegional
+from routes.auth_routes import login_requerido, admin_requerido
 
 itens_bp = Blueprint('itens', __name__)
 
@@ -36,6 +37,8 @@ def obter_item(item_id):
 
 
 @itens_bp.route('/', methods=['POST'])
+@login_requerido
+@admin_requerido
 def criar_item():
     """Cria um novo item"""
     try:
@@ -76,6 +79,8 @@ def criar_item():
 
 
 @itens_bp.route('/<int:item_id>', methods=['PUT'])
+@login_requerido
+@admin_requerido
 def atualizar_item(item_id):
     """Atualiza um item e seus estoques"""
     try:
@@ -120,6 +125,8 @@ def atualizar_item(item_id):
 
 
 @itens_bp.route('/<int:item_id>', methods=['DELETE'])
+@login_requerido
+@admin_requerido
 def deletar_item(item_id):
     """Deleta um item"""
     try:

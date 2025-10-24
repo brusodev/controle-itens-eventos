@@ -1,62 +1,474 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <meta name="theme-color" content="#667eea">
-        <meta name="apple-mobile-web-app-status-bar-style" content="#667eea">
-        <title>Controle de Itens</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-        <!-- Favicon com emoji 📦 -->
-        <link rel="icon"
-            href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
-    </head>
-    <body>
-        
-        <!-- Menu Hamburger Mobile -->
-        <div class="mobile-menu-toggle">
-            <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Itens - Sistema</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        /* Navbar Responsivo */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .navbar-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .navbar-title-mobile {
+            display: none;
+        }
+
+        /* Menu Hamburguer */
+        .hamburger-menu {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 4px;
+            padding: 8px;
+        }
+
+        .hamburger-menu span {
+            display: block;
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-menu.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger-menu.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger-menu.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        /* Links da Navbar */
+        .navbar-links {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: white;
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 0 5px;
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 0 5px;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .usuario-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-right: 15px;
+            border-right: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .usuario-info .nome {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .usuario-info .cargo {
+            font-size: 0.75rem;
+            opacity: 0.85;
+        }
+
+        .btn-user {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-user:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(255, 51, 51, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255, 51, 51, 0.9);
+            border-color: rgba(255, 100, 100, 0.8);
+        }
+
+        body {
+            margin-top: 70px;
+        }
+
+        /* Menu dropdown para usuário */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            border-radius: 6px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .dropdown-content a,
+        .dropdown-content button {
+            color: #333;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .dropdown-content a:hover,
+        .dropdown-content button:hover {
+            background-color: #f1f1f1;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-divider {
+            border-top: 1px solid #ddd;
+            margin: 5px 0;
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 1024px) {
+            .navbar {
+                height: 60px;
+                padding: 0 15px;
+            }
+
+            .navbar-title {
+                font-size: 1rem;
+            }
+
+            .nav-btn {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+
+            .usuario-info .nome {
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hamburger-menu {
+                display: flex;
+                order: -1;
+            }
+
+            .navbar-title-desktop {
+                display: none;
+            }
+
+            .navbar-title-mobile {
+                display: block;
+                font-size: 1rem;
+            }
+
+            .navbar-links {
+                display: none;
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                flex-direction: column;
+                padding: 20px;
+                gap: 10px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                max-height: calc(100vh - 60px);
+                overflow-y: auto;
+            }
+
+            .navbar-links.active {
+                display: flex;
+            }
+
+            .nav-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 12px;
+            }
+
+            .nav-divider {
+                width: 100%;
+                height: 1px;
+                margin: 5px 0;
+            }
+
+            .usuario-info {
+                border-right: none;
+                padding-right: 0;
+            }
+
+            .usuario-info .nome {
+                display: none;
+            }
+
+            .btn-logout {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+
+            .dropdown-content {
+                right: auto;
+                left: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar {
+                height: 55px;
+            }
+
+            .navbar-title-mobile {
+                font-size: 0.9rem;
+            }
+
+            .btn-logout {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar Responsivo -->
+    <div class="navbar">
+        <div class="navbar-left">
+            <!-- Menu Hamburguer (Mobile) -->
+            <div class="hamburger-menu" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
                 <span></span>
-            </button>
+            </div>
+
+            <!-- Título -->
+            <div class="navbar-title navbar-title-desktop">🎯 Controle de Itens</div>
+            <div class="navbar-title navbar-title-mobile">🎯 Sistema</div>
+
+            <!-- Links de Navegação -->
+            <div class="navbar-links" id="navbarLinks">
+                <!-- Navegação Principal -->
+                <!-- <a href="/" class="nav-btn active" title="Dashboard">
+                    <span>�</span>
+                    <span>Dashboard</span>
+                </a>
+                 -->
+                <div class="nav-divider"></div>
+
+                <!-- Abas do Sistema -->
+                <a href="/alimentacao" class="nav-btn" title="Itens do Coffee Break">
+                    <span>☕</span>
+                    <span>Coffee</span>
+                </a>
+                <a href="/emitir-os" class="nav-btn" title="Emitir Ordem de Serviço">
+                    <span>📝</span>
+                    <span>Emitir O.S.</span>
+                </a>
+                <a href="/ordens-servico" class="nav-btn" title="Ordens de Serviço">
+                    <span>📋</span>
+                    <span>Ordens</span>
+                </a>
+                <a href="/relatorios" class="nav-btn" title="Relatórios">
+                    <span>📊</span>
+                    <span>Relatório</span>
+                </a>
+
+                <div class="nav-divider"></div>
+
+                <!-- Páginas Adicionais -->
+                <!-- <a href="/importar-os" class="nav-btn" title="Importar O.S. Antigas">
+                    <span>📥</span>
+                    <span>Importar</span>
+                </a> -->
+                <a href="/gerenciar-usuarios" class="nav-btn" title="Gerenciar Usuários">
+                    <span>👥</span>
+                    <span>Usuários</span>
+                </a>
+            </div>
         </div>
 
-        <!-- Sidebar Mobile -->
-        <nav id="mobile-sidebar" class="sidebar-mobile" aria-label="Menu de navegação">
-            <div class="sidebar-mobile-header">
-                <h2>Menu</h2>
-                <button class="close-sidebar" aria-label="Fechar menu">×</button>
+        <div class="navbar-right">
+            <div class="dropdown">
+                <div class="usuario-info btn-user">
+                    <span class="nome">{{ session.usuario_nome }}</span>
+                    <span class="cargo">▼</span>
+                </div>
+                <div class="dropdown-content">
+                    <a href="/gerenciar-conta">👤 Meu Perfil</a>
+                    <a href="/alterar-senha">🔐 Alterar Senha</a>
+                    <div class="dropdown-divider"></div>
+                    <button onclick="fazerLogout()" style="color: #d32f2f;">🚪 Sair</button>
+                </div>
             </div>
-            <div id="sidebar-tabs" class="sidebar-tabs">
-                <!-- Tabs serão geradas automaticamente pelo JavaScript -->
-            </div>
-        </nav>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+    </div>
 
-        <!-- Overlay -->
-        <div id="sidebar-overlay" class="sidebar-overlay"></div>
-        <div class="container">
-            <header>
-                <h1>📦 Controle de Itens (Coffee Break)</h1>
+    <script>
+        function toggleMenu() {
+            const menu = document.querySelector('.hamburger-menu');
+            const links = document.getElementById('navbarLinks');
+            menu.classList.toggle('active');
+            links.classList.toggle('active');
+        }
+
+        function fazerLogout() {
+            if (confirm('Tem certeza que deseja sair do sistema?')) {
+                window.location.href = '/auth/logout';
+            }
+        }
+
+        // Marcar botão ativo na navbar
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                const href = btn.getAttribute('href');
+                if (href && href === currentPath) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Mostrar a seção ativa baseado na rota
+            const secaoAtiva = '{{ secao_ativa | default("alimentacao") }}';
+            if (secaoAtiva) {
+                // Esconder todas as seções
+                document.querySelectorAll('.tab-content').forEach(section => {
+                    section.style.display = 'none';
+                    section.classList.remove('active');
+                });
+                
+                // Mostrar a seção ativa
+                const secao = document.getElementById('tab-' + secaoAtiva);
+                if (secao) {
+                    secao.style.display = 'block';
+                    secao.classList.add('active');
+                }
+            }
+        });
+
+        // Fechar menu ao clicar fora
+        document.addEventListener('click', function(event) {
+            const navbar = document.querySelector('.navbar');
+            const menu = document.querySelector('.hamburger-menu');
+            const links = document.getElementById('navbarLinks');
+            
+            if (!navbar.contains(event.target) && links.classList.contains('active')) {
+                menu.classList.remove('active');
+                links.classList.remove('active');
+            }
+        });
+    </script>
+
+
+                <!-- <h1>📦 Controle de Itens (Coffee Break)</h1> -->
                 <!-- <p style="margin-top: 10px; font-size: 0.9rem; opacity: 0.9;">
                     <a href="{{ url_for('views.importar_os') }}" target="_blank" style="color: white; text-decoration: underline;">
                         🔄 Importar O.S. Antigas do localStorage
                     </a>
                 </p> -->
             </header>
-
-            <!-- Navegação por Abas -->
-            <nav class="tabs">
-                <button class="tab-btn active" data-tab="estoque" hidden>Estoque</button>
-                <button class="tab-btn" data-tab="alimentacao">Itens do Coffee</button>
-                <button class="tab-btn" data-tab="emitir-os">Emitir O.S.</button>
-                <button class="tab-btn" data-tab="ordens-servico">Ordens de Serviço</button>
-                <button class="tab-btn" data-tab="relatorios">Relatórios</button>
-                <button class="tab-btn" data-tab="kits" hidden>Kits</button>
-                <button class="tab-btn" data-tab="requisicao" hidden>Nova Requisição</button>
-                <button class="tab-btn" data-tab="pendentes" hidden>Pendentes <span class="badge" id="badge-pendentes">0</span></button>
-                <button class="tab-btn" data-tab="historico"hidden>Histórico</button>
-            </nav>
 
             <!-- Aba: Estoque -->
             <section id="tab-estoque" class="tab-content">

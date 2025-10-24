@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Controle de Itens de Eventos{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* NAVBAR HEADER */
+        header.navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+
+        .navbar-brand h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .navbar-brand svg {
+            width: 40px;
+            height: 40px;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            color: white;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+
+        .user-info .name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .user-info .cargo {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: 600;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.7);
+            transform: translateY(-2px);
+        }
+
+        /* SIDEBAR */
+        aside.sidebar {
+            position: fixed;
+            left: 0;
+            top: 70px;
+            width: 250px;
+            height: calc(100vh - 70px);
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            overflow-y: auto;
+            z-index: 999;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .sidebar-section {
+            padding: 20px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .sidebar-title {
+            padding: 0 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin: 0;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: #333;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu a:hover {
+            background: #f5f7fa;
+            border-left-color: #667eea;
+            color: #667eea;
+        }
+
+        .sidebar-menu a.active {
+            background: #f0f4ff;
+            border-left-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .sidebar-menu a svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* MAIN CONTENT */
+        main {
+            margin-left: 250px;
+            margin-top: 70px;
+            flex: 1;
+            padding: 20px;
+            min-height: calc(100vh - 70px);
+        }
+
+        /* MOBILE RESPONSIVO */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            aside.sidebar {
+                display: none;
+                position: fixed;
+                top: 70px;
+                left: -250px;
+                width: 250px;
+                height: calc(100vh - 70px);
+                transition: left 0.3s ease;
+                z-index: 998;
+            }
+
+            aside.sidebar.show {
+                left: 0;
+            }
+
+            main {
+                margin-left: 0;
+                margin-top: 70px;
+            }
+
+            .navbar-user {
+                gap: 10px;
+            }
+
+            .user-info {
+                display: none;
+            }
+
+            .navbar-brand h1 {
+                font-size: 1.1rem;
+            }
+
+            .btn-menu {
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.5);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Scrollbar customizada */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="navbar-brand">
+            <h1>📦 Controle de Itens</h1>
+        </div>
+
+        <div class="navbar-user">
+            {% if session.usuario_id %}
+                <div class="user-info">
+                    <div class="name">{{ session.usuario_nome }}</div>
+                    <div class="cargo">{{ session.usuario_cargo or 'Usuário' }}</div>
+                </div>
+                <div class="user-avatar">
+                    {{ session.usuario_nome[0].upper() if session.usuario_nome else 'U' }}
+                </div>
+                <a href="{{ url_for('auth.logout') }}" class="btn-logout">
+                    🚪 Sair
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">📊 Menu Principal</div>
+            <ul class="sidebar-menu">
+                <li><a href="/" class="{% if request.endpoint == 'views.index' %}active{% endif %}">🏠 Home</a></li>
+                <li><a href="/#tab-estoque" class="{% if 'estoque' in request.path %}active{% endif %}">📦 Estoque</a></li>
+                <li><a href="/#tab-alimentacao" class="{% if 'alimentacao' in request.path %}active{% endif %}">🍽️ Coffee Break</a></li>
+            </ul>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">📄 Operações</div>
+            <ul class="sidebar-menu">
+                <li><a href="/#tab-emitir-os">📋 Emitir O.S.</a></li>
+                <li><a href="/#tab-historico">📜 Histórico</a></li>
+            </ul>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">🛠️ Ferramentas</div>
+            <ul class="sidebar-menu">
+                <li><a href="/#tab-relatorios">📊 Relatórios</a></li>
+                <li><a href="/#tab-importar">📥 Importar</a></li>
+            </ul>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">👥 Administração</div>
+            <ul class="sidebar-menu">
+                <li><a href="/api/usuarios">👤 Usuários</a></li>
+                <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Ativar sidebar no mobile
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('show');
+            });
+        }
+
+        // Fechar sidebar ao clicar em um link
+        document.querySelectorAll('.sidebar-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('show');
+                }
+            });
+        });
+
+        // Atualizar link ativo
+        function updateActiveLink() {
+            const currentPage = window.location.hash || '/';
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(currentPage)) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('hashchange', updateActiveLink);
+        updateActiveLink();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

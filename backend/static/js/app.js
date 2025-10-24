@@ -40,6 +40,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // ✅ INICIALIZAR MENU MOBILE
     inicializarMenuMobile();
+    
+    // ✅ RESTAURAR O.S. PARA EDIÇÃO SE NECESSÁRIO
+    await restaurarOSParaEdicao();
 });
 
 function carregarDados() {
@@ -1340,14 +1343,11 @@ async function editarOS(osId) {
             return;
         }
         
-        // Definir que estamos editando
-        osEditandoId = osId;
+        // Armazenar ID da O.S. sendo editada
+        localStorage.setItem('osEditandoId', osId);
         
-        // Mudar para aba de emissão
-        document.querySelector('[data-tab="emitir-os"]').click();
-        
-        // Aguardar um momento para a aba carregar
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Navegar para a página de edição/emissão de O.S.
+        window.location.href = '/emitir-os';
         
         // Função auxiliar para converter data pt-BR para formato input date (YYYY-MM-DD)
         const converterDataParaInput = (dataBR) => {
@@ -1441,6 +1441,140 @@ async function editarOS(osId) {
     } catch (error) {
         console.error('Erro ao carregar O.S. para edição:', error);
         alert('Erro ao carregar dados da O.S. para edição.');
+    }
+}
+
+// Nova função: Restaurar O.S. para edição após navegação
+async function restaurarOSParaEdicao() {
+    try {
+        const osEditandoId = localStorage.getItem('osEditandoId');
+        console.log('🔍 restaurarOSParaEdicao: Verificando localStorage - osEditandoId:', osEditandoId);
+        if (!osEditandoId) {
+            console.log('⏭️ Sem O.S. para editar');
+            return; // Sem O.S. para editar
+        }
+        
+        // Remover do localStorage
+        localStorage.removeItem('osEditandoId');
+        console.log('✅ Removido osEditandoId do localStorage');
+        
+        // Aguardar um pouco para garantir que a página está pronta
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Verificar se estamos na página de emissão de O.S.
+        const formOS = document.getElementById('form-emitir-os');
+        console.log('🔍 Procurando form-emitir-os:', formOS ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
+        if (!formOS) {
+            console.log('⚠️ Formulário não encontrado, abortando restauração');
+            return;
+        }
+        
+        // Buscar dados da O.S.
+        console.log('📡 Buscando O.S. com ID:', osEditandoId);
+        const os = await APIClient.obterOrdemServico(parseInt(osEditandoId));
+        console.log('📦 Dados da O.S. recebidos:', os);
+        
+        if (!os) {
+            alert('Ordem de Serviço não encontrada.');
+            console.error('❌ O.S. não encontrada na API');
+            return;
+        }
+        
+        // Definir que estamos editando
+        window.osEditandoId = parseInt(osEditandoId);
+        console.log('✏️ Modo edição ativado para O.S.:', window.osEditandoId);
+        
+        // Função auxiliar para converter data pt-BR para formato input date (YYYY-MM-DD)
+        const converterDataParaInput = (dataBR) => {
+            if (!dataBR) return '';
+            try {
+                // Se já está no formato YYYY-MM-DD, retorna direto
+                if (dataBR.match(/^\d{4}-\d{2}-\d{2}$/)) return dataBR;
+                
+                // Converter de DD/MM/YYYY para YYYY-MM-DD
+                const partes = dataBR.split('/');
+                if (partes.length === 3) {
+                    const [dia, mes, ano] = partes;
+                    return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+                }
+            } catch (e) {
+                console.error('Erro ao converter data:', e);
+            }
+            return dataBR;
+        };
+        
+        // Preencher campos do formulário
+        document.getElementById('os-contrato-num').value = os.contrato || '';
+        document.getElementById('os-data-assinatura').value = converterDataParaInput(os.dataAssinatura);
+        document.getElementById('os-prazo-vigencia').value = os.prazoVigencia || '';
+        document.getElementById('os-detentora').value = os.detentora || '';
+        document.getElementById('os-cnpj').value = os.cnpj || '';
+        document.getElementById('os-servico').value = os.servico || 'COFFEE BREAK';
+        document.getElementById('os-grupo').value = os.grupo || '';
+        document.getElementById('os-evento').value = os.evento || '';
+        document.getElementById('os-data-evento').value = converterDataParaInput(os.data);
+        document.getElementById('os-horario').value = os.horario || '';
+        document.getElementById('os-local').value = os.local || '';
+        document.getElementById('os-justificativa').value = os.justificativa || '';
+        document.getElementById('os-observacoes').value = os.observacoes || '';
+        document.getElementById('os-gestor').value = os.gestorContrato || '';
+        document.getElementById('os-fiscal').value = os.fiscalContrato || '';
+        document.getElementById('os-fiscal-tipo').value = os.fiscalTipo || 'Fiscal do Contrato';
+        document.getElementById('os-responsavel').value = os.responsavel || '';
+        
+        // Limpar itens existentes
+        document.getElementById('itens-os').innerHTML = '';
+        
+        // Adicionar itens da O.S.
+        if (os.itens && os.itens.length > 0) {
+            for (const item of os.itens) {
+                await adicionarItemOS();
+                
+                // Aguardar para garantir que o item foi adicionado
+                await new Promise(resolve => setTimeout(resolve, 50));
+                
+                const itemDivs = document.querySelectorAll('.item-os');
+                const ultimoItem = itemDivs[itemDivs.length - 1];
+                
+                if (ultimoItem) {
+                    // Preencher categoria
+                    const categoriaSelect = ultimoItem.querySelector('.os-categoria');
+                    categoriaSelect.value = item.categoria;
+                    
+                    // Disparar evento change para carregar itens
+                    categoriaSelect.dispatchEvent(new Event('change'));
+                    
+                    // Aguardar carregamento dos itens
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // Preencher item
+                    const itemSelect = ultimoItem.querySelector('.os-item');
+                    itemSelect.value = item.itemId || item.item_codigo;
+                    
+                    // Preencher diárias
+                    const diariasInput = ultimoItem.querySelector('.os-diarias');
+                    diariasInput.value = item.diarias || 1;
+                    
+                    // Preencher quantidade solicitada
+                    const qtdInput = ultimoItem.querySelector('.os-quantidade');
+                    qtdInput.value = item.qtdSolicitada || item.quantidade_solicitada || (item.qtdTotal || item.quantidade_total) / (item.diarias || 1);
+                }
+            }
+        }
+        
+        // Substituir botões do formulário pelo padrão de edição
+        const containerBotoes = document.getElementById('botoes-formulario-os');
+        containerBotoes.innerHTML = `
+            <button type="button" class="btn-small btn-primary" onclick="visualizarOS()">👁️ Visualizar</button>
+            <button type="button" class="btn-small btn-success" onclick="salvarEFecharOS()">💾 Salvar e Fechar</button>
+            <button type="button" class="btn-small btn-warning" onclick="salvarEContinuarOS()">💾 Salvar e Continuar</button>
+            <button type="button" class="btn-small btn-danger" onclick="cancelarEdicaoOS()">❌ Cancelar</button>
+        `;
+        
+        console.log('✅ O.S. restaurada para edição:', osEditandoId);
+        
+    } catch (error) {
+        console.error('Erro ao restaurar O.S. para edição:', error);
     }
 }
 
@@ -2157,19 +2291,25 @@ function filtrarHistorico() {
 // ========================================
 
 function atualizarInterface() {
-    // Atualizar badge de pendentes
-    const pendentes = requisicoes.filter(r => r.status === 'pendente').length;
-    document.getElementById('badge-pendentes').textContent = pendentes;
+    // Atualizar badge de pendentes (se existir)
+    const badgePendentes = document.getElementById('badge-pendentes');
+    if (badgePendentes) {
+        const pendentes = requisicoes.filter(r => r.status === 'pendente').length;
+        badgePendentes.textContent = pendentes;
+    }
     
     // Atualizar select de kits na requisição
     atualizarSelectKits();
     
-    // Atualizar aba ativa
-    const abaAtiva = document.querySelector('.tab-btn.active').getAttribute('data-tab');
-    if (abaAtiva === 'estoque') renderizarEstoque();
-    if (abaAtiva === 'kits') renderizarKits();
-    if (abaAtiva === 'pendentes') renderizarPendentes();
-    if (abaAtiva === 'historico') renderizarHistorico();
+    // Atualizar aba ativa (compatibilidade com antigas abas)
+    const tabBtnAtivo = document.querySelector('.tab-btn.active');
+    if (tabBtnAtivo) {
+        const abaAtiva = tabBtnAtivo.getAttribute('data-tab');
+        if (abaAtiva === 'estoque') renderizarEstoque();
+        if (abaAtiva === 'kits') renderizarKits();
+        if (abaAtiva === 'pendentes') renderizarPendentes();
+        if (abaAtiva === 'historico') renderizarHistorico();
+    }
 }
 
 function formatarData(dataISO) {
