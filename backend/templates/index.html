@@ -382,6 +382,10 @@
                     <span>📥</span>
                     <span>Importar</span>
                 </a> -->
+                <a href="/detentoras" class="nav-btn" title="Gerenciar Detentoras">
+                    <span>🏢</span>
+                    <span>Detentoras</span>
+                </a>
                 <a href="/gerenciar-usuarios" class="nav-btn" title="Gerenciar Usuários">
                     <span>👥</span>
                     <span>Usuários</span>
@@ -407,6 +411,9 @@
     </div>
 
     <script>
+        // ✅ Variável global com perfil do usuário
+        const usuarioPerfil = '{{ session.usuario_perfil }}';
+        
         function toggleMenu() {
             const menu = document.querySelector('.hamburger-menu');
             const links = document.getElementById('navbarLinks');
@@ -520,41 +527,60 @@
 
                 <div class="form-container">
                     <form id="form-emitir-os" class="form-card">
+                        <!-- Seleção de Grupo (carrega dados da Detentora) -->
+                        <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+                            <label for="os-grupo-select" style="font-weight: 600; color: #495057; font-size: 1.1rem;">
+                                🏢 Selecione o Grupo/Região *
+                                <small style="display: block; color: #6c757d; font-weight: 400; margin-top: 5px;">
+                                    Os dados do contrato serão preenchidos automaticamente
+                                </small>
+                            </label>
+                            <select id="os-grupo-select" required onchange="carregarDadosDetentora()" style="padding: 12px; font-size: 1rem;">
+                                <option value="">-- Selecione o Grupo --</option>
+                                <option value="1">Grupo 1</option>
+                                <option value="2">Grupo 2</option>
+                                <option value="3">Grupo 3</option>
+                                <option value="4">Grupo 4</option>
+                                <option value="5">Grupo 5</option>
+                                <option value="6">Grupo 6</option>
+                            </select>
+                        </div>
+
                         <h3>Dados do Contrato</h3>
                         <div class="form-row">
                             <div class="form-group flex-1">
                                 <label for="os-contrato-num">Contrato Nº *</label>
-                                <input type="text" id="os-contrato-num" required placeholder="014/DA/2024">
+                                <input type="text" id="os-contrato-num" required placeholder="014/DA/2024" readonly style="background-color: #e9ecef;">
                             </div>
                             <div class="form-group flex-1">
                                 <label for="os-data-assinatura">Data da Assinatura *</label>
-                                <input type="date" id="os-data-assinatura" required>
+                                <input type="date" id="os-data-assinatura" required readonly style="background-color: #e9ecef;">
                             </div>
                         <div class="form-group flex-1">
                             <label for="os-prazo-vigencia">Prazo de Vigência *</label>
-                            <input type="text" id="os-prazo-vigencia" required placeholder="12 MESES">
+                            <input type="text" id="os-prazo-vigencia" required placeholder="12 MESES" readonly style="background-color: #e9ecef;">
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group flex-2">
                             <label for="os-detentora">Nome da Detentora *</label>
-                            <input type="text" id="os-detentora" required placeholder="AMBP PROMOÇÕES E EVENTOS EMPRESARIAIS LTDA-EPP">
+                            <input type="text" id="os-detentora" required placeholder="AMBP PROMOÇÕES E EVENTOS EMPRESARIAIS LTDA-EPP" readonly style="background-color: #e9ecef;">
                         </div>
                         <div class="form-group flex-1">
                             <label for="os-cnpj">CNPJ *</label>
-                            <input type="text" id="os-cnpj" required placeholder="08.472.572/0001-85">
+                            <input type="text" id="os-cnpj" required placeholder="08.472.572/0001-85" readonly style="background-color: #e9ecef;">
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group flex-2">
                             <label for="os-servico">Serviço *</label>
-                            <input type="text" id="os-servico" required placeholder="COFFEE BREAK">
+                            <input type="text" id="os-servico" required placeholder="COFFEE BREAK" readonly style="background-color: #e9ecef;">
                         </div>
                         <div class="form-group flex-1">
-                            <label for="os-grupo">Grupo <small style="color: #6c757d;">(define a região do estoque)</small></label>
-                            <input type="text" id="os-grupo" placeholder="1" onchange="atualizarTodosEstoques()">
+                            <label for="os-grupo">Grupo <small style="color: #6c757d;">(região do estoque)</small></label>
+                            <input type="text" id="os-grupo" readonly style="background-color: #e9ecef;">
                         </div>
                     </div>
 

@@ -72,3 +72,10 @@ def relatorios():
     """Página de Relatórios"""
     return render_template('index.html', secao_ativa='relatorios')
 
+@views_bp.route('/detentoras')
+@login_requerido
+def detentoras():
+    """Página de Gerenciamento de Detentoras"""
+    return render_template('gerenciar-detentoras.html', 
+                         usuario_perfil=session.get('usuario_perfil', 'comum'))
+

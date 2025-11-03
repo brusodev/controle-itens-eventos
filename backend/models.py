@@ -45,7 +45,8 @@ class Item(db.Model):
             'categoria_id': self.categoria_id,
             'item': self.item_codigo,
             'descricao': self.descricao,
-            'unidade': self.unidade
+            'unidade': self.unidade,
+            'natureza': self.categoria.natureza  # Código BEC da categoria
         }
         
         if incluir_estoques:
@@ -94,6 +95,49 @@ class EstoqueRegional(db.Model):
             return '0'
 
 
+class Detentora(db.Model):
+    """Empresas detentoras de contratos"""
+    __tablename__ = 'detentoras'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Dados do Contrato
+    contrato_num = db.Column(db.String(100), nullable=False)
+    data_assinatura = db.Column(db.String(20))
+    prazo_vigencia = db.Column(db.String(20))
+    
+    # Dados da Empresa
+    nome = db.Column(db.String(200), nullable=False)
+    cnpj = db.Column(db.String(20), nullable=False)
+    servico = db.Column(db.String(100), default='COFFEE BREAK')
+    
+    # Grupo (campo principal para seleção)
+    grupo = db.Column(db.String(100), nullable=False, index=True)
+    
+    # Campos de auditoria
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    ativo = db.Column(db.Boolean, default=True)
+    
+    # Relacionamento com Ordens de Serviço
+    ordens_servico = db.relationship('OrdemServico', backref='detentora_obj', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'contratoNum': self.contrato_num,
+            'dataAssinatura': self.data_assinatura,
+            'prazoVigencia': self.prazo_vigencia,
+            'nome': self.nome,
+            'cnpj': self.cnpj,
+            'servico': self.servico,
+            'grupo': self.grupo,
+            'ativo': self.ativo,
+            'criadoEm': self.criado_em.isoformat() if self.criado_em else None,
+            'atualizadoEm': self.atualizado_em.isoformat() if self.atualizado_em else None
+        }
+
+
 class OrdemServico(db.Model):
     """Ordens de Serviço emitidas"""
     __tablename__ = 'ordens_servico'
@@ -101,7 +145,10 @@ class OrdemServico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     numero_os = db.Column(db.String(50), unique=True, nullable=False)
     
-    # Dados do contrato
+    # Referência à Detentora (opcional - mantém compatibilidade)
+    detentora_id = db.Column(db.Integer, db.ForeignKey('detentoras.id'), nullable=True)
+    
+    # Dados do contrato (mantidos para compatibilidade com O.S. antigas)
     contrato = db.Column(db.String(100))
     data_assinatura = db.Column(db.String(100))  # Data da assinatura do contrato
     prazo_vigencia = db.Column(db.String(100))   # Ex: "12 MESES"
@@ -186,7 +233,8 @@ class ItemOrdemServico(db.Model):
         return {
             'id': self.id,
             'categoria': self.categoria,
-            'itemId': self.item_codigo,
+            'itemId': self.item_id,  # ✅ CORRIGIDO: retornar ID do banco, não código BEC
+            'itemCodigo': self.item_codigo,  # ✅ Adicionar código BEC separado
             'itemBec': self.item_bec,
             'descricao': self.descricao,
             'unidade': self.unidade,

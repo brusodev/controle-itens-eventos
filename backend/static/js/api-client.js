@@ -25,13 +25,19 @@ class APIClient {
             const response = await fetch(url, config);
             
             if (!response.ok) {
+                // Se for 404, retornar null ao invés de erro (detentora não encontrada)
+                if (response.status === 404 && endpoint.includes('/grupo/')) {
+                    console.warn('⚠️ Detentora não encontrada para o grupo');
+                    return null;
+                }
+                
                 const error = await response.json();
                 throw new Error(error.erro || 'Erro na requisição');
             }
             
             return await response.json();
         } catch (error) {
-            console.error('Erro na API:', error);
+            console.error('Erro na API:', url, error);
             throw error;
         }
     }
@@ -70,7 +76,15 @@ class APIClient {
     // ==================== ALIMENTAÇÃO ====================
     
     static async listarAlimentacao() {
-        return this.request('/alimentacao/');
+        // Adicionar timestamp para evitar cache do navegador
+        const timestamp = new Date().getTime();
+        return this.request(`/alimentacao/?_t=${timestamp}`, {
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     }
     
     static async listarCategoriasAlimentacao() {
@@ -142,6 +156,45 @@ class APIClient {
     
     static async estatisticasOS() {
         return this.request('/ordens-servico/estatisticas');
+    }
+    
+    // ==================== DETENTORAS ====================
+    
+    static async listarDetentoras(incluirInativas = false) {
+        const query = new URLSearchParams({ incluir_inativas: incluirInativas }).toString();
+        return this.request(`/detentoras/?${query}`);
+    }
+    
+    static async listarGrupos() {
+        return this.request('/detentoras/grupos');
+    }
+    
+    static async obterDetentoraByGrupo(grupo) {
+        return this.request(`/detentoras/grupo/${encodeURIComponent(grupo)}`);
+    }
+    
+    static async obterDetentora(id) {
+        return this.request(`/detentoras/${id}`);
+    }
+    
+    static async criarDetentora(dados) {
+        return this.request('/detentoras/', {
+            method: 'POST',
+            body: JSON.stringify(dados)
+        });
+    }
+    
+    static async atualizarDetentora(id, dados) {
+        return this.request(`/detentoras/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(dados)
+        });
+    }
+    
+    static async deletarDetentora(id) {
+        return this.request(`/detentoras/${id}`, {
+            method: 'DELETE'
+        });
     }
 }
 

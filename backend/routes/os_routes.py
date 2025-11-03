@@ -3,6 +3,7 @@ from models import db, OrdemServico, ItemOrdemServico, Item, EstoqueRegional, Ca
 from datetime import datetime
 from sqlalchemy import func
 from pdf_generator import gerar_pdf_os
+from routes.auth_routes import login_requerido, admin_requerido  # ✅ Importar decorators
 import sys
 import os
 
@@ -156,8 +157,8 @@ def criar_ordem():
         # Adicionar itens da O.S.
         itens_os = []
         for item_os_data in dados.get('itens', []):
-            # Buscar o item no banco de dados
-            item = Item.query.filter_by(item_codigo=item_os_data['itemId']).first()
+            # Buscar o item no banco de dados pelo ID (não pelo item_codigo!)
+            item = Item.query.filter_by(id=item_os_data['itemId']).first()
             if not item:
                 db.session.rollback()
                 return jsonify({'erro': f'Item {item_os_data["itemId"]} não encontrado'}), 404
@@ -268,8 +269,8 @@ def atualizar_ordem(os_id):
         # Adicionar novos itens
         itens_os = []
         for item_os_data in dados.get('itens', []):
-            # Buscar o item no banco de dados
-            item = Item.query.filter_by(item_codigo=item_os_data['itemId']).first()
+            # Buscar o item no banco de dados pelo ID (não pelo item_codigo!)
+            item = Item.query.filter_by(id=item_os_data['itemId']).first()
             if not item:
                 db.session.rollback()
                 return jsonify({'erro': f'Item {item_os_data["itemId"]} não encontrado'}), 404
@@ -321,6 +322,8 @@ def atualizar_ordem(os_id):
 
 
 @os_bp.route('/<int:os_id>', methods=['DELETE'])
+@login_requerido
+@admin_requerido  # ✅ Apenas administradores podem deletar O.S.
 def deletar_ordem(os_id):
     """Deleta uma ordem de serviço e reverte o estoque automaticamente"""
     try:

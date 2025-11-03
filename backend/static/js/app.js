@@ -264,7 +264,9 @@ function formatarCategoria(categoria) {
 
 async function renderizarAlimentacao() {
     try {
+        console.log('🔄 [ALIMENTAÇÃO] Buscando dados atualizados da API...');
         dadosAlimentacao = await APIClient.listarAlimentacao();
+        console.log('✅ [ALIMENTAÇÃO] Dados recebidos:', dadosAlimentacao);
         renderizarItensAlimentacao();
     } catch (error) {
         console.error('Erro ao carregar dados de alimentação:', error);
@@ -310,6 +312,15 @@ function filtrarAlimentacao() {
                 totalGasto += parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
             });
             const totalDisponivel = totalInicial - totalGasto;
+            
+            // DEBUG: Log para verificar cálculos
+            if (item.descricao.includes('Coffee Break Tipo 1')) {
+                console.log('🔍 [DEBUG] Coffee Break Tipo 1:');
+                console.log('   - Total Inicial:', totalInicial);
+                console.log('   - Total Gasto:', totalGasto);
+                console.log('   - Total Disponível:', totalDisponivel);
+                console.log('   - Regiões:', item.regioes);
+            }
             
             const statusClass = totalDisponivel === 0 ? 'badge-danger' : totalDisponivel < 1000 ? 'badge-warning' : 'badge-success';
             
@@ -491,9 +502,10 @@ function atualizarItensOS(select) {
     if (categoria && dadosAlimentacao[categoria]) {
         dadosAlimentacao[categoria].itens.forEach(item => {
             const option = document.createElement('option');
-            option.value = item.item;
+            option.value = item.id;  // ✅ Database ID
             option.textContent = item.descricao;
             option.setAttribute('data-unidade', item.unidade);
+            option.setAttribute('data-item-bec', item.natureza);  // ✅ Código BEC da CATEGORIA
             itemSelect.appendChild(option);
         });
     }
@@ -564,25 +576,27 @@ function coletarDadosOS() {
     itemDivs.forEach((div, index) => {
         const categoria = div.querySelector('.os-categoria').value;
         const itemSelect = div.querySelector('.os-item');
-        const itemId = itemSelect.value;
+        const itemId = parseInt(itemSelect.value);  // ✅ CORRIGIDO: agora é o ID do banco (número)
         const diarias = parseInt(div.querySelector('.os-diarias').value) || 1;
         const quantidade = parseFloat(div.querySelector('.os-quantidade').value) || 0;
         
         if (categoria && itemId && quantidade) {
-            const item = dadosAlimentacao[categoria].itens.find(i => i.item === itemId);
+            // ✅ CORRIGIDO: buscar item pelo ID (campo 'id') ao invés de 'item'
+            const item = dadosAlimentacao[categoria].itens.find(i => i.id === itemId);
             const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+            const itemBec = selectedOption.getAttribute('data-item-bec') || dadosAlimentacao[categoria].natureza;
             
             itensOS.push({
                 num: index + 1,
                 descricao: item.descricao,
                 unidade: item.unidade,
-                itemBec: dadosAlimentacao[categoria].natureza,
+                itemBec: itemBec,  // ✅ CORRIGIDO: usar código BEC do data attribute
                 diarias: diarias,
                 qtdSolicitada: quantidade,
                 qtdTotal: diarias * quantidade,
                 valorUnit: 25.60, // Valor exemplo - pode ser configurável
                 categoria,
-                itemId
+                itemId  // ✅ CORRIGIDO: agora é o ID correto do banco
             });
         }
     });
@@ -886,6 +900,7 @@ async function confirmarEmissaoOS() {
         // Limpar formulário e fechar modal
         document.getElementById('form-emitir-os').reset();
         document.getElementById('itens-os').innerHTML = '';
+        limparCamposDetentora(); // Limpar campos da Detentora também
         
         // Recarregar dados ANTES de fechar modal
         console.log('🔄 Recarregando alimentação...');
@@ -898,10 +913,13 @@ async function confirmarEmissaoOS() {
         fecharModalVisualizarOS();
         renderizarEmitirOS();
         
-        // Se criou nova O.S. (não edição), mudar para aba de O.S. emitidas
+        // Se criou nova O.S. (não edição), redirecionar para página de O.S.
         if (!eraEdicao) {
-            console.log('📂 Nova O.S. criada - mudando para aba "Ordens de Serviço"');
-            document.querySelector('[data-tab="ordens-servico"]').click();
+            console.log('📂 Nova O.S. criada - redirecionando para lista de Ordens de Serviço');
+            // Pequeno delay para garantir que o formulário foi limpo antes de redirecionar
+            setTimeout(() => {
+                window.location.href = '/ordens-servico';
+            }, 100);
         }
         
     } catch (error) {
@@ -967,6 +985,7 @@ async function filtrarOS() {
                     <button class="btn-small btn-warning" onclick="editarOS(${os.id})">✏️ Editar</button>
                     <button class="btn-small btn-success" onclick="imprimirOS(${os.id})">🖨️ Imprimir</button>
                     <button class="btn-small btn-secondary" onclick="baixarPDFTextoSelecionavel(${os.id})">📄 PDF</button>
+                    ${usuarioPerfil === 'admin' ? `<button class="btn-small btn-danger" onclick="excluirOS(${os.id}, '${os.numeroOS}')">🗑️ Excluir</button>` : ''}
                 </div>
             `;
             
@@ -1192,6 +1211,45 @@ async function baixarPDFTextoSelecionavel(osId) {
     }
 }
 
+// ========================================
+// EXCLUIR ORDEM DE SERVIÇO (APENAS ADMIN)
+// ========================================
+
+async function excluirOS(osId, numeroOS) {
+    // Verificar se é admin
+    if (usuarioPerfil !== 'admin') {
+        alert('❌ Apenas administradores podem excluir Ordens de Serviço.');
+        return;
+    }
+    
+    // Confirmação dupla
+    if (!confirm(`⚠️ ATENÇÃO!\n\nDeseja realmente EXCLUIR a O.S. ${numeroOS}?\n\nEsta ação:\n- NÃO pode ser desfeita\n- Reverterá automaticamente o estoque\n- Removerá todos os dados da O.S.\n\nTem certeza?`)) {
+        return;
+    }
+    
+    if (!confirm(`🚨 CONFIRMAÇÃO FINAL\n\nTem ABSOLUTA CERTEZA que deseja excluir a O.S. ${numeroOS}?\n\nClique OK para CONFIRMAR a exclusão.`)) {
+        return;
+    }
+    
+    try {
+        console.log(`🗑️ Excluindo O.S. ${numeroOS} (ID: ${osId})...`);
+        
+        // Chamar API para deletar
+        await APIClient.deletarOrdemServico(osId);
+        
+        console.log('✅ O.S. excluída com sucesso!');
+        alert(`✅ O.S. ${numeroOS} excluída com sucesso!\n\nO estoque foi revertido automaticamente.`);
+        
+        // Recarregar listas
+        await renderizarAlimentacao();
+        await renderizarOrdensServico();
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir O.S.:', error);
+        alert(`❌ Erro ao excluir O.S.: ${error.message}`);
+    }
+}
+
 // Função para baixar PDF da O.S.
 async function baixarPDFOS(osId) {
     try {
@@ -1414,7 +1472,7 @@ async function editarOS(osId) {
                     
                     // Preencher item
                     const itemSelect = ultimoItem.querySelector('.os-item');
-                    itemSelect.value = item.itemId || item.item_codigo;
+                    itemSelect.value = item.itemId;  // ✅ CORRIGIDO: agora itemId retorna o ID correto do banco
                     
                     // Preencher diárias
                     const diariasInput = ultimoItem.querySelector('.os-diarias');
@@ -1447,9 +1505,9 @@ async function editarOS(osId) {
 // Nova função: Restaurar O.S. para edição após navegação
 async function restaurarOSParaEdicao() {
     try {
-        const osEditandoId = localStorage.getItem('osEditandoId');
-        console.log('🔍 restaurarOSParaEdicao: Verificando localStorage - osEditandoId:', osEditandoId);
-        if (!osEditandoId) {
+        const osIdParaEditar = localStorage.getItem('osEditandoId');
+        console.log('🔍 restaurarOSParaEdicao: Verificando localStorage - osEditandoId:', osIdParaEditar);
+        if (!osIdParaEditar) {
             console.log('⏭️ Sem O.S. para editar');
             return; // Sem O.S. para editar
         }
@@ -1470,8 +1528,8 @@ async function restaurarOSParaEdicao() {
         }
         
         // Buscar dados da O.S.
-        console.log('📡 Buscando O.S. com ID:', osEditandoId);
-        const os = await APIClient.obterOrdemServico(parseInt(osEditandoId));
+        console.log('📡 Buscando O.S. com ID:', osIdParaEditar);
+        const os = await APIClient.obterOrdemServico(parseInt(osIdParaEditar));
         console.log('📦 Dados da O.S. recebidos:', os);
         
         if (!os) {
@@ -1480,9 +1538,9 @@ async function restaurarOSParaEdicao() {
             return;
         }
         
-        // Definir que estamos editando
-        window.osEditandoId = parseInt(osEditandoId);
-        console.log('✏️ Modo edição ativado para O.S.:', window.osEditandoId);
+        // Definir que estamos editando (variável global)
+        osEditandoId = parseInt(osIdParaEditar);
+        console.log('✏️ Modo edição ativado para O.S.:', osEditandoId);
         
         // Função auxiliar para converter data pt-BR para formato input date (YYYY-MM-DD)
         const converterDataParaInput = (dataBR) => {
@@ -1504,6 +1562,14 @@ async function restaurarOSParaEdicao() {
         };
         
         // Preencher campos do formulário
+        
+        // Preencher seletor de grupo primeiro (se existir)
+        const grupoSelect = document.getElementById('os-grupo-select');
+        if (grupoSelect && os.grupo) {
+            grupoSelect.value = os.grupo;
+            console.log('✅ Grupo selecionado na edição:', os.grupo);
+        }
+        
         document.getElementById('os-contrato-num').value = os.contrato || '';
         document.getElementById('os-data-assinatura').value = converterDataParaInput(os.dataAssinatura);
         document.getElementById('os-prazo-vigencia').value = os.prazoVigencia || '';
@@ -1549,7 +1615,7 @@ async function restaurarOSParaEdicao() {
                     
                     // Preencher item
                     const itemSelect = ultimoItem.querySelector('.os-item');
-                    itemSelect.value = item.itemId || item.item_codigo;
+                    itemSelect.value = item.itemId;  // ✅ CORRIGIDO: agora itemId retorna o ID correto do banco
                     
                     // Preencher diárias
                     const diariasInput = ultimoItem.querySelector('.os-diarias');
@@ -1578,8 +1644,88 @@ async function restaurarOSParaEdicao() {
     }
 }
 
+// ========================================
+// CARREGAR DADOS DA DETENTORA
+// ========================================
+async function carregarDadosDetentora() {
+    const grupoSelect = document.getElementById('os-grupo-select');
+    const grupo = grupoSelect.value;
+    
+    console.log('🏢 carregarDadosDetentora() - Iniciando...');
+    console.log('   Grupo selecionado:', grupo, '(tipo:', typeof grupo, ')');
+    
+    // Limpar campos se nenhum grupo selecionado
+    if (!grupo) {
+        console.log('⚠️  Nenhum grupo selecionado, limpando campos');
+        limparCamposDetentora();
+        return;
+    }
+    
+    try {
+        // Buscar detentora pelo grupo
+        console.log('📡 Chamando API: obterDetentoraByGrupo(' + grupo + ')');
+        const detentora = await APIClient.obterDetentoraByGrupo(grupo);
+        console.log('📦 Resposta da API:', detentora);
+        
+        if (!detentora || detentora.erro) {
+            const mensagem = detentora?.erro || `Nenhuma Detentora cadastrada para o Grupo ${grupo}`;
+            console.error('❌ Detentora não encontrada:', mensagem);
+            alert(`⚠️ ${mensagem}\n\nPor favor, cadastre uma empresa detentora em 🏢 Detentoras antes de emitir a O.S.`);
+            grupoSelect.value = '';
+            limparCamposDetentora();
+            return;
+        }
+        
+        console.log('📦 Dados da Detentora recebidos:', detentora);
+        
+        // Preencher campos automaticamente
+        document.getElementById('os-contrato-num').value = detentora.contratoNum || '';
+        document.getElementById('os-data-assinatura').value = detentora.dataAssinatura || '';
+        document.getElementById('os-prazo-vigencia').value = detentora.prazoVigencia || '';
+        document.getElementById('os-detentora').value = detentora.nome || '';
+        document.getElementById('os-cnpj').value = detentora.cnpj || '';
+        document.getElementById('os-servico').value = detentora.servico || 'COFFEE BREAK';
+        document.getElementById('os-grupo').value = grupo;
+        
+        console.log('✅ Dados da Detentora preenchidos com sucesso');
+        console.log('   Grupo definido:', grupo, '- Estoques serão filtrados automaticamente');
+        
+        // Feedback visual
+        grupoSelect.style.borderColor = '#28a745';
+        setTimeout(() => {
+            grupoSelect.style.borderColor = '';
+        }, 2000);
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar dados da Detentora:', error);
+        alert('Erro ao carregar dados da Detentora. Verifique se existe uma empresa cadastrada para este Grupo.');
+        grupoSelect.value = '';
+        limparCamposDetentora();
+    }
+}
+
+function limparCamposDetentora() {
+    document.getElementById('os-contrato-num').value = '';
+    document.getElementById('os-data-assinatura').value = '';
+    document.getElementById('os-prazo-vigencia').value = '';
+    document.getElementById('os-detentora').value = '';
+    document.getElementById('os-cnpj').value = '';
+    document.getElementById('os-servico').value = '';
+    document.getElementById('os-grupo').value = '';
+    console.log('🧹 Campos da Detentora limpos');
+}
+
 // Nova função: Salvar e Fechar
 async function salvarEFecharOS() {
+    console.log('💾 salvarEFecharOS() - Iniciando...');
+    console.log('   osEditandoId atual:', osEditandoId, '(tipo:', typeof osEditandoId, ')');
+    
+    if (!osEditandoId) {
+        alert('❌ Erro: ID da O.S. não encontrado. Por favor, tente editar novamente.');
+        console.error('❌ osEditandoId está null/undefined!');
+        return;
+    }
+    
     const dadosOS = coletarDadosOS();
     if (!dadosOS) return;
     
@@ -1629,13 +1775,18 @@ async function salvarEFecharOS() {
         // Limpar formulário
         document.getElementById('form-emitir-os').reset();
         document.getElementById('itens-os').innerHTML = '';
+        limparCamposDetentora(); // Limpar campos da Detentora também
         
         // Recarregar dados
         await renderizarAlimentacao();
         await renderizarOrdensServico();
         
-        // Voltar para aba de O.S.
-        document.querySelector('[data-tab="ordens-servico"]').click();
+        // Redirecionar para lista de Ordens de Serviço
+        console.log('📂 O.S. salva - redirecionando para lista de Ordens de Serviço');
+        // Pequeno delay para garantir que o formulário foi limpo antes de redirecionar
+        setTimeout(() => {
+            window.location.href = '/ordens-servico';
+        }, 100);
         
     } catch (error) {
         console.error('❌ Erro ao salvar O.S.:', error);
@@ -1645,6 +1796,15 @@ async function salvarEFecharOS() {
 
 // Nova função: Salvar e Continuar
 async function salvarEContinuarOS() {
+    console.log('💾 salvarEContinuarOS() - Iniciando...');
+    console.log('   osEditandoId atual:', osEditandoId, '(tipo:', typeof osEditandoId, ')');
+    
+    if (!osEditandoId) {
+        alert('❌ Erro: ID da O.S. não encontrado. Por favor, tente editar novamente.');
+        console.error('❌ osEditandoId está null/undefined!');
+        return;
+    }
+    
     const dadosOS = coletarDadosOS();
     if (!dadosOS) return;
     
@@ -1701,6 +1861,7 @@ function cancelarEdicaoOS() {
     // Limpar formulário
     document.getElementById('form-emitir-os').reset();
     document.getElementById('itens-os').innerHTML = '';
+    limparCamposDetentora(); // Limpar campos da Detentora também
     
     // Restaurar botões originais
     const containerBotoes = document.getElementById('botoes-formulario-os');
