@@ -74,3 +74,10 @@ yarn-error.log*
 # Backups
 *.bak
 *.backup
+
+# Deploy e produção
+backend/.env
+backend/instance/*.db
+/var/log/
+*.service
+backup_*.db.gz
