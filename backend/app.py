@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_cors import CORS
 from models import db
 import os
@@ -41,6 +41,11 @@ def create_app():
     app.register_blueprint(os_bp, url_prefix='/api/ordens-servico')
     app.register_blueprint(relatorios_bp)
     app.register_blueprint(detentoras_bp, url_prefix='/api/detentoras')
+    
+    # Handler de erro 403 (Acesso Negado)
+    @app.errorhandler(403)
+    def acesso_negado(e):
+        return render_template('403.html'), 403
     
     # Criar tabelas
     with app.app_context():

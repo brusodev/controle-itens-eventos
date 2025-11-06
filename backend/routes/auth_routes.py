@@ -14,9 +14,8 @@ def login_requerido(f):
     @wraps(f)
     def verificar_login(*args, **kwargs):
         if 'usuario_id' not in session:
-            if request.is_json:
-                return jsonify({'erro': 'Não autenticado'}), 401
-            return redirect(url_for('auth.login'))
+            # Sempre retornar JSON para APIs
+            return jsonify({'erro': 'Não autenticado'}), 401
         return f(*args, **kwargs)
     return verificar_login
 
@@ -26,14 +25,10 @@ def admin_requerido(f):
     @wraps(f)
     def verificar_admin(*args, **kwargs):
         if 'usuario_id' not in session:
-            if request.is_json:
-                return jsonify({'erro': 'Não autenticado'}), 401
-            return redirect(url_for('auth.login'))
+            return jsonify({'erro': 'Não autenticado'}), 401
         
         if session.get('usuario_perfil') != 'admin':
-            if request.is_json:
-                return jsonify({'erro': 'Acesso negado. Apenas administradores podem realizar esta ação.'}), 403
-            return jsonify({'erro': 'Acesso negado. Apenas administradores.'}), 403
+            return jsonify({'erro': 'Acesso negado. Apenas administradores podem realizar esta ação.'}), 403
         
         return f(*args, **kwargs)
     return verificar_admin
@@ -149,8 +144,9 @@ def registro():
 
 @auth_bp.route('/api/usuarios', methods=['GET'])
 @login_requerido
+@admin_requerido
 def listar_usuarios():
-    """Lista todos os usuários (apenas para admin)"""
+    """Lista todos os usuários (apenas admin)"""
     usuarios = Usuario.query.all()
     return jsonify([u.to_dict() for u in usuarios])
 
@@ -159,7 +155,11 @@ def listar_usuarios():
 @login_requerido
 def obter_usuario(usuario_id):
     """Obtém dados de um usuário específico"""
-    usuario = Usuario.query.get_or_404(usuario_id)
+    usuario = Usuario.query.get(usuario_id)
+    
+    if not usuario:
+        return jsonify({'erro': 'Usuário não encontrado'}), 404
+    
     return jsonify(usuario.to_dict())
 
 
@@ -167,61 +167,77 @@ def obter_usuario(usuario_id):
 @login_requerido
 def atualizar_usuario(usuario_id):
     """Atualiza dados de um usuário"""
-    usuario = Usuario.query.get_or_404(usuario_id)
-    dados = request.get_json()
-    
-    # Validar permissões
-    if session['usuario_id'] != usuario_id and session.get('usuario_perfil') != 'admin':
-        return jsonify({'erro': 'Você só pode editar seu próprio perfil'}), 403
-    
-    if 'nome' in dados:
-        usuario.nome = dados['nome'].strip()
-    
-    if 'cargo' in dados:
-        usuario.cargo = dados['cargo'].strip() or None
-    
-    if 'ativo' in dados:
-        # Apenas admin pode alterar status
-        if session.get('usuario_perfil') == 'admin':
-            usuario.ativo = dados['ativo']
-        else:
-            return jsonify({'erro': 'Apenas administradores podem alterar o status'}), 403
-    
-    if 'perfil' in dados:
-        # Apenas admin pode alterar perfil
-        if session.get('usuario_perfil') != 'admin':
-            return jsonify({'erro': 'Apenas administradores podem alterar perfis'}), 403
+    try:
+        usuario = Usuario.query.get(usuario_id)
         
-        if dados['perfil'] not in ['admin', 'comum']:
-            return jsonify({'erro': 'Perfil inválido'}), 400
+        if not usuario:
+            return jsonify({'erro': 'Usuário não encontrado'}), 404
         
-        # APENAS ADMIN PODE PROMOVER PARA ADMIN
-        if dados['perfil'] == 'admin' and usuario.perfil != 'admin':
-            # Confirmação adicional: está promovendo alguém para admin
-            usuario.perfil = dados['perfil']
-        elif dados['perfil'] == 'comum':
-            # Rebaixar de admin para comum
-            usuario.perfil = dados['perfil']
-        else:
-            # Já é admin, manter
-            usuario.perfil = dados['perfil']
-    
-    if 'senha' in dados and dados['senha']:
-        usuario.set_senha(dados['senha'])
-    
-    db.session.commit()
-    
-    return jsonify({
-        'sucesso': True,
-        'usuario': usuario.to_dict()
-    })
+        dados = request.get_json()
+        
+        if not dados:
+            return jsonify({'erro': 'Nenhum dado fornecido'}), 400
+        
+        # Validar permissões
+        if session['usuario_id'] != usuario_id and session.get('usuario_perfil') != 'admin':
+            return jsonify({'erro': 'Você só pode editar seu próprio perfil'}), 403
+        
+        if 'nome' in dados:
+            usuario.nome = dados['nome'].strip()
+        
+        if 'cargo' in dados:
+            usuario.cargo = dados['cargo'].strip() or None
+        
+        if 'ativo' in dados:
+            # Apenas admin pode alterar status
+            if session.get('usuario_perfil') == 'admin':
+                usuario.ativo = dados['ativo']
+            else:
+                return jsonify({'erro': 'Apenas administradores podem alterar o status'}), 403
+        
+        if 'perfil' in dados:
+            # Apenas admin pode alterar perfil
+            if session.get('usuario_perfil') != 'admin':
+                return jsonify({'erro': 'Apenas administradores podem alterar perfis'}), 403
+            
+            if dados['perfil'] not in ['admin', 'comum']:
+                return jsonify({'erro': 'Perfil inválido'}), 400
+            
+            # APENAS ADMIN PODE PROMOVER PARA ADMIN
+            if dados['perfil'] == 'admin' and usuario.perfil != 'admin':
+                # Confirmação adicional: está promovendo alguém para admin
+                usuario.perfil = dados['perfil']
+            elif dados['perfil'] == 'comum':
+                # Rebaixar de admin para comum
+                usuario.perfil = dados['perfil']
+            else:
+                # Já é admin, manter
+                usuario.perfil = dados['perfil']
+        
+        if 'senha' in dados and dados['senha']:
+            usuario.set_senha(dados['senha'])
+        
+        db.session.commit()
+        
+        return jsonify({
+            'sucesso': True,
+            'usuario': usuario.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro ao atualizar usuário: {str(e)}'}), 500
 
 
 @auth_bp.route('/api/usuarios/<int:usuario_id>', methods=['DELETE'])
 @login_requerido
+@admin_requerido
 def deletar_usuario(usuario_id):
-    """Deleta um usuário"""
-    usuario = Usuario.query.get_or_404(usuario_id)
+    """Deleta um usuário (apenas admin)"""
+    usuario = Usuario.query.get(usuario_id)
+    
+    if not usuario:
+        return jsonify({'erro': 'Usuário não encontrado'}), 404
     
     # Não permitir deletar a si mesmo
     if session['usuario_id'] == usuario_id:
@@ -252,25 +268,36 @@ def obter_usuario_atual():
 @login_requerido
 def alterar_senha_api():
     """Altera a senha do usuário logado"""
-    usuario = Usuario.query.get(session['usuario_id'])
-    dados = request.get_json()
-    
-    senha_atual = dados.get('senha_atual', dados.get('senhaAtual', ''))
-    senha_nova = dados.get('senha_nova', dados.get('senhaNova', ''))
-    
-    if not usuario.verificar_senha(senha_atual):
-        return jsonify({'erro': 'Senha atual incorreta'}), 401
-    
-    if len(senha_nova) < 6:
-        return jsonify({'erro': 'Senha deve ter no mínimo 6 caracteres'}), 400
-    
-    usuario.set_senha(senha_nova)
-    db.session.commit()
-    
-    return jsonify({
-        'sucesso': True,
-        'mensagem': 'Senha alterada com sucesso'
-    })
+    try:
+        usuario = Usuario.query.get(session['usuario_id'])
+        
+        if not usuario:
+            return jsonify({'erro': 'Usuário não encontrado'}), 404
+        
+        dados = request.get_json()
+        
+        senha_atual = dados.get('senha_atual', dados.get('senhaAtual', ''))
+        senha_nova = dados.get('senha_nova', dados.get('senhaNova', ''))
+        
+        if not senha_atual or not senha_nova:
+            return jsonify({'erro': 'Senha atual e nova senha são obrigatórias'}), 400
+        
+        if not usuario.verificar_senha(senha_atual):
+            return jsonify({'erro': 'Senha atual incorreta'}), 401
+        
+        if len(senha_nova) < 6:
+            return jsonify({'erro': 'Senha deve ter no mínimo 6 caracteres'}), 400
+        
+        usuario.set_senha(senha_nova)
+        db.session.commit()
+        
+        return jsonify({
+            'sucesso': True,
+            'mensagem': 'Senha alterada com sucesso'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro ao alterar senha: {str(e)}'}), 500
 
 
 # ========================================

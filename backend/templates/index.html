@@ -187,17 +187,27 @@
             display: inline-block;
         }
 
+        /* Criar uma ponte invisível entre o botão e o dropdown */
+        .dropdown::before {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: transparent;
+        }
+
         .dropdown-content {
             display: none;
             position: absolute;
             right: 0;
-            top: 100%;
+            top: calc(100% + 5px);
             background-color: white;
             min-width: 200px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-            z-index: 1;
+            z-index: 1001;
             border-radius: 6px;
-            margin-top: 5px;
             overflow: hidden;
         }
 
@@ -221,7 +231,9 @@
             background-color: #f1f1f1;
         }
 
-        .dropdown:hover .dropdown-content {
+        /* Manter dropdown aberto quando hover no dropdown ou no conteúdo */
+        .dropdown:hover .dropdown-content,
+        .dropdown-content:hover {
             display: block;
         }
 
@@ -386,10 +398,12 @@
                     <span>🏢</span>
                     <span>Detentoras</span>
                 </a>
+                {% if session.usuario_perfil == 'admin' %}
                 <a href="/gerenciar-usuarios" class="nav-btn" title="Gerenciar Usuários">
                     <span>👥</span>
                     <span>Usuários</span>
                 </a>
+                {% endif %}
             </div>
         </div>
 

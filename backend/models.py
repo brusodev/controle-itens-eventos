@@ -53,7 +53,8 @@ class Item(db.Model):
             data['regioes'] = {
                 str(est.regiao_numero): {
                     'inicial': est.quantidade_inicial,
-                    'gasto': est.quantidade_gasto
+                    'gasto': est.quantidade_gasto,
+                    'preco': est.preco if hasattr(est, 'preco') else '0'
                 }
                 for est in self.estoques
             }
@@ -70,6 +71,7 @@ class EstoqueRegional(db.Model):
     regiao_numero = db.Column(db.Integer, nullable=False)  # 1 a 6
     quantidade_inicial = db.Column(db.String(20), nullable=False)
     quantidade_gasto = db.Column(db.String(20), default='0')
+    preco = db.Column(db.String(20), default='0')  # Preço unitário por região
     
     __table_args__ = (
         db.UniqueConstraint('item_id', 'regiao_numero', name='_item_regiao_uc'),
@@ -81,7 +83,8 @@ class EstoqueRegional(db.Model):
             'item_id': self.item_id,
             'regiao': self.regiao_numero,
             'inicial': self.quantidade_inicial,
-            'gasto': self.quantidade_gasto
+            'gasto': self.quantidade_gasto,
+            'preco': self.preco
         }
     
     @property

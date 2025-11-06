@@ -647,15 +647,20 @@ header h1 {
 .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 9999;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.6);
+    animation: fadeIn 0.3s ease;
+}
+
+/* Quando o modal está aberto */
+.modal[style*="display: flex"] {
+    display: flex !important;
     justify-content: center;
     align-items: center;
-    animation: fadeIn 0.3s ease;
 }
 
 .modal-content {
@@ -2010,8 +2015,52 @@ body, html {
     margin-bottom: 8px;
     display: flex;
     gap: 15px;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: nowrap;
+}
+
+/* Container para cada campo com label */
+.item-os .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+/* Tamanhos específicos para cada tipo de campo */
+.item-os .form-field:nth-child(1) {
+    /* Categoria */
+    flex: 0 1 150px;
+    min-width: 140px;
+}
+
+.item-os .form-field:nth-child(2) {
+    /* Item */
+    flex: 2;
+    min-width: 200px;
+}
+
+.item-os .form-field:nth-child(3) {
+    /* Diárias */
+    flex: 0 1 70px;
+    min-width: 60px;
+}
+
+.item-os .form-field:nth-child(4) {
+    /* Quantidade */
+    flex: 0 1 80px;
+    min-width: 70px;
+}
+
+/* Labels discretos acima dos campos */
+.item-os .field-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+    padding: 0 2px;
 }
 
 /* Inputs e selects dentro de item-os */
@@ -2025,6 +2074,7 @@ body, html {
     background-color: white;
     transition: border-color 0.3s ease;
     min-width: 0;
+    width: 100%;
 }
 
 .item-os input:focus,
@@ -2034,26 +2084,7 @@ body, html {
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 }
 
-.os-categoria {
-    flex: 0 1 150px;
-    min-width: 140px;
-}
-
-.os-item {
-    flex: 2;
-    min-width: 200px;
-}
-
-.os-diarias {
-    flex: 0 1 70px;
-    min-width: 60px;
-}
-
-.os-quantidade {
-    flex: 0 1 70px;
-    min-width: 60px;
-}
-
+/* Estilos antigos removidos - agora controlados por .form-field */
 
 /* ========================================
    VALIDAÇÃO DE ESTOQUE EM TEMPO REAL

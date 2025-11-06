@@ -14,6 +14,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
 from datetime import datetime
 import os
+from models import EstoqueRegional
 
 
 class PDFOrdemServico:
@@ -78,9 +79,9 @@ class PDFOrdemServico:
         self.styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Heading1'],
-            fontSize=12,  # Reduzido de 14 para 12
+            fontSize=10,  # Reduzido de 12 para 10
             textColor=colors.HexColor('#000000'),
-            spaceAfter=8,  # Reduzido de 12 para 8
+            spaceAfter=4,  # Reduzido de 8 para 4
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
@@ -89,20 +90,21 @@ class PDFOrdemServico:
         self.styles.add(ParagraphStyle(
             name='CustomSubtitle',
             parent=self.styles['Normal'],
-            fontSize=9,  # Reduzido de 10 para 9
+            fontSize=7.5,  # Reduzido de 9 para 7.5
             textColor=colors.HexColor('#000000'),
-            spaceAfter=6,  # Reduzido de 8 para 6
+            spaceAfter=3,  # Reduzido de 6 para 3
             alignment=TA_CENTER,
-            fontName='Helvetica'
+            fontName='Helvetica',
+            leading=9  # Espaçamento entre linhas
         ))
         
         # Estilo para texto normal
         self.styles.add(ParagraphStyle(
             name='CustomNormal',
             parent=self.styles['Normal'],
-            fontSize=8,  # Reduzido de 9 para 8
+            fontSize=7,  # Reduzido de 8 para 7
             textColor=colors.HexColor('#000000'),
-            spaceAfter=3,  # Reduzido de 6 para 3
+            spaceAfter=2,  # Reduzido de 3 para 2
             fontName='Helvetica'
         ))
         
@@ -110,7 +112,7 @@ class PDFOrdemServico:
         self.styles.add(ParagraphStyle(
             name='CustomLabel',
             parent=self.styles['Normal'],
-            fontSize=8,  # Reduzido de 9 para 8
+            fontSize=7,  # Reduzido de 8 para 7
             textColor=colors.HexColor('#000000'),
             fontName='Helvetica-Bold'
         ))
@@ -133,14 +135,14 @@ class PDFOrdemServico:
         else:
             buffer = BytesIO()
         
-        # Criar documento
+        # Criar documento com margens reduzidas
         doc = SimpleDocTemplate(
             buffer,
             pagesize=A4,
-            rightMargin=20*mm,
-            leftMargin=20*mm,
-            topMargin=15*mm,
-            bottomMargin=15*mm,
+            rightMargin=12*mm,  # Reduzido de 20mm para 12mm
+            leftMargin=12*mm,   # Reduzido de 20mm para 12mm
+            topMargin=10*mm,    # Reduzido de 15mm para 10mm
+            bottomMargin=10*mm, # Reduzido de 15mm para 10mm
             title=f"Ordem de Serviço {dados_os.get('numeroOS', 'N/A')}"
         )
         
@@ -149,30 +151,30 @@ class PDFOrdemServico:
         
         # Cabeçalho
         story.extend(self._criar_cabecalho(dados_os))
-        story.append(Spacer(1, 5*mm))  # Reduzido de 10mm para 5mm
+        story.append(Spacer(1, 2*mm))  # Reduzido de 5mm para 2mm
         
         # Dados do contrato
         story.extend(self._criar_secao_contrato(dados_os))
-        story.append(Spacer(1, 3*mm))  # Reduzido de 5mm para 3mm
+        story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
         
         # Dados do evento
         story.extend(self._criar_secao_evento(dados_os))
-        story.append(Spacer(1, 3*mm))  # Reduzido de 5mm para 3mm
+        story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
         
         # Tabela de itens
         story.extend(self._criar_tabela_itens(dados_os))
-        story.append(Spacer(1, 3*mm))  # Reduzido de 5mm para 3mm
+        story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
         
         # Justificativa
         story.extend(self._criar_secao_justificativa(dados_os))
-        story.append(Spacer(1, 3*mm))  # Espaçamento após justificativa
+        story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
         
         # Observações (se existir)
         if dados_os.get('observacoes'):
             story.extend(self._criar_secao_observacoes(dados_os))
-            story.append(Spacer(1, 3*mm))  # Espaçamento após observações
+            story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
         
-        story.append(Spacer(1, 2*mm))  # Espaçamento antes das assinaturas
+        story.append(Spacer(1, 1*mm))  # Reduzido de 2mm para 1mm
         
         # Assinaturas
         story.extend(self._criar_secao_assinaturas(dados_os))
@@ -198,14 +200,14 @@ class PDFOrdemServico:
         # Logo (timbrado)
         logo_path = os.path.join(os.path.dirname(__file__), 'static', 'timbrado.png')
         if os.path.exists(logo_path):
-            logo = Image(logo_path, width=25*mm, height=25*mm)  # Reduzido de 30mm para 25mm
+            logo = Image(logo_path, width=20*mm, height=20*mm)  # Reduzido de 25mm para 20mm
         else:
             # Placeholder se não houver logo
             logo = Paragraph('<b>SP</b>', self.styles['CustomLabel'])
         
         # Título central
         titulo = Paragraph(
-            "GOVERNO DO ESTADO DE SÃO PAULO<br/>SECRETARIA DE ESTADO DA EDUCAÇÃO<br/>DEPARTAMENTO DE ADMINISTRAÇÃO<br/><br/><b>ORDEM DE SERVIÇO</b>",
+            "GOVERNO DO ESTADO DE SÃO PAULO<br/>SECRETARIA DE ESTADO DA EDUCAÇÃO<br/>COORDENADORIA GERAL DE SUPORTE ADMINISTRATIVO<br/><br/><b>ORDEM DE SERVIÇO</b>",
             self.styles['CustomSubtitle']
         )
         
@@ -283,6 +285,10 @@ class PDFOrdemServico:
         """Cria seção de dados do evento"""
         elements = []
         
+        # Converter quebras de linha no horário para HTML
+        horario = self._get_safe(dados, 'horario')
+        horario_html = horario.replace('\n', '<br/>') if horario else ''
+        
         data = [
             [Paragraph('<b>EVENTO:</b>', self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'evento'), self.styles['CustomNormal']), '', ''],
@@ -291,7 +297,7 @@ class PDFOrdemServico:
              Paragraph(self._get_safe(dados, 'data'), self.styles['CustomNormal']), '', ''],
             
             [Paragraph('<b>HORÁRIO:</b>', self.styles['CustomLabel']), 
-             Paragraph(self._get_safe(dados, 'horario'), self.styles['CustomNormal']), '', ''],
+             Paragraph(horario_html, self.styles['CustomNormal']), '', ''],
             
             [Paragraph('<b>LOCAL DO EVENTO:</b>', self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'local'), self.styles['CustomNormal']), '', ''],
@@ -335,6 +341,9 @@ class PDFOrdemServico:
         
         data = [header]
         
+        # Buscar região do estoque da O.S.
+        regiao_estoque = dados.get('regiaoEstoque')
+        
         # Itens
         valor_total = 0
         for idx, item in enumerate(dados.get('itens', []), 1):
@@ -342,7 +351,24 @@ class PDFOrdemServico:
             # Priorizar qtdSolicitada se existir, senão calcular a partir de qtdTotal
             qtd_solicitada = float(item.get('qtdSolicitada', 0)) if item.get('qtdSolicitada') is not None else (float(item.get('qtdTotal', 0)) / diarias if diarias > 0 else 0)
             qtd_total = float(item.get('qtdTotal', 0))
-            valor_unit = 25.60  # Valor fixo (pode ser parametrizado)
+            
+            # Buscar preço do banco de dados baseado no item_id e região
+            valor_unit = 0.0
+            item_id = item.get('itemId')
+            if item_id and regiao_estoque:
+                estoque = EstoqueRegional.query.filter_by(
+                    item_id=item_id,
+                    regiao_numero=regiao_estoque
+                ).first()
+                
+                if estoque and estoque.preco:
+                    try:
+                        # Converter preco (string) para float
+                        preco_str = estoque.preco.replace('.', '').replace(',', '.')
+                        valor_unit = float(preco_str)
+                    except:
+                        valor_unit = 0.0
+            
             total_item = qtd_total * valor_unit
             valor_total += total_item
             
@@ -378,9 +404,9 @@ class PDFOrdemServico:
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 7),  # Reduzido de 8 para 7
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 4),  # Reduzido de 6 para 4
-            ('TOPPADDING', (0, 0), (-1, 0), 4),  # Reduzido de 6 para 4
+            ('FONTSIZE', (0, 0), (-1, 0), 6.5),  # Reduzido de 7 para 6.5
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 2),  # Reduzido de 4 para 2
+            ('TOPPADDING', (0, 0), (-1, 0), 2),  # Reduzido de 4 para 2
             
             # Corpo
             ('GRID', (0, 0), (-1, -2), 0.5, colors.grey),
@@ -394,10 +420,10 @@ class PDFOrdemServico:
             ('ALIGN', (6, 1), (6, -1), 'RIGHT'),   # Valor Unit à direita
             ('ALIGN', (7, 1), (7, -1), 'RIGHT'),   # Valor Total à direita
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 4 para 2
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 4 para 2
-            ('LEFTPADDING', (0, 0), (-1, -1), 2),  # Reduzido de 3 para 2
-            ('RIGHTPADDING', (0, 0), (-1, -1), 2),  # Reduzido de 3 para 2
+            ('TOPPADDING', (0, 1), (-1, -1), 1),  # Reduzido de 2 para 1
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 1),  # Reduzido de 2 para 1
+            ('LEFTPADDING', (0, 0), (-1, -1), 1.5),  # Reduzido de 2 para 1.5
+            ('RIGHTPADDING', (0, 0), (-1, -1), 1.5),  # Reduzido de 2 para 1.5
             
             # Linha de total
             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#c6e0b4')),  # Verde claro
@@ -418,9 +444,9 @@ class PDFOrdemServico:
         justificativa_style = ParagraphStyle(
             'JustificativaCompacta',
             parent=self.styles['CustomNormal'],
-            fontSize=7,  # Fonte menor
-            leading=9,   # Espaçamento entre linhas reduzido
-            spaceAfter=2
+            fontSize=6.5,  # Reduzido de 7 para 6.5
+            leading=8,     # Reduzido de 9 para 8
+            spaceAfter=1
         )
         
         elements.append(Paragraph('<b>JUSTIFICATIVA:</b>', self.styles['CustomLabel']))
@@ -441,9 +467,9 @@ class PDFOrdemServico:
         observacoes_style = ParagraphStyle(
             'ObservacoesCompacta',
             parent=self.styles['CustomNormal'],
-            fontSize=7,  # Fonte menor
-            leading=9,   # Espaçamento entre linhas reduzido
-            spaceAfter=2
+            fontSize=6.5,  # Reduzido de 7 para 6.5
+            leading=8,     # Reduzido de 9 para 8
+            spaceAfter=1
         )
         
         elements.append(Paragraph('<b>OBSERVAÇÕES:</b>', self.styles['CustomLabel']))
@@ -468,7 +494,8 @@ class PDFOrdemServico:
                 'DataAssinatura',
                 parent=self.styles['CustomNormal'],
                 alignment=TA_CENTER,
-                spaceAfter=8*mm  # Reduzido de 15mm para 8mm
+                fontSize=7,  # Reduzir fonte
+                spaceAfter=4*mm  # Reduzido de 8mm para 4mm
             )
         )
         elements.append(data_paragraph)

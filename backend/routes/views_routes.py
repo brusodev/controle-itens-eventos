@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, redirect, url_for
+from flask import Blueprint, render_template, session, redirect, url_for, abort
 from functools import wraps
 
 views_bp = Blueprint('views', __name__)
@@ -11,6 +11,17 @@ def login_requerido(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return verificar_login
+
+def admin_requerido(f):
+    """Decorator para verificar se o usuário é administrador"""
+    @wraps(f)
+    def verificar_admin(*args, **kwargs):
+        if 'usuario_id' not in session:
+            return redirect(url_for('auth.login'))
+        if session.get('usuario_perfil') != 'admin':
+            abort(403)  # Forbidden
+        return f(*args, **kwargs)
+    return verificar_admin
 
 @views_bp.before_request
 def verificar_autenticacao():
@@ -42,9 +53,9 @@ def alterar_senha():
     return render_template('alterar-senha.html')
 
 @views_bp.route('/gerenciar-usuarios')
-@login_requerido
+@admin_requerido
 def gerenciar_usuarios():
-    """Página de gerenciamento de usuários"""
+    """Página de gerenciamento de usuários (apenas admin)"""
     return render_template('gerenciar-usuarios.html', 
                          usuario_perfil=session.get('usuario_perfil', 'comum'))
 

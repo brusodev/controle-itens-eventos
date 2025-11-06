@@ -418,14 +418,23 @@ def gerar_pdf_ordem(os_id):
         # Verificar se é para impressão (inline) ou download
         is_print = request.args.get('print', 'false').lower() == 'true'
         
-        # Retornar PDF
-        return send_file(
+        # Retornar PDF com headers para evitar cache
+        response = send_file(
             pdf_buffer,
             mimetype='application/pdf',
             as_attachment=not is_print,  # Se print=true, abre inline; senão, baixa
             download_name=filename
         )
+        
+        # Headers para evitar cache
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        return response
     
     except Exception as e:
         print(f"❌ Erro ao gerar PDF: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'erro': str(e)}), 500

@@ -87,7 +87,7 @@ def filtrar_alimentacao():
 @login_requerido
 @admin_requerido
 def atualizar_estoque(item_id):
-    """Atualiza quantidades de estoque de um item específico"""
+    """Atualiza quantidades de estoque e preços de um item específico"""
     try:
         item = Item.query.get_or_404(item_id)
         dados = request.json
@@ -103,6 +103,8 @@ def atualizar_estoque(item_id):
                     estoque.quantidade_inicial = qtds['inicial']
                 if 'gasto' in qtds:
                     estoque.quantidade_gasto = qtds['gasto']
+                if 'preco' in qtds:
+                    estoque.preco = qtds['preco']
         
         db.session.commit()
         return jsonify(item.to_dict()), 200

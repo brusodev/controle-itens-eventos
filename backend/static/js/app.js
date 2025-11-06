@@ -82,7 +82,21 @@ function carregarDados() {
     }
 
     if (dadosAlimentacaoLS) {
-        dadosAlimentacao = JSON.parse(dadosAlimentacaoLS);
+        const dadosCache = JSON.parse(dadosAlimentacaoLS);
+        // Verificar se os dados em cache têm o campo 'preco'
+        const temPreco = Object.values(dadosCache).some(cat => 
+            cat.itens && cat.itens.some(item => 
+                item.regioes && Object.values(item.regioes).some(r => r.preco !== undefined)
+            )
+        );
+        
+        if (temPreco) {
+            console.log('✅ Cache válido com campo preço');
+            dadosAlimentacao = dadosCache;
+        } else {
+            console.log('⚠️ Cache sem campo preço - será atualizado');
+            localStorage.removeItem('dadosAlimentacao');
+        }
     }
 
     // ❌ CACHE REMOVIDO - O.S. carregadas sob demanda da API
@@ -267,6 +281,11 @@ async function renderizarAlimentacao() {
         console.log('🔄 [ALIMENTAÇÃO] Buscando dados atualizados da API...');
         dadosAlimentacao = await APIClient.listarAlimentacao();
         console.log('✅ [ALIMENTAÇÃO] Dados recebidos:', dadosAlimentacao);
+        
+        // Salvar no localStorage com campo preco
+        localStorage.setItem('dadosAlimentacao', JSON.stringify(dadosAlimentacao));
+        console.log('💾 [ALIMENTAÇÃO] Dados salvos no cache com campo preço');
+        
         renderizarItensAlimentacao();
     } catch (error) {
         console.error('Erro ao carregar dados de alimentação:', error);
@@ -308,8 +327,14 @@ function filtrarAlimentacao() {
             let totalInicial = 0;
             let totalGasto = 0;
             Object.values(item.regioes).forEach(r => {
-                if (r.inicial !== '__') totalInicial += parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0;
-                totalGasto += parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
+                // Verificar se inicial existe e não é '__' antes de fazer replace
+                if (r.inicial && r.inicial !== '__') {
+                    totalInicial += parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0;
+                }
+                // Verificar se gasto existe antes de fazer replace
+                if (r.gasto) {
+                    totalGasto += parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
+                }
             });
             const totalDisponivel = totalInicial - totalGasto;
             
@@ -340,7 +365,12 @@ function filtrarAlimentacao() {
                     </div>
                     <div class="regioes-summary">
                         ${Object.entries(item.regioes).map(([reg, r]) => {
-                            const disp = r.inicial !== '__' ? (parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0) - (parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0) : 0;
+                            let disp = 0;
+                            if (r.inicial && r.inicial !== '__' && r.gasto) {
+                                const inicial = parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0;
+                                const gasto = parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
+                                disp = inicial - gasto;
+                            }
                             return `<span class="regiao-qty">Restante Reg ${reg}: ${disp.toLocaleString()}</span>`;
                         }).join('')}
                     </div>
@@ -374,6 +404,9 @@ function editarItemAlimentacao(categoria, itemId) {
     const item = dadosAlimentacao[categoria].itens.find(i => i.item === itemId.toString());
     if (!item) return;
     
+    console.log('🔍 [EDITAR] Item completo:', item);
+    console.log('🔍 [EDITAR] Regiões do item:', item.regioes);
+    
     alimentacaoEditando = { categoria, itemId: itemId.toString() };
     
     document.getElementById('modal-alimentacao-titulo').textContent = 'Editar Item de Alimentação';
@@ -384,14 +417,42 @@ function editarItemAlimentacao(categoria, itemId) {
     regioesDiv.innerHTML = '';
     
     for (let reg = 1; reg <= 6; reg++) {
-        const r = item.regioes[reg.toString()] || { inicial: '', gasto: '0' };
+        const r = item.regioes[reg.toString()] || { inicial: '', gasto: '0', preco: '0' };
+        console.log(`🔍 [EDITAR] Região ${reg}:`, r);
+        
+        // Garantir que preco nunca seja undefined
+        const precoValor = (r.preco !== undefined && r.preco !== null) ? r.preco : '0';
+        
+        // Limpar formatação dos valores para exibição
+        // Converter para número inteiro removendo decimais
+        const inicialNum = r.inicial ? Math.round(parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0) : 0;
+        const gastoNum = r.gasto ? Math.round(parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0) : 0;
+        
+        const inicialExibicao = inicialNum > 0 ? inicialNum.toString() : '';
+        const gastoExibicao = gastoNum.toString();
+        
+        // Definir readonly apenas para usuários comuns (não admin)
+        const isAdmin = usuarioPerfil === 'admin';
+        const readonlyAttr = isAdmin ? '' : 'readonly';
+        const readonlyStyle = isAdmin ? '' : ' style="background: #f0f0f0;"';
+        
         const regDiv = document.createElement('div');
         regDiv.className = 'form-group';
         regDiv.innerHTML = `
-            <label>Região ${reg}:</label>
+            <label style="font-weight: 600; margin-bottom: 8px; display: block;">Região ${reg}:</label>
             <div class="regiao-inputs">
-                <input type="text" class="regiao-inicial-input" data-reg="${reg}" value="${r.inicial}" placeholder="Inicial">
-                <input type="text" class="regiao-gasto-input" data-reg="${reg}" value="${r.gasto}" placeholder="Gasto">
+                <div style="flex: 1;">
+                    <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Inicial</label>
+                    <input type="number" class="regiao-inicial-input" data-reg="${reg}" value="${inicialExibicao}" placeholder="Inicial" step="1" ${readonlyAttr}${readonlyStyle}>
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Gasto</label>
+                    <input type="number" class="regiao-gasto-input" data-reg="${reg}" value="${gastoExibicao}" placeholder="Gasto" step="1" ${readonlyAttr}${readonlyStyle}>
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Preço</label>
+                    <input type="text" class="regiao-preco-input" data-reg="${reg}" value="${precoValor}" placeholder="Preço">
+                </div>
             </div>
         `;
         regioesDiv.appendChild(regDiv);
@@ -418,6 +479,7 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
     const regioes = {};
     const regioesInicialInputs = document.querySelectorAll('.regiao-inicial-input');
     const regioesGastoInputs = document.querySelectorAll('.regiao-gasto-input');
+    const regioesPrecoInputs = document.querySelectorAll('.regiao-preco-input');
     
     regioesInicialInputs.forEach(input => {
         const reg = input.getAttribute('data-reg');
@@ -431,14 +493,24 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
         regioes[reg].gasto = input.value || '0';
     });
     
+    regioesPrecoInputs.forEach(input => {
+        const reg = input.getAttribute('data-reg');
+        if (!regioes[reg]) regioes[reg] = { inicial: '__' };
+        regioes[reg].preco = input.value || '0';
+    });
+    
     try {
         // Atualizar via API
         await APIClient.atualizarEstoqueItem(item.id, regioes);
         
-        // Atualizar localmente
+        // Atualizar localmente (merge para preservar campos existentes)
         Object.keys(regioes).forEach(reg => {
             if (!item.regioes[reg]) item.regioes[reg] = {};
-            item.regioes[reg] = regioes[reg];
+            // Fazer merge para preservar 'gasto' e outros campos
+            item.regioes[reg] = {
+                ...item.regioes[reg],
+                ...regioes[reg]
+            };
         });
         
         alert('Estoque atualizado com sucesso!');
@@ -476,19 +548,31 @@ function adicionarItemOS() {
     itemDiv.className = 'item-os';
     itemDiv.innerHTML = `
         <div class="form-row">
-            <select class="os-categoria" onchange="atualizarItensOS(this)">
-                <option value="">Selecione Categoria</option>
-                <option value="coffee_break_bebidas_quentes">Coffee Break e Bebidas Quentes</option>
-                <option value="fornecimento_agua_mineral">Fornecimento de Água Mineral</option>
-                <option value="kit_lanche">Kit Lanche</option>
-                <option value="fornecimento_biscoitos">Fornecimento de Biscoitos</option>
-                <option value="almoco_jantar">Almoço/Jantar</option>
-            </select>
-            <select class="os-item">
-                <option value="">Selecione Item</option>
-            </select>
-            <input type="number" class="os-diarias" placeholder="Diárias" min="1" value="1">
-            <input type="number" class="os-quantidade" placeholder="Qtd" min="0">
+            <div class="form-field">
+                <label class="field-label">Categoria</label>
+                <select class="os-categoria" onchange="atualizarItensOS(this)">
+                    <option value="">Selecione Categoria</option>
+                    <option value="coffee_break_bebidas_quentes">Coffee Break e Bebidas Quentes</option>
+                    <option value="fornecimento_agua_mineral">Fornecimento de Água Mineral</option>
+                    <option value="kit_lanche">Kit Lanche</option>
+                    <option value="fornecimento_biscoitos">Fornecimento de Biscoitos</option>
+                    <option value="almoco_jantar">Almoço/Jantar</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="field-label">Item</label>
+                <select class="os-item">
+                    <option value="">Selecione Item</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="field-label">Diárias</label>
+                <input type="number" class="os-diarias" placeholder="Diárias" min="1" value="1">
+            </div>
+            <div class="form-field">
+                <label class="field-label">Qtd</label>
+                <input type="number" class="os-quantidade" placeholder="Qtd" min="0">
+            </div>
         </div>
         <button type="button" class="btn-small btn-danger" onclick="removerItemOS(this)">🗑️ Remover</button>
     `;
@@ -496,7 +580,9 @@ function adicionarItemOS() {
 }
 
 function atualizarItensOS(select) {
-    const itemSelect = select.parentElement.querySelector('.os-item');
+    // Buscar no form-row (pai do form-field)
+    const formRow = select.closest('.form-row');
+    const itemSelect = formRow.querySelector('.os-item');
     const categoria = select.value;
     itemSelect.innerHTML = '<option value="">Selecione Item</option>';
     if (categoria && dadosAlimentacao[categoria]) {
@@ -586,6 +672,21 @@ function coletarDadosOS() {
             const selectedOption = itemSelect.options[itemSelect.selectedIndex];
             const itemBec = selectedOption.getAttribute('data-item-bec') || dadosAlimentacao[categoria].natureza;
             
+            // Buscar preço baseado na região selecionada (grupo)
+            const grupoSelect = document.getElementById('os-grupo-select');
+            const grupo = grupoSelect ? grupoSelect.value : document.getElementById('os-grupo').value || '1';
+            
+            // Pegar preço da região correspondente ao grupo
+            let valorUnit = 0;
+            if (item.regioes && item.regioes[grupo] && item.regioes[grupo].preco) {
+                try {
+                    const precoStr = item.regioes[grupo].preco.replace('.', '').replace(',', '.');
+                    valorUnit = parseFloat(precoStr) || 0;
+                } catch (e) {
+                    valorUnit = 0;
+                }
+            }
+            
             itensOS.push({
                 num: index + 1,
                 descricao: item.descricao,
@@ -594,7 +695,7 @@ function coletarDadosOS() {
                 diarias: diarias,
                 qtdSolicitada: quantidade,
                 qtdTotal: diarias * quantidade,
-                valorUnit: 25.60, // Valor exemplo - pode ser configurável
+                valorUnit: valorUnit,
                 categoria,
                 itemId  // ✅ CORRIGIDO: agora é o ID correto do banco
             });

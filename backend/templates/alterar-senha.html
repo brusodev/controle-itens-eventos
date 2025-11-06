@@ -442,7 +442,7 @@
             document.getElementById('btnSubmit').disabled = true;
 
             try {
-                const response = await fetch('/auth/alterar-senha', {
+                const response = await fetch('/auth/api/alterar-senha', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -452,6 +452,12 @@
                         senha_nova: senhaNova
                     })
                 });
+
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Resposta inválida do servidor. O servidor retornou HTML em vez de JSON. Verifique se está autenticado.');
+                }
 
                 const data = await response.json();
 

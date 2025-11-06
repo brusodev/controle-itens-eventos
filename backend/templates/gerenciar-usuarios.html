@@ -572,8 +572,11 @@
                 </div>
 
                 <div class="form-group" id="senhaGroup">
-                    <label for="senha">Senha *</label>
+                    <label for="senha" id="senhaLabel">Senha *</label>
                     <input type="password" id="senha" placeholder="Mínimo 6 caracteres">
+                    <small id="senhaHelp" style="display: none; color: #666; font-size: 0.85rem; margin-top: 4px;">
+                        Deixe em branco para manter a senha atual
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -666,12 +669,14 @@
                         <button class="btn-sm btn-edit" onclick="editarUsuario(${usuario.id})">
                             ✏️ Editar
                         </button>
+                        ${usuarioPerfil === 'admin' ? `
                         <button class="btn-sm btn-toggle" onclick="toggleAtivo(${usuario.id}, ${!usuario.ativo})">
                             ${usuario.ativo ? '🔒 Desativar' : '✓ Ativar'}
                         </button>
                         <button class="btn-sm btn-delete" onclick="deletarUsuario(${usuario.id})">
                             🗑️ Deletar
                         </button>
+                        ` : ''}
                     </div>
                 </div>
             `).join('');
@@ -687,8 +692,14 @@
             document.getElementById('modalTitulo').textContent = '➕ Novo Usuário';
             document.getElementById('formUsuario').reset();
             document.getElementById('usuarioId').value = '';
+            
+            // Configurar senha como obrigatória para novo usuário
             document.getElementById('senhaGroup').style.display = 'block';
+            document.getElementById('senhaLabel').textContent = 'Senha *';
+            document.getElementById('senha').placeholder = 'Mínimo 6 caracteres';
             document.getElementById('senha').required = true;
+            document.getElementById('senhaHelp').style.display = 'none';
+            
             document.getElementById('modalUsuario').classList.add('show');
         }
 
@@ -703,8 +714,15 @@
             document.getElementById('cargo').value = usuario.cargo || '';
             document.getElementById('perfil').value = usuario.perfil || 'comum';
             document.getElementById('ativo').value = usuario.ativo.toString();
-            document.getElementById('senhaGroup').style.display = 'none';
+            
+            // Mostrar campo de senha mas como opcional
+            document.getElementById('senhaGroup').style.display = 'block';
+            document.getElementById('senhaLabel').textContent = 'Nova Senha (opcional)';
+            document.getElementById('senha').placeholder = 'Deixe em branco para manter a atual';
             document.getElementById('senha').required = false;
+            document.getElementById('senha').value = '';
+            document.getElementById('senhaHelp').style.display = 'block';
+            
             document.getElementById('modalUsuario').classList.add('show');
         }
 
@@ -733,12 +751,23 @@
                 ativo: document.getElementById('ativo').value === 'true'
             };
 
+            // Incluir senha se for novo usuário OU se foi preenchida ao editar
+            const senhaValue = document.getElementById('senha').value;
+            
             if (!id) {
-                dados.senha = document.getElementById('senha').value;
+                // Novo usuário - senha obrigatória
+                dados.senha = senhaValue;
                 if (dados.senha.length < 6) {
                     mostrarAlertaModal('Senha deve ter no mínimo 6 caracteres', 'error');
                     return;
                 }
+            } else if (senhaValue) {
+                // Editando - senha opcional, mas se preenchida, validar
+                if (senhaValue.length < 6) {
+                    mostrarAlertaModal('Senha deve ter no mínimo 6 caracteres', 'error');
+                    return;
+                }
+                dados.senha = senhaValue;
             }
 
             try {
@@ -752,6 +781,12 @@
                     },
                     body: JSON.stringify(dados)
                 });
+
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Resposta inválida do servidor. O servidor retornou HTML em vez de JSON. Possível erro de autenticação.');
+                }
 
                 const result = await response.json();
 
@@ -768,6 +803,11 @@
         }
 
         async function toggleAtivo(id, novoStatus) {
+            if (usuarioPerfil !== 'admin') {
+                mostrarAlerta('Apenas administradores podem ativar/desativar usuários', 'error');
+                return;
+            }
+            
             try {
                 const response = await fetch(`/auth/api/usuarios/${id}`, {
                     method: 'PUT',
@@ -790,6 +830,11 @@
         }
 
         async function deletarUsuario(id) {
+            if (usuarioPerfil !== 'admin') {
+                mostrarAlerta('Apenas administradores podem deletar usuários', 'error');
+                return;
+            }
+            
             if (!confirm('Tem certeza que deseja deletar este usuário? Esta ação não pode ser desfeita.')) {
                 return;
             }
