@@ -368,7 +368,7 @@
     <div class="container">
         <div class="page-header">
             <h1>Empresas Detentoras de Contratos</h1>
-            <button class="btn btn-primary" onclick="abrirModalNova()" {% if usuario_perfil != 'admin' %}disabled title="Apenas administradores"{% endif %}>
+            <button class="btn btn-primary" onclick="abrirModalNova()">
                 ➕ Nova Detentora
             </button>
         </div>
@@ -534,12 +534,10 @@
                     </div>
                     
                     <div class="detentora-actions">
-                        <button class="btn btn-small btn-warning" onclick="editarDetentora(${d.id})"
-                            ${usuarioPerfil !== 'admin' ? 'disabled title="Apenas administradores"' : ''}>
+                        <button class="btn btn-small btn-warning" onclick="editarDetentora(${d.id})">
                             ✏️ Editar
                         </button>
-                        <button class="btn btn-small btn-danger" onclick="deletarDetentora(${d.id})"
-                            ${usuarioPerfil !== 'admin' ? 'disabled title="Apenas administradores"' : ''}>
+                        <button class="btn btn-small btn-danger" onclick="deletarDetentora(${d.id})">
                             🗑️ Excluir
                         </button>
                     </div>
@@ -548,11 +546,6 @@
         }
 
         function abrirModalNova() {
-            if (usuarioPerfil !== 'admin') {
-                mostrarAlerta('Apenas administradores podem adicionar detentoras', 'error');
-                return;
-            }
-            
             document.getElementById('modal-titulo').textContent = 'Nova Detentora';
             document.getElementById('form-detentora').reset();
             document.getElementById('detentora-id').value = '';
@@ -561,11 +554,6 @@
         }
 
         function editarDetentora(id) {
-            if (usuarioPerfil !== 'admin') {
-                mostrarAlerta('Apenas administradores podem editar detentoras', 'error');
-                return;
-            }
-            
             const detentora = detentoras.find(d => d.id === id);
             if (!detentora) return;
 
@@ -625,11 +613,6 @@
         }
 
         async function deletarDetentora(id) {
-            if (usuarioPerfil !== 'admin') {
-                mostrarAlerta('Apenas administradores podem excluir detentoras', 'error');
-                return;
-            }
-            
             if (!confirm('Tem certeza que deseja inativar esta detentora?')) return;
 
             try {
