@@ -74,7 +74,6 @@ def obter_detentora(detentora_id):
 
 @detentoras_bp.route('/', methods=['POST'])
 @login_requerido
-@admin_requerido
 def criar_detentora():
     """Cria uma nova detentora (apenas admin)"""
     try:
@@ -122,7 +121,6 @@ def criar_detentora():
 
 @detentoras_bp.route('/<int:detentora_id>', methods=['PUT'])
 @login_requerido
-@admin_requerido
 def atualizar_detentora(detentora_id):
     """Atualiza uma detentora (apenas admin)"""
     try:
