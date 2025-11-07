@@ -22,7 +22,10 @@ wheels/
 MANIFEST
 
 # Flask
-# instance/
+instance/
+*.db
+*.sqlite
+*.sqlite3
 .webassets-cache
 
 # Environment variables
@@ -66,18 +69,27 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Database
-# *.db
+# Database (PROTEÇÃO CRÍTICA!)
+*.db
 *.sqlite
 *.sqlite3
+backend/instance/
+backend/instance_prod/
 
-# Backups
+# Backups (PROTEÇÃO CRÍTICA!)
 *.bak
 *.backup
+*.db.backup
+*.db.old
+backup_*.db
+instance/backups/
+backend/instance/backups/
 
 # Deploy e produção
 backend/.env
-backend/instance/*.db
+.env.production
+secrets.py
+config_local.py
 /var/log/
 *.service
 backup_*.db.gz
