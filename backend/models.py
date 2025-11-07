@@ -323,3 +323,52 @@ class Usuario(db.Model):
     
     def __repr__(self):
         return f'<Usuario {self.email}>'
+
+
+class Auditoria(db.Model):
+    """Registro de auditoria de ações no sistema"""
+    __tablename__ = 'auditoria'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    usuario_email = db.Column(db.String(100), nullable=False)  # Redundância para histórico
+    usuario_nome = db.Column(db.String(100), nullable=False)
+    
+    acao = db.Column(db.String(50), nullable=False)  # 'CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT'
+    modulo = db.Column(db.String(50), nullable=False)  # 'OS', 'ITEM', 'DETENTORA', 'USUARIO', 'AUTH'
+    entidade_tipo = db.Column(db.String(50))  # Nome da tabela/modelo afetado
+    entidade_id = db.Column(db.Integer)  # ID do registro afetado
+    
+    descricao = db.Column(db.Text, nullable=False)  # Descrição legível da ação
+    dados_antes = db.Column(db.Text)  # JSON com dados antes da alteração (UPDATE/DELETE)
+    dados_depois = db.Column(db.Text)  # JSON com dados depois da alteração (CREATE/UPDATE)
+    
+    ip_address = db.Column(db.String(45))  # IPv4 ou IPv6
+    user_agent = db.Column(db.String(200))
+    
+    data_hora = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    
+    # Relacionamento
+    usuario = db.relationship('Usuario', backref='auditorias', foreign_keys=[usuario_id])
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'usuario_id': self.usuario_id,
+            'usuario_email': self.usuario_email,
+            'usuario_nome': self.usuario_nome,
+            'acao': self.acao,
+            'modulo': self.modulo,
+            'entidade_tipo': self.entidade_tipo,
+            'entidade_id': self.entidade_id,
+            'descricao': self.descricao,
+            'dados_antes': self.dados_antes,
+            'dados_depois': self.dados_depois,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent,
+            'data_hora': self.data_hora.isoformat() if self.data_hora else None
+        }
+    
+    def __repr__(self):
+        return f'<Auditoria {self.id} - {self.acao} {self.modulo} por {self.usuario_email}>'
+

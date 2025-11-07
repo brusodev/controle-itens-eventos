@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models import db, Categoria, Item, EstoqueRegional
 from routes.auth_routes import login_requerido, admin_requerido
+from utils.auditoria import registrar_auditoria
 
 alimentacao_bp = Blueprint('alimentacao', __name__)
 
@@ -92,6 +93,9 @@ def atualizar_estoque(item_id):
         item = Item.query.get_or_404(item_id)
         dados = request.json
         
+        # Salvar dados antes para auditoria
+        dados_antes = item.to_dict(incluir_estoques=True)
+        
         for regiao_num, qtds in dados.items():
             estoque = EstoqueRegional.query.filter_by(
                 item_id=item.id,
@@ -107,6 +111,18 @@ def atualizar_estoque(item_id):
                     estoque.preco = qtds['preco']
         
         db.session.commit()
+        
+        # Registrar auditoria
+        registrar_auditoria(
+            'UPDATE',
+            'ITEM',
+            f'Atualizou estoques do item: {item.descricao}',
+            entidade_tipo='itens',
+            entidade_id=item.id,
+            dados_antes=dados_antes,
+            dados_depois=item.to_dict(incluir_estoques=True)
+        )
+        
         return jsonify(item.to_dict()), 200
     
     except Exception as e:

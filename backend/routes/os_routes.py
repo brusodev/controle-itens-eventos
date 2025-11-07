@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import func
 from pdf_generator import gerar_pdf_os
 from routes.auth_routes import login_requerido, admin_requerido  # ✅ Importar decorators
+from utils.auditoria import registrar_auditoria
 import sys
 import os
 
@@ -198,6 +199,17 @@ def criar_ordem():
             return jsonify({'erro': str(e)}), 400
         
         db.session.commit()
+        
+        # Registrar auditoria
+        registrar_auditoria(
+            'CREATE',
+            'OS',
+            f'Criou Ordem de Serviço #{numero_os_gerado} - {os.evento}',
+            entidade_tipo='ordens_servico',
+            entidade_id=os.id,
+            dados_depois=os.to_dict()
+        )
+        
         print(f"✅ O.S. {numero_os_gerado} criada com sucesso!\n")
         return jsonify(os.to_dict()), 201
     
@@ -215,6 +227,9 @@ def atualizar_ordem(os_id):
     try:
         os = OrdemServico.query.get_or_404(os_id)
         dados = request.get_json()
+        
+        # Salvar dados antes para auditoria (com itens)
+        dados_antes = os.to_dict(incluir_itens=True)
         
         print(f"\n🔄 Editando O.S. {os.numero_os}...")
         
@@ -310,6 +325,18 @@ def atualizar_ordem(os_id):
             return jsonify({'erro': str(e)}), 400
         
         db.session.commit()
+        
+        # Registrar auditoria com dados completos
+        registrar_auditoria(
+            'UPDATE',
+            'OS',
+            f'Atualizou Ordem de Serviço #{os.numero_os} - {os.evento}',
+            entidade_tipo='ordens_servico',
+            entidade_id=os.id,
+            dados_antes=dados_antes,
+            dados_depois=os.to_dict(incluir_itens=True)
+        )
+        
         print(f"✅ O.S. {os.numero_os} atualizada com sucesso!\n")
         return jsonify(os.to_dict()), 200
         
@@ -329,6 +356,10 @@ def deletar_ordem(os_id):
     try:
         os = OrdemServico.query.get_or_404(os_id)
         numero_os = os.numero_os
+        evento = os.evento
+        
+        # Salvar dados antes de deletar
+        dados_antes = os.to_dict()
         
         print(f"\n🗑️  Deletando O.S. {numero_os}...")
         
@@ -340,6 +371,16 @@ def deletar_ordem(os_id):
         # As movimentações serão deletadas automaticamente devido ao CASCADE
         db.session.delete(os)
         db.session.commit()
+        
+        # Registrar auditoria
+        registrar_auditoria(
+            'DELETE',
+            'OS',
+            f'Deletou Ordem de Serviço #{numero_os} - {evento}',
+            entidade_tipo='ordens_servico',
+            entidade_id=os_id,
+            dados_antes=dados_antes
+        )
         
         print(f"✅ O.S. {numero_os} deletada com sucesso!\n")
         return jsonify({'mensagem': f'O.S. {numero_os} deletada com sucesso'}), 200

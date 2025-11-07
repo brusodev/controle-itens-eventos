@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models import db, Item, Categoria, EstoqueRegional
 from routes.auth_routes import login_requerido, admin_requerido
+from utils.auditoria import registrar_auditoria
 
 itens_bp = Blueprint('itens', __name__)
 
@@ -71,6 +72,17 @@ def criar_item():
                 db.session.add(estoque)
         
         db.session.commit()
+        
+        # Registrar auditoria
+        registrar_auditoria(
+            'CREATE',
+            'ITEM',
+            f'Criou item: {item.descricao} (código: {item.item_codigo})',
+            entidade_tipo='itens',
+            entidade_id=item.id,
+            dados_depois=item.to_dict()
+        )
+        
         return jsonify(item.to_dict()), 201
     
     except Exception as e:
@@ -86,6 +98,9 @@ def atualizar_item(item_id):
     try:
         item = Item.query.get_or_404(item_id)
         dados = request.json
+        
+        # Salvar dados anteriores para auditoria (com estoques)
+        dados_antes = item.to_dict(incluir_estoques=True)
         
         # Atualizar dados básicos
         if 'descricao' in dados:
@@ -117,6 +132,24 @@ def atualizar_item(item_id):
                     db.session.add(estoque)
         
         db.session.commit()
+        
+        # Registrar auditoria com estoques
+        print(f"\n📋 Registrando auditoria para item {item.id} - {item.descricao}")
+        print(f"   Dados ANTES: {dados_antes}")
+        print(f"   Dados DEPOIS: {item.to_dict(incluir_estoques=True)}")
+        
+        registrar_auditoria(
+            'UPDATE',
+            'ITEM',
+            f'Atualizou item: {item.descricao}',
+            entidade_tipo='itens',
+            entidade_id=item.id,
+            dados_antes=dados_antes,
+            dados_depois=item.to_dict(incluir_estoques=True)
+        )
+        
+        print(f"   ✅ Auditoria registrada!")
+        
         return jsonify(item.to_dict()), 200
     
     except Exception as e:
@@ -131,8 +164,24 @@ def deletar_item(item_id):
     """Deleta um item"""
     try:
         item = Item.query.get_or_404(item_id)
+        
+        # Salvar dados antes de deletar
+        dados_antes = item.to_dict()
+        descricao = item.descricao
+        
         db.session.delete(item)
         db.session.commit()
+        
+        # Registrar auditoria
+        registrar_auditoria(
+            'DELETE',
+            'ITEM',
+            f'Deletou item: {descricao}',
+            entidade_tipo='itens',
+            entidade_id=item_id,
+            dados_antes=dados_antes
+        )
+        
         return jsonify({'mensagem': 'Item deletado com sucesso'}), 200
     
     except Exception as e:

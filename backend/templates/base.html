@@ -308,6 +308,9 @@
             <div class="sidebar-title">👥 Administração</div>
             <ul class="sidebar-menu">
                 <li><a href="/api/usuarios">👤 Usuários</a></li>
+                {% if session.usuario_perfil == 'admin' %}
+                <li><a href="/api/auditoria/view">📋 Auditoria</a></li>
+                {% endif %}
                 <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
             </ul>
         </div>

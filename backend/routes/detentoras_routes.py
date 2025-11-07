@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models import db, Detentora
 from routes.auth_routes import login_requerido, admin_requerido
+from utils.auditoria import registrar_auditoria
 
 detentoras_bp = Blueprint('detentoras', __name__)
 
@@ -112,6 +113,16 @@ def criar_detentora():
         db.session.add(detentora)
         db.session.commit()
         
+        # Registrar auditoria
+        registrar_auditoria(
+            'CREATE',
+            'DETENTORA',
+            f'Criou detentora: {detentora.nome} - Grupo {detentora.grupo}',
+            entidade_tipo='detentoras',
+            entidade_id=detentora.id,
+            dados_depois=detentora.to_dict()
+        )
+        
         return jsonify(detentora.to_dict()), 201
     
     except Exception as e:
@@ -126,6 +137,9 @@ def atualizar_detentora(detentora_id):
     try:
         detentora = Detentora.query.get_or_404(detentora_id)
         dados = request.json
+        
+        # Salvar dados anteriores para auditoria
+        dados_antes = detentora.to_dict()
         
         # Verificar se está tentando mudar grupo para um já existente
         if 'grupo' in dados and dados['grupo'] != detentora.grupo:
@@ -153,6 +167,17 @@ def atualizar_detentora(detentora_id):
         
         db.session.commit()
         
+        # Registrar auditoria
+        registrar_auditoria(
+            'UPDATE',
+            'DETENTORA',
+            f'Atualizou detentora: {detentora.nome} - Grupo {detentora.grupo}',
+            entidade_tipo='detentoras',
+            entidade_id=detentora.id,
+            dados_antes=dados_antes,
+            dados_depois=detentora.to_dict()
+        )
+        
         return jsonify(detentora.to_dict()), 200
     
     except Exception as e:
@@ -168,9 +193,24 @@ def deletar_detentora(detentora_id):
     try:
         detentora = Detentora.query.get_or_404(detentora_id)
         
+        # Salvar dados para auditoria
+        dados_antes = detentora.to_dict()
+        nome_detentora = detentora.nome
+        grupo_detentora = detentora.grupo
+        
         # Soft delete - apenas marca como inativa
         detentora.ativo = False
         db.session.commit()
+        
+        # Registrar auditoria
+        registrar_auditoria(
+            'DELETE',
+            'DETENTORA',
+            f'Inativou detentora: {nome_detentora} - Grupo {grupo_detentora}',
+            entidade_tipo='detentoras',
+            entidade_id=detentora.id,
+            dados_antes=dados_antes
+        )
         
         return jsonify({
             'sucesso': True,

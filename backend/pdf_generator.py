@@ -248,11 +248,14 @@ class PDFOrdemServico:
         """Cria seção de dados do contrato"""
         elements = []
         
+        # Formatar data de assinatura
+        data_assinatura = self._formatar_data(self._get_safe(dados, 'dataAssinatura'))
+        
         data = [
             [Paragraph('<b>CONTRATO Nº:</b>', self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'contrato'), self.styles['CustomNormal']),
              Paragraph('<b>DATA ASSINATURA:</b>', self.styles['CustomLabel']), 
-             Paragraph(self._get_safe(dados, 'dataAssinatura'), self.styles['CustomNormal'])],
+             Paragraph(data_assinatura, self.styles['CustomNormal'])],
             
             [Paragraph('<b>DETENTORA:</b>', self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'detentora'), self.styles['CustomNormal']), '', ''],

@@ -451,7 +451,7 @@ function editarItemAlimentacao(categoria, itemId) {
                 </div>
                 <div style="flex: 1;">
                     <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Preço</label>
-                    <input type="text" class="regiao-preco-input" data-reg="${reg}" value="${precoValor}" placeholder="Preço">
+                    <input type="text" class="regiao-preco-input" data-reg="${reg}" value="${precoValor}" placeholder="Preço" ${readonlyAttr}${readonlyStyle}>
                 </div>
             </div>
         `;

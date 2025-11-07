@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoria - Sistema</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>☕</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-top: 70px;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .navbar-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .btn-voltar {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-voltar:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 60px auto 40px;
+            padding: 0 20px;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 2.2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        /* Estatísticas */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        /* Filtros */
+        .filters {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+        }
+
+        .filters h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 8px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        /* Tabela */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f9fafb;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-create {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-update {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-delete {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-login {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .badge-logout {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        /* Botão de Detalhes */
+        .btn-detalhes {
+            padding: 4px 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-detalhes:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        /* Modal de Detalhes */
+        .modal-detalhes {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-detalhes.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .btn-fechar {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .btn-fechar:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .diff-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .diff-column {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .diff-column h3 {
+            margin-bottom: 15px;
+            color: #374151;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .diff-antes h3 {
+            color: #991b1b;
+        }
+
+        .diff-depois h3 {
+            color: #065f46;
+        }
+
+        .diff-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .diff-item:last-child {
+            border-bottom: none;
+        }
+
+        .diff-key {
+            font-weight: 600;
+            color: #6b7280;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .diff-value {
+            color: #111827;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .diff-empty {
+            color: #9ca3af;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .info-value {
+            color: #111827;
+        }
+
+        @media (max-width: 768px) {
+            .diff-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Paginação */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination span {
+            color: #374151;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 10px;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .table-container {
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-title">📋 Auditoria do Sistema</div>
+        <a href="/" class="btn-voltar">← Voltar</a>
+    </nav>
+
+    <!-- Container -->
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h1>Registro de Auditoria</h1>
+            <p style="color: #6b7280;">Visualize todas as ações realizadas no sistema</p>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <h3>Total de Registros</h3>
+                <div class="value" id="stat-total">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Últimas 24h</h3>
+                <div class="value" id="stat-24h">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Usuários Ativos</h3>
+                <div class="value" id="stat-usuarios">-</div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters">
+            <h3>🔍 Filtros</h3>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label>Usuário</label>
+                    <select id="filter-usuario">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Módulo</label>
+                    <select id="filter-modulo">
+                        <option value="">Todos</option>
+                        <option value="OS">Ordem de Serviço</option>
+                        <option value="ITEM">Item</option>
+                        <option value="DETENTORA">Detentora</option>
+                        <option value="USUARIO">Usuário</option>
+                        <option value="AUTH">Autenticação</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Ação</label>
+                    <select id="filter-acao">
+                        <option value="">Todas</option>
+                        <option value="CREATE">Criar</option>
+                        <option value="UPDATE">Atualizar</option>
+                        <option value="DELETE">Deletar</option>
+                        <option value="LOGIN">Login</option>
+                        <option value="LOGOUT">Logout</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Data Início</label>
+                    <input type="date" id="filter-data-inicio">
+                </div>
+                <div class="filter-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="filter-data-fim">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-secondary" onclick="limparFiltros()">Limpar</button>
+                <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar Filtros</button>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Usuário</th>
+                        <th>Ação</th>
+                        <th>Módulo</th>
+                        <th>Descrição</th>
+                        <th>Detalhes</th>
+                    </tr>
+                </thead>
+                <tbody id="auditoria-tbody">
+                    <tr>
+                        <td colspan="7" class="loading">Carregando...</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Paginação -->
+            <div class="pagination">
+                <button onclick="paginaAnterior()" id="btn-anterior">← Anterior</button>
+                <span>Página <strong id="pagina-atual">1</strong></span>
+                <button onclick="proximaPagina()" id="btn-proximo">Próxima →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes -->
+    <div class="modal-detalhes" id="modal-detalhes">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Detalhes da Auditoria</h2>
+                <button class="btn-fechar" onclick="fecharModal()">×</button>
+            </div>
+            <div class="modal-body" id="modal-body-content">
+                <!-- Conteúdo será inserido dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let paginaAtual = 1;
+        const limite = 50;
+
+        // Carregar estatísticas
+        async function carregarEstatisticas() {
+            try {
+                const response = await fetch('/api/auditoria/estatisticas');
+                const stats = await response.json();
+                
+                document.getElementById('stat-total').textContent = stats.total.toLocaleString();
+                document.getElementById('stat-24h').textContent = stats.ultimas_24h.toLocaleString();
+                document.getElementById('stat-usuarios').textContent = stats.usuarios_ativos.length;
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        // Carregar usuários para filtro
+        async function carregarUsuarios() {
+            try {
+                const response = await fetch('/api/auditoria/usuarios');
+                const usuarios = await response.json();
+                
+                const select = document.getElementById('filter-usuario');
+                usuarios.forEach(u => {
+                    const option = document.createElement('option');
+                    option.value = u.id;
+                    option.textContent = `${u.nome} (${u.email})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar usuários:', error);
+            }
+        }
+
+        // Carregar auditorias
+        async function carregarAuditorias() {
+            try {
+                const params = new URLSearchParams({
+                    pagina: paginaAtual,
+                    limite: limite
+                });
+
+                // Adicionar filtros
+                const usuarioId = document.getElementById('filter-usuario').value;
+                const modulo = document.getElementById('filter-modulo').value;
+                const acao = document.getElementById('filter-acao').value;
+                const dataInicio = document.getElementById('filter-data-inicio').value;
+                const dataFim = document.getElementById('filter-data-fim').value;
+
+                if (usuarioId) params.append('usuario_id', usuarioId);
+                if (modulo) params.append('modulo', modulo);
+                if (acao) params.append('acao', acao);
+                if (dataInicio) params.append('data_inicio', dataInicio + 'T00:00:00');
+                if (dataFim) params.append('data_fim', dataFim + 'T23:59:59');
+
+                const response = await fetch(`/api/auditoria/?${params}`);
+                const data = await response.json();
+
+                renderizarTabela(data.auditorias);
+                atualizarPaginacao(data);
+            } catch (error) {
+                console.error('Erro ao carregar auditorias:', error);
+                document.getElementById('auditoria-tbody').innerHTML = 
+                    '<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar dados</td></tr>';
+            }
+        }
+
+        // Renderizar tabela
+        function renderizarTabela(auditorias) {
+            const tbody = document.getElementById('auditoria-tbody');
+            
+            if (auditorias.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum registro encontrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = auditorias.map(a => `
+                <tr>
+                    <td>${formatarDataHora(a.data_hora)}</td>
+                    <td>
+                        <strong>${a.usuario_nome}</strong><br>
+                        <small style="color: #6b7280;">${a.usuario_email}</small>
+                    </td>
+                    <td><span class="badge badge-${a.acao.toLowerCase()}">${traduzirAcao(a.acao)}</span></td>
+                    <td>${traduzirModulo(a.modulo)}</td>
+                    <td>${a.descricao}</td>
+                    <td>
+                        <button class="btn-detalhes" onclick='abrirDetalhes(${JSON.stringify(a).replace(/'/g, "&#39;")})'>
+                            👁️ Ver
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Atualizar paginação
+        function atualizarPaginacao(data) {
+            document.getElementById('pagina-atual').textContent = data.pagina;
+            document.getElementById('btn-anterior').disabled = data.pagina === 1;
+            document.getElementById('btn-proximo').disabled = data.auditorias.length < limite;
+        }
+
+        // Navegação
+        function paginaAnterior() {
+            if (paginaAtual > 1) {
+                paginaAtual--;
+                carregarAuditorias();
+            }
+        }
+
+        function proximaPagina() {
+            paginaAtual++;
+            carregarAuditorias();
+        }
+
+        // Filtros
+        function aplicarFiltros() {
+            paginaAtual = 1;
+            carregarAuditorias();
+        }
+
+        function limparFiltros() {
+            document.getElementById('filter-usuario').value = '';
+            document.getElementById('filter-modulo').value = '';
+            document.getElementById('filter-acao').value = '';
+            document.getElementById('filter-data-inicio').value = '';
+            document.getElementById('filter-data-fim').value = '';
+            paginaAtual = 1;
+            carregarAuditorias();
+        }
+
+        // Utilitários
+        function formatarDataHora(dataISO) {
+            const data = new Date(dataISO);
+            return data.toLocaleString('pt-BR');
+        }
+
+        function traduzirAcao(acao) {
+            const traducoes = {
+                'CREATE': 'Criar',
+                'UPDATE': 'Atualizar',
+                'DELETE': 'Deletar',
+                'LOGIN': 'Login',
+                'LOGOUT': 'Logout'
+            };
+            return traducoes[acao] || acao;
+        }
+
+        function traduzirModulo(modulo) {
+            const traducoes = {
+                'OS': 'Ordem de Serviço',
+                'ITEM': 'Item',
+                'DETENTORA': 'Detentora',
+                'USUARIO': 'Usuário',
+                'AUTH': 'Autenticação'
+            };
+            return traducoes[modulo] || modulo;
+        }
+
+        // Modal de Detalhes
+        function abrirDetalhes(auditoria) {
+            const modal = document.getElementById('modal-detalhes');
+            const body = document.getElementById('modal-body-content');
+            
+            // Informações gerais
+            let html = `
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #374151; margin-bottom: 15px;">ℹ️ Informações Gerais</h3>
+                    <div class="info-item">
+                        <span class="info-label">Data/Hora:</span>
+                        <span class="info-value">${formatarDataHora(auditoria.data_hora)}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Usuário:</span>
+                        <span class="info-value">${auditoria.usuario_nome} (${auditoria.usuario_email})</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Ação:</span>
+                        <span class="info-value"><span class="badge badge-${auditoria.acao.toLowerCase()}">${traduzirAcao(auditoria.acao)}</span></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Módulo:</span>
+                        <span class="info-value">${traduzirModulo(auditoria.modulo)}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Descrição:</span>
+                        <span class="info-value">${auditoria.descricao}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">IP:</span>
+                        <span class="info-value">${auditoria.ip_address || 'Não disponível'}</span>
+                    </div>
+                    <div class="info-item" style="border-bottom: none;">
+                        <span class="info-label">User Agent:</span>
+                        <span class="info-value" style="font-size: 0.8rem;">${auditoria.user_agent || 'Não disponível'}</span>
+                    </div>
+                </div>
+            `;
+
+            // Dados Antes e Depois
+            // Parse JSON se necessário
+            let dadosAntes = auditoria.dados_antes;
+            let dadosDepois = auditoria.dados_depois;
+            
+            if (typeof dadosAntes === 'string') {
+                try {
+                    dadosAntes = JSON.parse(dadosAntes);
+                } catch (e) {
+                    dadosAntes = null;
+                }
+            }
+            
+            if (typeof dadosDepois === 'string') {
+                try {
+                    dadosDepois = JSON.parse(dadosDepois);
+                } catch (e) {
+                    dadosDepois = null;
+                }
+            }
+            
+            const temAntes = dadosAntes && typeof dadosAntes === 'object' && Object.keys(dadosAntes).length > 0;
+            const temDepois = dadosDepois && typeof dadosDepois === 'object' && Object.keys(dadosDepois).length > 0;
+
+            if (temAntes || temDepois) {
+                html += `
+                    <div>
+                        <h3 style="color: #374151; margin-bottom: 15px;">🔄 Comparação de Dados</h3>
+                        <div class="diff-container">
+                `;
+
+                // Coluna ANTES
+                html += `
+                    <div class="diff-column diff-antes">
+                        <h3>⬅️ Antes</h3>
+                `;
+                if (temAntes) {
+                    Object.entries(dadosAntes).forEach(([key, value]) => {
+                        html += `
+                            <div class="diff-item">
+                                <div class="diff-key">${formatarChave(key)}</div>
+                                <div class="diff-value">${formatarValor(value, key)}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<div class="diff-empty">Nenhum dado anterior</div>';
+                }
+                html += `</div>`;
+
+                // Coluna DEPOIS
+                html += `
+                    <div class="diff-column diff-depois">
+                        <h3>➡️ Depois</h3>
+                `;
+                if (temDepois) {
+                    Object.entries(dadosDepois).forEach(([key, value]) => {
+                        html += `
+                            <div class="diff-item">
+                                <div class="diff-key">${formatarChave(key)}</div>
+                                <div class="diff-value">${formatarValor(value, key)}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<div class="diff-empty">Nenhum dado posterior</div>';
+                }
+                html += `</div>`;
+
+                html += `</div></div>`;
+            } else {
+                html += `
+                    <div style="background: #f9fafb; padding: 20px; border-radius: 8px; text-align: center; color: #6b7280;">
+                        ℹ️ Não há dados de comparação disponíveis para este registro
+                    </div>
+                `;
+            }
+
+            body.innerHTML = html;
+            modal.classList.add('active');
+        }
+
+        function fecharModal() {
+            document.getElementById('modal-detalhes').classList.remove('active');
+        }
+
+        function formatarChave(key) {
+            const traducoes = {
+                'id': 'ID',
+                'nome': 'Nome',
+                'email': 'Email',
+                'perfil': 'Perfil',
+                'ativo': 'Ativo',
+                'empresa': 'Empresa',
+                'grupo': 'Grupo',
+                'descricao': 'Descrição',
+                'quantidade': 'Quantidade',
+                'preco': 'Preço',
+                'unidade': 'Unidade',
+                'regiao': 'Região',
+                'numero_os': 'Nº O.S.',
+                'numeroOS': 'Nº O.S.',
+                'evento': 'Evento',
+                'data': 'Data',
+                'horario': 'Horário',
+                'local': 'Local',
+                'justificativa': 'Justificativa',
+                'observacoes': 'Observações',
+                'data_evento': 'Data do Evento',
+                'responsavel': 'Responsável',
+                'criado_em': 'Criado em',
+                'atualizado_em': 'Atualizado em',
+                'contratoNum': 'Nº Contrato',
+                'contrato': 'Contrato',
+                'dataAssinatura': 'Data Assinatura',
+                'prazoVigencia': 'Prazo Vigência',
+                'detentora': 'Detentora',
+                'cnpj': 'CNPJ',
+                'servico': 'Serviço',
+                'gestorContrato': 'Gestor',
+                'fiscalContrato': 'Fiscal',
+                'fiscalTipo': 'Tipo Fiscal',
+                'regiaoEstoque': 'Região Estoque',
+                'dataEmissao': 'Data Emissão',
+                'dataEmissaoCompleta': 'Data/Hora Emissão',
+                'itens': 'Itens da O.S.',
+                'criadoEm': 'Criado em',
+                'atualizadoEm': 'Atualizado em',
+                'qtdSolicitada': 'Qtd. Solicitada',
+                'qtdTotal': 'Qtd. Total',
+                'diarias': 'Diárias',
+                'categoria': 'Categoria',
+                'categoria_id': 'ID Categoria',
+                'itemId': 'ID Item',
+                'item': 'Código Item',
+                'itemCodigo': 'Código',
+                'itemBec': 'BEC',
+                'natureza': 'Natureza (BEC)',
+                'regioes': 'Estoques por Região',
+                'inicial': 'Quantidade Inicial',
+                'gasto': 'Quantidade Gasta',
+                'preco': 'Preço'
+            };
+            return traducoes[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function formatarValor(value, key = '') {
+            if (value === null || value === undefined) return '<em style="color: #9ca3af;">Vazio</em>';
+            if (typeof value === 'boolean') return value ? '✅ Sim' : '❌ Não';
+            
+            // Formatar regiões de estoque especialmente
+            if (key === 'regioes' && typeof value === 'object' && !Array.isArray(value)) {
+                let html = '<div style="margin-top: 5px;">';
+                Object.entries(value).forEach(([regiao, dados]) => {
+                    html += `<details style="margin: 5px 0; background: #f3f4f6; padding: 8px; border-radius: 4px;">`;
+                    html += `<summary style="cursor: pointer; font-weight: 600; color: #667eea;">📍 Região ${regiao}</summary>`;
+                    html += '<div style="margin-top: 8px; padding-left: 10px;">';
+                    
+                    if (typeof dados === 'object') {
+                        Object.entries(dados).forEach(([k, v]) => {
+                            html += `<div style="margin: 4px 0;"><strong>${formatarChave(k)}:</strong> ${v}</div>`;
+                        });
+                    }
+                    
+                    html += '</div></details>';
+                });
+                html += '</div>';
+                return html;
+            }
+            
+            // Formatar arrays (ex: itens da OS)
+            if (Array.isArray(value)) {
+                if (value.length === 0) return '<em style="color: #9ca3af;">Nenhum item</em>';
+                
+                let html = '<div style="margin-top: 5px;">';
+                value.forEach((item, index) => {
+                    html += `<details style="margin: 5px 0; background: #f3f4f6; padding: 8px; border-radius: 4px;">`;
+                    html += `<summary style="cursor: pointer; font-weight: 600; color: #667eea;">📦 Item ${index + 1}</summary>`;
+                    html += '<div style="margin-top: 8px; padding-left: 10px;">';
+                    
+                    if (typeof item === 'object') {
+                        Object.entries(item).forEach(([k, v]) => {
+                            html += `<div style="margin: 4px 0;"><strong>${formatarChave(k)}:</strong> ${formatarValor(v, k)}</div>`;
+                        });
+                    } else {
+                        html += item;
+                    }
+                    
+                    html += '</div></details>';
+                });
+                html += '</div>';
+                return html;
+            }
+            
+            // Formatar objetos aninhados
+            if (typeof value === 'object') {
+                return '<pre style="margin: 0; white-space: pre-wrap; background: #f9fafb; padding: 8px; border-radius: 4px; font-size: 0.85rem;">' + JSON.stringify(value, null, 2) + '</pre>';
+            }
+            
+            // Formatar datas ISO
+            if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+                return formatarDataHora(value);
+            }
+            
+            return escapeHtml(String(value));
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Fechar modal ao clicar fora
+        document.getElementById('modal-detalhes').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModal();
+            }
+        });
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarEstatisticas();
+            carregarUsuarios();
+            carregarAuditorias();
+        });
+    </script>
+</body>
+</html>

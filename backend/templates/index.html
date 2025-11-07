@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Itens</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>☕</text></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         /* Navbar Responsivo */
@@ -356,7 +357,7 @@
             </div>
 
             <!-- Título -->
-            <div class="navbar-title navbar-title-desktop">🎯 Controle de Itens</div>
+            <div class="navbar-title navbar-title-desktop">🎯 Controle Itens</div>
             <div class="navbar-title navbar-title-mobile">🎯 Sistema</div>
 
             <!-- Links de Navegação -->
@@ -372,7 +373,7 @@
                 <!-- Abas do Sistema -->
                 <a href="/alimentacao" class="nav-btn" title="Itens do Coffee Break">
                     <span>☕</span>
-                    <span>Coffee</span>
+                    <span>Itens</span>
                 </a>
                 <a href="/emitir-os" class="nav-btn" title="Emitir Ordem de Serviço">
                     <span>📝</span>
@@ -402,6 +403,10 @@
                 <a href="/gerenciar-usuarios" class="nav-btn" title="Gerenciar Usuários">
                     <span>👥</span>
                     <span>Usuários</span>
+                </a>
+                <a href="/api/auditoria/view" class="nav-btn" title="Auditoria do Sistema">
+                    <span>📋</span>
+                    <span>Auditoria</span>
                 </a>
                 {% endif %}
             </div>

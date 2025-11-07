@@ -143,6 +143,21 @@
             }
         }
 
+        function formatarData(dataString) {
+            if (!dataString) return '';
+            
+            // Se já está no formato DD/MM/YYYY
+            if (dataString.includes('/')) return dataString;
+            
+            // Se está no formato YYYY-MM-DD
+            const partes = dataString.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            
+            return dataString;
+        }
+
         function renderizarDetentoras() {
             const container = document.getElementById('lista-detentoras');
             
@@ -176,7 +191,7 @@
                         <strong>Contrato:</strong> <span>${d.contratoNum}</span>
                     </div>
                     <div class="detentora-info">
-                        <strong>Assinatura:</strong> <span>${d.dataAssinatura || 'Não informada'}</span>
+                        <strong>Assinatura:</strong> <span>${formatarData(d.dataAssinatura) || 'Não informada'}</span>
                     </div>
                     <div class="detentora-info">
                         <strong>Vigência:</strong> <span>${d.prazoVigencia || 'Não informada'}</span>
