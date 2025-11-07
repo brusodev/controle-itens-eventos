@@ -77,7 +77,7 @@ yarn-error.log*
 
 # Deploy e produção
 backend/.env
-# backend/instance/*.db  <- COMENTADO para permitir upload do banco
+backend/instance/*.db
 /var/log/
 *.service
 backup_*.db.gz
