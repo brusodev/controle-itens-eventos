@@ -385,6 +385,7 @@
         <div class="modal-content">
             <span class="close" onclick="fecharModal()">&times;</span>
             <h2 id="modal-titulo">Nova Detentora</h2>
+            <div id="alerta-modal" style="margin-bottom: 15px;"></div>
             
             <form id="form-detentora" onsubmit="salvarDetentora(event)">
                 <input type="hidden" id="detentora-id">
@@ -601,14 +602,16 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    mostrarAlerta(`Detentora ${id ? 'atualizada' : 'criada'} com sucesso!`, 'success');
-                    fecharModal();
-                    carregarDetentoras();
+                    mostrarAlerta(`Detentora ${id ? 'atualizada' : 'criada'} com sucesso!`, 'success', true);
+                    setTimeout(() => {
+                        fecharModal();
+                        carregarDetentoras();
+                    }, 1500);
                 } else {
-                    mostrarAlerta(result.erro || 'Erro ao salvar detentora', 'error');
+                    mostrarAlerta(result.erro || 'Erro ao salvar detentora', 'error', true);
                 }
             } catch (error) {
-                mostrarAlerta('Erro na requisição: ' + error.message, 'error');
+                mostrarAlerta('Erro na requisição: ' + error.message, 'error', true);
             }
         }
 
@@ -637,11 +640,19 @@
             document.getElementById('modal-detentora').style.display = 'none';
         }
 
-        function mostrarAlerta(mensagem, tipo) {
-            const container = document.getElementById('alertas');
+        function mostrarAlerta(mensagem, tipo, noModal = false) {
+            const container = noModal 
+                ? document.getElementById('alerta-modal')
+                : document.getElementById('alertas');
+            
             const alerta = document.createElement('div');
             alerta.className = `alert alert-${tipo}`;
             alerta.textContent = mensagem;
+            
+            // Limpar alertas anteriores se estiver no modal
+            if (noModal) {
+                container.innerHTML = '';
+            }
             
             container.appendChild(alerta);
             
