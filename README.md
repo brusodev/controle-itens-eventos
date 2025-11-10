@@ -1,9 +1,9 @@
 # ☕ Controle de Itens de Eventos
 
-Sistema web para gerenciamento de **Ordens de Serviço (O.S.)**, **estoque de itens de Coffee Break** e **detentoras de contrato** com **auditoria completa**.
+Sistema web para gerenciamento de **Ordens de Serviço (O.S.)**, **estoque de itens de Coffee Break** e **detentoras de contrato** com **auditoria completa** e **proteção de banco de dados em produção**.
 
-> **Versão**: 2.0.0 com Sistema de Auditoria  
-> **Última atualização**: Novembro 2025
+> **Versão**: 2.1.0 com Deploy Seguro e Backup Automático  
+> **Última atualização**: Novembro 10, 2025
 
 ## 🎯 Funcionalidades Principais
 
@@ -123,6 +123,8 @@ python app.py
 | [docs/DATABASE.md](./docs/DATABASE.md) | Schema do banco de dados |
 | [docs/AUDITORIA.md](./docs/AUDITORIA.md) | Sistema de auditoria ⭐ NOVO |
 | [docs/SETUP.md](./docs/SETUP.md) | Guia de instalação detalhado |
+| [docs/PROTECAO_BANCO_DADOS.md](./docs/PROTECAO_BANCO_DADOS.md) | Proteção de banco em produção ⭐ NOVO |
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Guias de deploy seguro ⭐ NOVO |
 
 ## 🗂️ Estrutura do Projeto
 
@@ -283,25 +285,107 @@ Para cada ação:
 
 ## 🛠️ Ferramentas e Scripts
 
-O projeto inclui vários scripts utilitários para diagnóstico e manutenção:
+O projeto inclui vários scripts utilitários para diagnóstico, manutenção e deployment seguro:
+
+### 📦 Scripts de Deployment (⭐ NOVO)
 
 ```bash
-# Diagnosticar problemas
-python scripts/diagnostico/diagnostico_completo.py
+# Deploy seguro com proteção de banco de dados (RECOMENDADO)
+./safe_deploy.sh
+
+# Verifica: backup automático → pull → validação → rollback se erro
+# Mantém banco de dados intacto em produção
+```
+
+### 🔄 Scripts de Backup (⭐ NOVO)
+
+```bash
+# Backup automático diário com retenção de 30 dias
+python backend/scripts/utilitarios/backup_automatico.py
+
+# Para produção com cron:
+# 0 2 * * * cd /caminho/projeto && python backend/scripts/utilitarios/backup_automatico.py
+```
+
+### 🔧 Scripts de Diagnóstico
+
+```bash
+# Diagnóstico completo do sistema
+python backend/scripts/diagnostico/diagnostico_completo.py
 
 # Verificar dados específicos
-python scripts/diagnostico/verificar_estoque_wafer.py
-python scripts/diagnostico/verificar_os_banco.py
+python backend/scripts/diagnostico/verificar_estoque_wafer.py
+python backend/scripts/diagnostico/verificar_os_banco.py
+```
 
+### 👤 Scripts de Administração
+
+```bash
 # Criar usuário admin
-python scripts/admin/criar_admin.py
+python backend/scripts/admin/criar_admin.py
+```
 
-# Testes
-python scripts/testes/teste_completo_itens.py
-python scripts/testes/teste_api_usuario.py
+### ✅ Scripts de Teste
+
+```bash
+# Testes da aplicação
+python backend/scripts/testes/teste_completo_itens.py
+python backend/scripts/testes/teste_api_usuario.py
+```
+
+### 🚀 Scripts de Migração (⭐ NOVO)
+
+```bash
+# Adicionar sistema de auditoria sem perder dados
+python backend/scripts/migracao/migrar_adicionar_auditoria.py
 ```
 
 ## 🐛 Troubleshooting
+
+### 🚀 Como fazer deploy seguro em produção?
+
+**Passo 1: Prepare o servidor**
+```bash
+# SSH para o servidor
+ssh usuario@seu-servidor
+
+# Vá para a pasta do projeto
+cd /caminho/do/projeto
+
+# Certifique-se que o script é executável
+chmod +x safe_deploy.sh
+```
+
+**Passo 2: Execute o deploy seguro**
+```bash
+# Deploy com proteção automática de banco de dados
+./safe_deploy.sh
+
+# O script automaticamente:
+# ✅ Cria backup do banco de dados
+# ✅ Faz pull das mudanças do GitHub
+# ✅ Valida a aplicação
+# ✅ Reinicia o servidor
+# ✅ Faz rollback se houver erro
+```
+
+**Passo 3: Verifique o resultado**
+```bash
+# Ver status da aplicação
+./safe_deploy.sh status
+
+# Ver últimos backups
+ls -lah backups/
+
+# Ver logs
+tail -f logs/deploy.log
+```
+
+**⚠️ IMPORTANTE:**
+- ✅ Sempre use `./safe_deploy.sh` (nunca `git pull` direto!)
+- ✅ Backups automáticos são criados em `backups/`
+- ✅ Se houver erro, faz rollback automático
+- ✅ Banco de dados nunca é sobrescrito
 
 ### Erro: "Port 5100 is already in use"
 ```bash
@@ -370,6 +454,35 @@ Para lista completa: [requirements.txt](./backend/requirements.txt)
 ✅ **Autenticação**: Obrigatória para todas rotas  
 ✅ **Autorização**: Admin vs Usuário (auditoria admin-only)  
 
+### 🛡️ Proteção de Banco de Dados (⭐ NOVO)
+
+A aplicação possui **4 camadas de proteção** para evitar perda de dados em produção:
+
+1. **`.gitignore`** - Banco de dados não é versionado
+   ```
+   instance/
+   *.db
+   *.sqlite
+   backups/
+   ```
+
+2. **Backup Automático** - Backups diários com retenção de 30 dias
+   - Script: `backend/scripts/utilitarios/backup_automatico.py`
+   - Configurar cron: `0 2 * * * python backup_automatico.py`
+
+3. **Deploy Seguro** - Script `safe_deploy.sh` com verificações pré-deploy
+   - ✅ Cria backup antes de qualquer mudança
+   - ✅ Valida aplicação após pull
+   - ✅ Faz rollback automático se erro
+   - ✅ Mantém banco intacto sempre
+
+4. **Migração Segura** - Script migra dados sem perder informações
+   - Script: `backend/scripts/migracao/migrar_adicionar_auditoria.py`
+   - Opção de backup e rollback
+
+**Nunca execute `git pull` diretamente em produção!**  
+**Sempre use: `./safe_deploy.sh`**
+
 ## 📞 Suporte
 
 ### Encontrou um bug?
@@ -391,9 +504,9 @@ Desenvolvido para gestão de eventos e ordens de serviço.
 
 ---
 
-**Última atualização**: Novembro 2025  
-**Status**: ✅ Em produção com sistema de auditoria  
-**Versão**: 2.0.0
+**Última atualização**: Novembro 10, 2025  
+**Status**: ✅ Em produção com sistema de auditoria e deploy seguro  
+**Versão**: 2.1.0
 
 5. **Acesse no navegador:**
    ```
