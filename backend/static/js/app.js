@@ -776,7 +776,22 @@ function coletarDadosOS() {
 }
 
 function gerarPreviewOS(dados) {
-    const valorTotal = dados.itens.reduce((sum, item) => sum + (item.valorUnit * item.qtdTotal), 0);
+    // Garantir que valorUnit seja número para todos os itens
+    const valorTotal = dados.itens.reduce((sum, item) => {
+        const valor = parseFloat(item.valorUnit) || 0;
+        const qtd = parseFloat(item.qtdTotal) || 0;
+        return sum + (valor * qtd);
+    }, 0);
+    
+    console.log('💰 gerarPreviewOS - Cálculo do valor total:');
+    console.log('   - Itens:', dados.itens.length);
+    dados.itens.forEach((item, idx) => {
+        const valor = parseFloat(item.valorUnit) || 0;
+        const qtd = parseFloat(item.qtdTotal) || 0;
+        const subTotal = valor * qtd;
+        console.log(`   Item ${idx + 1}: R$ ${valor.toFixed(2)} × ${qtd} = R$ ${subTotal.toFixed(2)}`);
+    });
+    console.log('   - TOTAL FINAL: R$', valorTotal.toFixed(2));
     
     return `
         <div class="os-document">
@@ -785,7 +800,7 @@ function gerarPreviewOS(dados) {
                 <div class="os-title">
                     <h2>GOVERNO DO ESTADO DE SÃO PAULO</h2>
                     <h3>SECRETARIA DE ESTADO DA EDUCAÇÃO</h3>
-                    <h3>DEPARTAMENTO DE ADMINISTRAÇÃO</h3>
+                    <h3>COORDENADORIA GERAL DE SUPORTE ADMINISTRATIVO</h3>
                     <h2 style="margin-top: 10px;">ORDEM DE SERVIÇO</h2>
                 </div>
                 <div class="os-info-box">
@@ -864,15 +879,17 @@ function gerarPreviewOS(dados) {
                     </thead>
                     <tbody>
                         ${dados.itens.map(item => {
-                            const diarias = item.diarias || 1;
-                            const qtdSolicitada = item.qtdSolicitada || (item.qtdTotal / diarias);
-                            const qtdTotal = item.qtdTotal;
-                            const valorTotal = item.valorUnit * qtdTotal;
+                            const diarias = parseInt(item.diarias) || 1;
+                            const qtdTotal = parseFloat(item.qtdTotal) || 0;
+                            const qtdSolicitada = parseFloat(item.qtdSolicitada) || (qtdTotal / diarias);
+                            const valorUnit = parseFloat(item.valorUnit) || 0;
+                            const valorTotalItem = valorUnit * qtdTotal;
                             
                             // Formatar números com separador de milhares
                             const qtdSolFmt = qtdSolicitada.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
                             const qtdTotalFmt = qtdTotal.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                            const valorTotalFmt = valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            const valorUnitFmt = valorUnit.toFixed(2).replace('.', ',');
+                            const valorTotalFmt = valorTotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                             
                             return `
                             <tr style="background-color: #e2efd9;">
@@ -882,7 +899,7 @@ function gerarPreviewOS(dados) {
                                 <td style="text-align: center;">${diarias}</td>
                                 <td style="text-align: right; padding-right: 8px;">${qtdSolFmt}</td>
                                 <td style="text-align: right; padding-right: 8px;">${qtdTotalFmt}</td>
-                                <td style="text-align: right; padding-right: 8px;">R$ ${item.valorUnit.toFixed(2).replace('.', ',')}</td>
+                                <td style="text-align: right; padding-right: 8px;">R$ ${valorUnitFmt}</td>
                                 <td style="text-align: right; padding-right: 8px;">R$ ${valorTotalFmt}</td>
                             </tr>
                         `}).join('')}
