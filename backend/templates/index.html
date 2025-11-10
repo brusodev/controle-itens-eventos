@@ -606,44 +606,52 @@
                     <h3>Dados do Evento</h3>
                     <div class="form-group">
                         <label for="os-evento">Evento *</label>
-                        <input type="text" id="os-evento" required placeholder="Orientação técnica para a APEOESP...">
+                        <input type="text" id="os-evento" required placeholder="Orientação técnica para a APEOESP..." list="lista-eventos">
+                        <datalist id="lista-eventos"></datalist>
                     </div>
 
                     <div class="form-group">
                         <label for="os-data-evento">Data do Evento *</label>
-                        <input type="text" id="os-data-evento" required placeholder="Ex: 25 à 28/08/2025">
+                        <input type="text" id="os-data-evento" required placeholder="Ex: 25 à 28/08/2025" list="lista-datas">
+                        <datalist id="lista-datas"></datalist>
                     </div>
 
                     <div class="form-group">
                         <label for="os-horario">Horário do Evento *</label>
-                        <textarea id="os-horario" rows="4" required placeholder="Ex: 08:00 às 17:00 Hrs&#10;Manhã: 08:00&#10;Tarde: 14:30"></textarea>
+                        <textarea id="os-horario" rows="4" required placeholder="Ex: 08:00 às 17:00 Hrs&#10;Manhã: 08:00&#10;Tarde: 14:30" list="lista-horarios"></textarea>
+                        <datalist id="lista-horarios"></datalist>
                     </div>
 
                     <div class="form-group">
                         <label for="os-local">Local do Evento *</label>
-                        <textarea id="os-local" rows="2" required placeholder="CGRH – Largo do Arouche, 302..."></textarea>
+                        <textarea id="os-local" rows="2" required placeholder="CGRH – Largo do Arouche, 302..." list="lista-locais"></textarea>
+                        <datalist id="lista-locais"></datalist>
                     </div>
 
                     <div class="form-group">
                         <label for="os-responsavel">Responsável</label>
-                        <input type="text" id="os-responsavel" placeholder="Ex: Nome - (11) 1234-5678">
+                        <input type="text" id="os-responsavel" placeholder="Ex: Nome - (11) 1234-5678" list="lista-responsaveis">
+                        <datalist id="lista-responsaveis"></datalist>
                     </div>
 
                     <div class="form-group">
                         <label for="os-justificativa">Justificativa *</label>
-                        <textarea id="os-justificativa" rows="6" required placeholder="Conviva&#10;25/08/2025 - 200 unidades de Bebidas quentes e 200 unidades de Água Mineral - 08:00 às 17:00 Hrs&#10;26/08/2025 - 200 unidades de Coffee Break - 15:30 Hrs&#10;27/08/2025 - 800 unidades de Bebidas quentes - 08:00 às 17:00 Hrs"></textarea>
+                        <textarea id="os-justificativa" rows="6" required placeholder="Conviva&#10;25/08/2025 - 200 unidades de Bebidas quentes e 200 unidades de Água Mineral - 08:00 às 17:00 Hrs&#10;26/08/2025 - 200 unidades de Coffee Break - 15:30 Hrs&#10;27/08/2025 - 800 unidades de Bebidas quentes - 08:00 às 17:00 Hrs" list="lista-justificativas"></textarea>
+                        <datalist id="lista-justificativas"></datalist>
                     </div>
 
                     <div class="form-group">
                         <label for="os-observacoes">Observações</label>
-                        <textarea id="os-observacoes" rows="6" placeholder="Informações adicionais sobre a ordem de serviço..."></textarea>
+                        <textarea id="os-observacoes" rows="6" placeholder="Informações adicionais sobre a ordem de serviço..." list="lista-observacoes"></textarea>
+                        <datalist id="lista-observacoes"></datalist>
                     </div>
 
                     <h3>Responsáveis</h3>
                     <div class="form-row">
                         <div class="form-group flex-1">
                             <label for="os-gestor">Gestor do Contrato *</label>
-                            <input type="text" id="os-gestor" required placeholder="Marcia Cristina Gallo">
+                            <input type="text" id="os-gestor" required placeholder="Marcia Cristina Gallo" list="lista-gestores">
+                            <datalist id="lista-gestores"></datalist>
                         </div>
                         <div class="form-group flex-1">
                             <label for="os-fiscal-tipo">Tipo de Fiscal *</label>
@@ -656,7 +664,8 @@
                     
                     <div class="form-group">
                         <label for="os-fiscal">Nome do(a) Fiscal *</label>
-                        <input type="text" id="os-fiscal" required placeholder="Julia Nascimento Tomas" style="width: 512px;">
+                        <input type="text" id="os-fiscal" required placeholder="Julia Nascimento Tomas" style="width: 512px;" list="lista-fiscais">
+                        <datalist id="lista-fiscais"></datalist>
                     </div>
 
                     <h3>Itens da Ordem de Serviço</h3>

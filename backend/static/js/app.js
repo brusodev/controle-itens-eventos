@@ -23,6 +23,22 @@ let dadosAlimentacao = null;
 let alimentacaoEditando = null;
 
 // ========================================
+// SUGESTÕES PARA DATALIST
+// ========================================
+
+let sugestoesOS = {
+    eventos: [],
+    datas: [],
+    horarios: [],
+    locais: [],
+    responsaveis: [],
+    justificativas: [],
+    observacoes: [],
+    gestores: [],
+    fiscais: []
+};
+
+// ========================================
 // INICIALIZAÇÃO
 // ========================================
 
@@ -35,6 +51,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Carregar dados da API
     await renderizarAlimentacao();
     await renderizarOrdensServico();
+    
+    // Carregar sugestões para datalist
+    await carregarSugestoesOS();
     
     atualizarInterface();
     
@@ -1135,6 +1154,100 @@ async function filtrarOS() {
         console.error('❌ Erro ao carregar O.S.:', error);
         container.innerHTML = '<p class="error-message">Erro ao carregar ordens de serviço. Verifique se o backend está rodando.</p>';
     }
+}
+
+// ========================================
+// CARREGAMENTO DE SUGESTÕES PARA DATALIST
+// ========================================
+
+async function carregarSugestoesOS() {
+    try {
+        console.log('📥 Carregando sugestões para datalist...');
+        
+        // Buscar todas as O.S. do banco
+        const ordensServico = await APIClient.listarOrdensServico();
+        
+        if (!ordensServico || ordensServico.length === 0) {
+            console.log('⚠️ Nenhuma O.S. encontrada para sugestões');
+            return;
+        }
+        
+        // Extrair dados únicos de cada campo
+        const eventos = new Set();
+        const datas = new Set();
+        const horarios = new Set();
+        const locais = new Set();
+        const responsaveis = new Set();
+        const justificativas = new Set();
+        const observacoes = new Set();
+        const gestores = new Set();
+        const fiscais = new Set();
+        
+        ordensServico.forEach(os => {
+            if (os.evento) eventos.add(os.evento);
+            if (os.data) datas.add(os.data);
+            if (os.horario) horarios.add(os.horario);
+            if (os.local) locais.add(os.local);
+            if (os.responsavel) responsaveis.add(os.responsavel);
+            if (os.justificativa) justificativas.add(os.justificativa);
+            if (os.observacoes) observacoes.add(os.observacoes);
+            if (os.gestorContrato) gestores.add(os.gestorContrato);
+            if (os.fiscalContrato) fiscais.add(os.fiscalContrato);
+        });
+        
+        // Armazenar como arrays
+        sugestoesOS.eventos = Array.from(eventos).sort();
+        sugestoesOS.datas = Array.from(datas).sort();
+        sugestoesOS.horarios = Array.from(horarios).sort();
+        sugestoesOS.locais = Array.from(locais).sort();
+        sugestoesOS.responsaveis = Array.from(responsaveis).sort();
+        sugestoesOS.justificativas = Array.from(justificativas).sort();
+        sugestoesOS.observacoes = Array.from(observacoes).sort();
+        sugestoesOS.gestores = Array.from(gestores).sort();
+        sugestoesOS.fiscais = Array.from(fiscais).sort();
+        
+        // Carregar nos datalist
+        preencherDatalist('lista-eventos', sugestoesOS.eventos);
+        preencherDatalist('lista-datas', sugestoesOS.datas);
+        preencherDatalist('lista-horarios', sugestoesOS.horarios);
+        preencherDatalist('lista-locais', sugestoesOS.locais);
+        preencherDatalist('lista-responsaveis', sugestoesOS.responsaveis);
+        preencherDatalist('lista-justificativas', sugestoesOS.justificativas);
+        preencherDatalist('lista-observacoes', sugestoesOS.observacoes);
+        preencherDatalist('lista-gestores', sugestoesOS.gestores);
+        preencherDatalist('lista-fiscais', sugestoesOS.fiscais);
+        
+        console.log('✅ Sugestões carregadas com sucesso');
+        console.log('📊 Resumo:');
+        console.log('   - Eventos:', sugestoesOS.eventos.length);
+        console.log('   - Datas:', sugestoesOS.datas.length);
+        console.log('   - Horários:', sugestoesOS.horarios.length);
+        console.log('   - Locais:', sugestoesOS.locais.length);
+        console.log('   - Responsáveis:', sugestoesOS.responsaveis.length);
+        console.log('   - Justificativas:', sugestoesOS.justificativas.length);
+        console.log('   - Observações:', sugestoesOS.observacoes.length);
+        console.log('   - Gestores:', sugestoesOS.gestores.length);
+        console.log('   - Fiscais:', sugestoesOS.fiscais.length);
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar sugestões:', error);
+    }
+}
+
+// Função auxiliar para preencher datalist
+function preencherDatalist(datalistId, valores) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) {
+        console.warn('⚠️ Datalist não encontrado:', datalistId);
+        return;
+    }
+    
+    datalist.innerHTML = '';
+    valores.forEach(valor => {
+        const option = document.createElement('option');
+        option.value = valor;
+        datalist.appendChild(option);
+    });
 }
 
 function normalizarDadosOS(os) {
