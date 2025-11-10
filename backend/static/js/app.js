@@ -628,7 +628,7 @@ async function visualizarOS() {
     // 🔢 Buscar próximo número do backend se for nova O.S.
     if (!osEditandoId) {
         try {
-            const response = await fetch('http://localhost:5100/api/ordens-servico/proximo-numero');
+            const response = await fetch('/api/ordens-servico/proximo-numero');
             const data = await response.json();
             dadosOS.numeroOS = data.proximoNumero;
             console.log('🔢 Próximo número obtido do backend:', dadosOS.numeroOS);
@@ -1271,7 +1271,7 @@ async function baixarPDFTextoSelecionavel(osId) {
         try {
             // Baixar PDF com texto selecionável do backend (ReportLab)
             console.log('🚀 Gerando PDF real (texto selecionável) via backend...');
-            const response = await fetch(`http://localhost:5100/api/ordens-servico/${osId}/pdf`);
+            const response = await fetch(`/api/ordens-servico/${osId}/pdf`);
             
             if (!response.ok) {
                 throw new Error(`Erro ao gerar PDF: ${response.statusText}`);
