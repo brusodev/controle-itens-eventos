@@ -400,6 +400,19 @@ function formatarCategoriaAlimentacao(categoria) {
     return nomes[categoria] || categoria;
 }
 
+// Função para formatar números com separador de milhar
+function formatarNumeroMilhar(numero) {
+    if (!numero && numero !== 0) return '';
+    const num = parseInt(numero.toString().replace(/\D/g, '')) || 0;
+    return num.toLocaleString('pt-BR');
+}
+
+// Função para remover máscara de formatação
+function removerMascaraNumero(valor) {
+    if (!valor) return '0';
+    return valor.toString().replace(/\D/g, '') || '0';
+}
+
 function editarItemAlimentacao(categoria, itemId) {
     const item = dadosAlimentacao[categoria].itens.find(i => i.item === itemId.toString());
     if (!item) return;
@@ -428,8 +441,9 @@ function editarItemAlimentacao(categoria, itemId) {
         const inicialNum = r.inicial ? Math.round(parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0) : 0;
         const gastoNum = r.gasto ? Math.round(parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0) : 0;
         
-        const inicialExibicao = inicialNum > 0 ? inicialNum.toString() : '';
-        const gastoExibicao = gastoNum.toString();
+        // Aplicar formatação com separador de milhar
+        const inicialExibicao = inicialNum > 0 ? formatarNumeroMilhar(inicialNum) : '';
+        const gastoExibicao = formatarNumeroMilhar(gastoNum);
         
         // Definir readonly apenas para usuários comuns (não admin)
         const isAdmin = usuarioPerfil === 'admin';
@@ -443,11 +457,11 @@ function editarItemAlimentacao(categoria, itemId) {
             <div class="regiao-inputs">
                 <div style="flex: 1;">
                     <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Inicial</label>
-                    <input type="number" class="regiao-inicial-input" data-reg="${reg}" value="${inicialExibicao}" placeholder="Inicial" step="1" ${readonlyAttr}${readonlyStyle}>
+                    <input type="text" class="regiao-inicial-input" data-reg="${reg}" value="${inicialExibicao}" placeholder="Inicial" ${readonlyAttr}${readonlyStyle}>
                 </div>
                 <div style="flex: 1;">
                     <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Gasto</label>
-                    <input type="number" class="regiao-gasto-input" data-reg="${reg}" value="${gastoExibicao}" placeholder="Gasto" step="1" ${readonlyAttr}${readonlyStyle}>
+                    <input type="text" class="regiao-gasto-input" data-reg="${reg}" value="${gastoExibicao}" placeholder="Gasto" ${readonlyAttr}${readonlyStyle}>
                 </div>
                 <div style="flex: 1;">
                     <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Preço</label>
@@ -457,6 +471,15 @@ function editarItemAlimentacao(categoria, itemId) {
         `;
         regioesDiv.appendChild(regDiv);
     }
+    
+    // Adicionar event listeners para formatação automática
+    document.querySelectorAll('.regiao-inicial-input, .regiao-gasto-input').forEach(input => {
+        input.addEventListener('input', function(e) {
+            // Aplicar formatação enquanto digita
+            const valor = this.value.replace(/\D/g, '');
+            this.value = valor ? formatarNumeroMilhar(valor) : '';
+        });
+    });
     
     document.getElementById('modal-alimentacao').style.display = 'flex';
 }
@@ -484,13 +507,15 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
     regioesInicialInputs.forEach(input => {
         const reg = input.getAttribute('data-reg');
         if (!regioes[reg]) regioes[reg] = {};
-        regioes[reg].inicial = input.value || '__';
+        // Remover máscara antes de enviar
+        regioes[reg].inicial = removerMascaraNumero(input.value) || '__';
     });
     
     regioesGastoInputs.forEach(input => {
         const reg = input.getAttribute('data-reg');
         if (!regioes[reg]) regioes[reg] = { inicial: '__' };
-        regioes[reg].gasto = input.value || '0';
+        // Remover máscara antes de enviar
+        regioes[reg].gasto = removerMascaraNumero(input.value) || '0';
     });
     
     regioesPrecoInputs.forEach(input => {
@@ -1061,7 +1086,7 @@ async function filtrarOS() {
         console.log('✅ Container limpo! Criando novos cards...');
         
         if (ordensServico.length === 0) {
-            container.innerHTML = '<p class="empty-message">Nenhuma Ordem de Serviço encontrada.</p>';
+            container.innerHTML = '<p class="empty-message">🧹Nenhuma Ordem de Serviço encontrada.</p>';
             return;
         }
         
