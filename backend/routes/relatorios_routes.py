@@ -97,7 +97,8 @@ def relatorio_estoque_posicao():
             EstoqueRegional.regiao_numero,
             EstoqueRegional.quantidade_inicial,
             EstoqueRegional.quantidade_gasto
-        ).join(Categoria).join(EstoqueRegional)
+        ).join(Categoria, Item.categoria_id == Categoria.id)\
+         .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)
         
         if categoria_id:
             query = query.filter(Item.categoria_id == int(categoria_id))
@@ -113,8 +114,27 @@ def relatorio_estoque_posicao():
         total_valor_gasto = 0
         
         for r in resultados:
-            inicial = float(r.quantidade_inicial.replace('.', '').replace(',', '.'))
-            gasto = float(r.quantidade_gasto.replace('.', '').replace(',', '.'))
+            # ✅ Tratamento seguro de valores
+            try:
+                # Converter valores nulos ou inválidos para 0
+                inicial_str = str(r.quantidade_inicial or '0').strip()
+                gasto_str = str(r.quantidade_gasto or '0').strip()
+                
+                # Evitar valores inválidos como '__'
+                if not inicial_str or inicial_str == '__' or not inicial_str.replace(',', '').replace('.', '').replace('-', ''):
+                    inicial = 0
+                else:
+                    inicial = float(inicial_str.replace('.', '').replace(',', '.'))
+                
+                if not gasto_str or gasto_str == '__' or not gasto_str.replace(',', '').replace('.', '').replace('-', ''):
+                    gasto = 0
+                else:
+                    gasto = float(gasto_str.replace('.', '').replace(',', '.'))
+            except (ValueError, AttributeError):
+                # Se ainda houver erro, usar 0
+                inicial = 0
+                gasto = 0
+            
             disponivel = inicial - gasto
             percentual_uso = (gasto / inicial * 100) if inicial > 0 else 0
             
@@ -169,7 +189,9 @@ def relatorio_movimentacoes():
             Item.descricao,
             OrdemServico.numero_os,
             EstoqueRegional.regiao_numero
-        ).join(Item).join(OrdemServico).join(EstoqueRegional)
+        ).join(Item, MovimentacaoEstoque.item_id == Item.id)\
+         .join(OrdemServico, MovimentacaoEstoque.ordem_servico_id == OrdemServico.id)\
+         .join(EstoqueRegional, MovimentacaoEstoque.estoque_regional_id == EstoqueRegional.id)
         
         if data_inicio:
             query = query.filter(MovimentacaoEstoque.data_movimentacao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
@@ -236,7 +258,9 @@ def relatorio_consumo_categoria():
             Item.unidade,
             func.sum(ItemOrdemServico.quantidade_total).label('total_consumido'),
             func.count(ItemOrdemServico.id).label('vezes_utilizado')
-        ).join(Item).join(ItemOrdemServico).join(OrdemServico)
+        ).join(Categoria, Item.categoria_id == Categoria.id)\
+         .join(ItemOrdemServico, Item.id == ItemOrdemServico.item_id)\
+         .join(OrdemServico, ItemOrdemServico.ordem_servico_id == OrdemServico.id)
         
         if data_inicio:
             query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
@@ -346,7 +370,8 @@ def gerar_pdf_estoque():
             EstoqueRegional.regiao_numero,
             EstoqueRegional.quantidade_inicial,
             EstoqueRegional.quantidade_gasto
-        ).join(Categoria).join(EstoqueRegional)
+        ).join(Categoria, Item.categoria_id == Categoria.id)\
+         .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)
         
         if categoria_id:
             query = query.filter(Item.categoria_id == int(categoria_id))
@@ -389,8 +414,27 @@ def gerar_pdf_estoque():
         total_gasto = 0
         
         for r in resultados:
-            inicial = float(r.quantidade_inicial.replace('.', '').replace(',', '.'))
-            gasto = float(r.quantidade_gasto.replace('.', '').replace(',', '.'))
+            # ✅ Tratamento seguro de valores
+            try:
+                # Converter valores nulos ou inválidos para 0
+                inicial_str = str(r.quantidade_inicial or '0').strip()
+                gasto_str = str(r.quantidade_gasto or '0').strip()
+                
+                # Evitar valores inválidos como '__'
+                if not inicial_str or inicial_str == '__' or not inicial_str.replace(',', '').replace('.', '').replace('-', ''):
+                    inicial = 0
+                else:
+                    inicial = float(inicial_str.replace('.', '').replace(',', '.'))
+                
+                if not gasto_str or gasto_str == '__' or not gasto_str.replace(',', '').replace('.', '').replace('-', ''):
+                    gasto = 0
+                else:
+                    gasto = float(gasto_str.replace('.', '').replace(',', '.'))
+            except (ValueError, AttributeError):
+                # Se ainda houver erro, usar 0
+                inicial = 0
+                gasto = 0
+            
             disponivel = inicial - gasto
             percentual = (gasto / inicial * 100) if inicial > 0 else 0
             

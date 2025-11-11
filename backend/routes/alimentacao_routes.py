@@ -152,8 +152,21 @@ def resumo_estoque():
         
         for est in estoques:
             try:
-                inicial = float(est.quantidade_inicial.replace('.', '').replace(',', '.'))
-                gasto = float(est.quantidade_gasto.replace('.', '').replace(',', '.'))
+                # ✅ Tratamento seguro de valores
+                inicial_str = str(est.quantidade_inicial or '0').strip()
+                gasto_str = str(est.quantidade_gasto or '0').strip()
+                
+                # Evitar valores inválidos como '__'
+                if not inicial_str or inicial_str == '__' or not inicial_str.replace(',', '').replace('.', '').replace('-', ''):
+                    inicial = 0
+                else:
+                    inicial = float(inicial_str.replace('.', '').replace(',', '.'))
+                
+                if not gasto_str or gasto_str == '__' or not gasto_str.replace(',', '').replace('.', '').replace('-', ''):
+                    gasto = 0
+                else:
+                    gasto = float(gasto_str.replace('.', '').replace(',', '.'))
+                
                 disponivel = inicial - gasto
                 
                 resumo['total_inicial'] += inicial

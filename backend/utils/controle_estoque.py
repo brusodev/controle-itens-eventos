@@ -36,19 +36,35 @@ def converter_quantidade_para_float(quantidade_str):
     """
     Converte string de quantidade para float
     Suporta formatos: "1.000,50" ou "1000.50"
+    Trata valores inválidos como '__', None, strings vazias
     
     Args:
         quantidade_str (str): Quantidade em formato string
         
     Returns:
-        float: Quantidade convertida
+        float: Quantidade convertida (0.0 para valores inválidos)
     """
     try:
         if isinstance(quantidade_str, (int, float)):
-            return float(quantidade_str)
+            return float(quantidade_str) if quantidade_str else 0.0
+        
+        # Converter para string e limpar
+        quantidade_str = str(quantidade_str or '0').strip()
+        
+        # Verificar se é um valor inválido
+        if not quantidade_str or quantidade_str == '__' or quantidade_str == 'None':
+            return 0.0
+        
+        # Remover espaços e hífens desnecessários
+        quantidade_str = quantidade_str.replace(' ', '').replace('-', '')
+        
+        # Se ficar vazio após limpeza, retornar 0
+        if not quantidade_str or quantidade_str == '__' or not quantidade_str.replace(',', '').replace('.', ''):
+            return 0.0
+        
         # Remove pontos de milhar e converte vírgula para ponto
-        return float(str(quantidade_str).replace('.', '').replace(',', '.'))
-    except (ValueError, AttributeError):
+        return float(quantidade_str.replace('.', '').replace(',', '.'))
+    except (ValueError, AttributeError, TypeError):
         return 0.0
 
 
