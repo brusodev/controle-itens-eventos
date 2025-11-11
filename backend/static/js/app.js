@@ -1031,7 +1031,8 @@ async function confirmarEmissaoOS() {
                 unidade: item.unidade,
                 diarias: item.diarias,  // ✅ Adicionar diárias
                 qtdSolicitada: item.qtdSolicitada,  // ✅ Adicionar quantidade solicitada
-                qtdTotal: item.qtdTotal
+                qtdTotal: item.qtdTotal,
+                valorUnit: item.valorUnit  // ✅ NOVO: Incluir preço unitário no envio à API
             }))
         };
         
