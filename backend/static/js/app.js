@@ -1325,7 +1325,7 @@ function normalizarDadosOS(os) {
             diarias: item.diarias || 1,
             qtdSolicitada: item.qtdSolicitada || item.qtdTotal,
             qtdTotal: item.qtdTotal,
-            valorUnit: item.valorUnit || 0,
+            valorUnit: parseFloat((item.valorUnit || '0').toString().replace(',', '.')) || 0,  // ✅ Converter string para número
             unidade: item.unidade
         }))
     };
