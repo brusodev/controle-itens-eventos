@@ -1,8 +1,15 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
+
+# Fuso horário de São Paulo (Brazil/East): UTC-3
+TIMEZONE_BR = timezone(timedelta(hours=-3))
+
+def get_datetime_br():
+    """Retorna o horário atual em São Paulo (UTC-3)"""
+    return datetime.now(TIMEZONE_BR).replace(tzinfo=None)
 
 class Categoria(db.Model):
     """Categorias de itens (ex: coffee_break_bebidas_quentes)"""
@@ -348,7 +355,7 @@ class Auditoria(db.Model):
     ip_address = db.Column(db.String(45))  # IPv4 ou IPv6
     user_agent = db.Column(db.String(200))
     
-    data_hora = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    data_hora = db.Column(db.DateTime, nullable=False, default=get_datetime_br, index=True)
     
     # Relacionamento
     usuario = db.relationship('Usuario', backref='auditorias', foreign_keys=[usuario_id])
