@@ -185,6 +185,8 @@ class OrdemServico(db.Model):
     # Controle
     data_emissao = db.Column(db.DateTime, default=datetime.utcnow)
     data_emissao_completa = db.Column(db.String(50))
+    motivo_exclusao = db.Column(db.Text)  # ✅ Motivo da exclusão registrado pelo admin
+    data_exclusao = db.Column(db.DateTime)  # ✅ Data da exclusão
     
     # Relacionamentos
     itens = db.relationship('ItemOrdemServico', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
@@ -213,7 +215,9 @@ class OrdemServico(db.Model):
             'responsavel': self.responsavel,
             'regiaoEstoque': self.regiao_estoque,  # Região do estoque vinculada
             'dataEmissao': self.data_emissao.isoformat() if self.data_emissao else None,
-            'dataEmissaoCompleta': self.data_emissao_completa
+            'dataEmissaoCompleta': self.data_emissao_completa,
+            'motivoExclusao': self.motivo_exclusao,  # ✅ Motivo da exclusão
+            'dataExclusao': self.data_exclusao.isoformat() if self.data_exclusao else None  # ✅ Data da exclusão
         }
         
         if incluir_itens:

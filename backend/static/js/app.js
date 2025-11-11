@@ -1504,14 +1504,23 @@ async function excluirOS(osId, numeroOS) {
         return;
     }
     
+    // ✅ Pedir motivo da exclusão
+    const motivo = prompt(`📝 MOTIVO DA EXCLUSÃO\n\nDigite o motivo pelo qual está excluindo a O.S. ${numeroOS}:\n\n(Este motivo será registrado na auditoria)`, '').trim();
+    
+    if (!motivo) {
+        alert('❌ O motivo da exclusão é obrigatório!');
+        return;
+    }
+    
     try {
         console.log(`🗑️ Excluindo O.S. ${numeroOS} (ID: ${osId})...`);
+        console.log(`📝 Motivo: ${motivo}`);
         
-        // Chamar API para deletar
-        await APIClient.deletarOrdemServico(osId);
+        // Chamar API para deletar com motivo
+        await APIClient.deletarOrdemServico(osId, motivo);
         
         console.log('✅ O.S. excluída com sucesso!');
-        alert(`✅ O.S. ${numeroOS} excluída com sucesso!\n\nO estoque foi revertido automaticamente.`);
+        alert(`✅ O.S. ${numeroOS} excluída com sucesso!\n\nMotivo registrado: ${motivo}\nO estoque foi revertido automaticamente.`);
         
         // Recarregar listas
         await renderizarAlimentacao();

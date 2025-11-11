@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, send_file
-from models import db, OrdemServico, ItemOrdemServico, Item, EstoqueRegional, Categoria, MovimentacaoEstoque
+from models import db, OrdemServico, ItemOrdemServico, Item, EstoqueRegional, Categoria, MovimentacaoEstoque, get_datetime_br
 from datetime import datetime
 from sqlalchemy import func
 from pdf_generator import gerar_pdf_os
@@ -372,32 +372,48 @@ def deletar_ordem(os_id):
         numero_os = os.numero_os
         evento = os.evento
         
+        # ✅ Receber motivo da exclusão
+        dados_requisicao = request.get_json() or {}
+        motivo_exclusao = dados_requisicao.get('motivo', '').strip()
+        
+        if not motivo_exclusao:
+            return jsonify({'erro': 'Motivo da exclusão é obrigatório'}), 400
+        
         # Salvar dados antes de deletar
         dados_antes = os.to_dict()
         
         print(f"\n🗑️  Deletando O.S. {numero_os}...")
+        print(f"   Motivo: {motivo_exclusao}")
         
         # ✅ REVERTER ESTOQUE ANTES DE DELETAR
         print(f"↩️  Revertendo estoque da O.S. {os_id}...")
         total_revertido = reverter_baixa_estoque(os_id)
         print(f"   ✅ {total_revertido} movimentações revertidas!")
         
+        # ✅ Registrar motivo e data de exclusão antes de deletar
+        os.motivo_exclusao = motivo_exclusao
+        os.data_exclusao = get_datetime_br()
+        
         # As movimentações serão deletadas automaticamente devido ao CASCADE
         db.session.delete(os)
         db.session.commit()
         
-        # Registrar auditoria
+        # Registrar auditoria com motivo
         registrar_auditoria(
             'DELETE',
             'OS',
-            f'Deletou Ordem de Serviço #{numero_os} - {evento}',
+            f'Deletou Ordem de Serviço #{numero_os} - {evento}\nMotivo: {motivo_exclusao}',
             entidade_tipo='ordens_servico',
             entidade_id=os_id,
             dados_antes=dados_antes
         )
         
         print(f"✅ O.S. {numero_os} deletada com sucesso!\n")
-        return jsonify({'mensagem': f'O.S. {numero_os} deletada com sucesso'}), 200
+        return jsonify({
+            'mensagem': f'O.S. {numero_os} deletada com sucesso',
+            'numeroOS': numero_os,
+            'motivo': motivo_exclusao
+        }), 200
     
     except Exception as e:
         db.session.rollback()

@@ -147,10 +147,12 @@ class APIClient {
         });
     }
     
-    static async deletarOrdemServico(id, reverterEstoque = false) {
-        const params = reverterEstoque ? '?reverter_estoque=true' : '';
-        return this.request(`/ordens-servico/${id}${params}`, {
-            method: 'DELETE'
+    static async deletarOrdemServico(id, motivo = null) {
+        // ✅ Enviar motivo da exclusão se fornecido
+        const body = motivo ? { motivo } : {};
+        return this.request(`/ordens-servico/${id}`, {
+            method: 'DELETE',
+            body: motivo ? JSON.stringify(body) : undefined
         });
     }
     
