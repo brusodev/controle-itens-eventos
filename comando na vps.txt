@@ -1,0 +1,5 @@
+COMANDO PARA APP CONTROLE ITENS NA VPS
+
+sudo systemctl restart controle-itens
+
+sudo systemctl status controle-itens
