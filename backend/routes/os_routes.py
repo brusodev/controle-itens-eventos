@@ -164,6 +164,13 @@ def criar_ordem():
                 db.session.rollback()
                 return jsonify({'erro': f'Item {item_os_data["itemId"]} não encontrado'}), 404
             
+            # ✅ NOVO: Capturar valor unitário
+            valor_unitario = item_os_data.get('valorUnit', item_os_data.get('valorUnit', '0'))
+            if isinstance(valor_unitario, (int, float)):
+                valor_unitario = str(valor_unitario)
+            
+            print(f"💰 Item {item_os_data['descricao']}: valorUnit = {valor_unitario} (tipo: {type(valor_unitario).__name__})")
+            
             # Criar registro do item na O.S.
             item_os = ItemOrdemServico(
                 ordem_servico_id=os.id,
@@ -175,7 +182,8 @@ def criar_ordem():
                 unidade=item_os_data.get('unidade', 'Unidade'),
                 diarias=item_os_data.get('diarias', 1),
                 quantidade_solicitada=item_os_data.get('qtdSolicitada'),
-                quantidade_total=item_os_data['qtdTotal']
+                quantidade_total=item_os_data['qtdTotal'],
+                valor_unitario=valor_unitario  # ✅ NOVO: Salvar valor unitário
             )
             db.session.add(item_os)
             itens_os.append(item_os)
@@ -290,6 +298,11 @@ def atualizar_ordem(os_id):
                 db.session.rollback()
                 return jsonify({'erro': f'Item {item_os_data["itemId"]} não encontrado'}), 404
             
+            # ✅ NOVO: Capturar valor unitário
+            valor_unitario = item_os_data.get('valorUnit', item_os_data.get('valorUnit', '0'))
+            if isinstance(valor_unitario, (int, float)):
+                valor_unitario = str(valor_unitario)
+            
             # Criar registro do item na O.S.
             item_os = ItemOrdemServico(
                 ordem_servico_id=os.id,
@@ -301,7 +314,8 @@ def atualizar_ordem(os_id):
                 unidade=item_os_data.get('unidade', 'Unidade'),
                 diarias=item_os_data.get('diarias', 1),
                 quantidade_solicitada=item_os_data.get('qtdSolicitada'),
-                quantidade_total=item_os_data['qtdTotal']
+                quantidade_total=item_os_data['qtdTotal'],
+                valor_unitario=valor_unitario  # ✅ NOVO: Salvar valor unitário
             )
             db.session.add(item_os)
             itens_os.append(item_os)

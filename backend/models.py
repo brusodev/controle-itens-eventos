@@ -231,6 +231,7 @@ class ItemOrdemServico(db.Model):
     diarias = db.Column(db.Integer, default=1)  # Multiplicador de diárias
     quantidade_solicitada = db.Column(db.Float)  # Quantidade por diária
     quantidade_total = db.Column(db.Float)  # Quantidade total (diarias × qtd_solicitada)
+    valor_unitario = db.Column(db.String(20), default='0')  # ✅ NOVO: Preço unitário do item na época da emissão
     
     def to_dict(self):
         return {
@@ -243,7 +244,8 @@ class ItemOrdemServico(db.Model):
             'unidade': self.unidade,
             'diarias': self.diarias or 1,
             'qtdSolicitada': self.quantidade_solicitada,
-            'qtdTotal': self.quantidade_total
+            'qtdTotal': self.quantidade_total,
+            'valorUnit': self.valor_unitario or '0'  # ✅ NOVO: Retornar valor unitário
         }
 
 

@@ -722,14 +722,30 @@ function coletarDadosOS() {
             
             // Pegar preço da região correspondente ao grupo
             let valorUnit = 0;
-            if (item.regioes && item.regioes[grupo] && item.regioes[grupo].preco) {
-                try {
-                    const precoStr = item.regioes[grupo].preco.replace('.', '').replace(',', '.');
-                    valorUnit = parseFloat(precoStr) || 0;
-                } catch (e) {
-                    valorUnit = 0;
+            console.log(`🔍 DEBUG Item ${item.descricao}:`);
+            console.log(`   - Item ID: ${itemId}`);
+            console.log(`   - Grupo/Região selecionada: ${grupo}`);
+            console.log(`   - item.regioes:`, item.regioes);
+            
+            if (item.regioes && item.regioes[grupo]) {
+                console.log(`   - item.regioes[${grupo}]:`, item.regioes[grupo]);
+                if (item.regioes[grupo].preco) {
+                    try {
+                        const precoStr = item.regioes[grupo].preco.replace('.', '').replace(',', '.');
+                        valorUnit = parseFloat(precoStr) || 0;
+                        console.log(`   - Preço encontrado: ${precoStr} → ${valorUnit}`);
+                    } catch (e) {
+                        console.log(`   - ❌ Erro ao parsear preço:`, e);
+                        valorUnit = 0;
+                    }
+                } else {
+                    console.log(`   - ⚠️  Sem campo preco em regioes[${grupo}]`);
                 }
+            } else {
+                console.log(`   - ⚠️  item.regioes ou grupo não existe`);
             }
+            
+            console.log(`   - VALOR FINAL ENVIADO: ${valorUnit}\n`);
             
             itensOS.push({
                 num: index + 1,

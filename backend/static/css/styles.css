@@ -769,7 +769,7 @@ header h1 {
 
 .empty-message {
     text-align: center;
-    color: var(--secondary-color);
+    color: var(--light-bg);
     padding: 40px;
     font-size: 1.1rem;
 }
