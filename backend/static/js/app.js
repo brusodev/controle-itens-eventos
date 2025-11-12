@@ -383,14 +383,35 @@ function filtrarAlimentacao() {
                         <span class="qty-gasto">Gasto: ${totalGasto.toLocaleString()}</span>
                     </div>
                     <div class="regioes-summary">
+                        <div class="regioes-header">
+                            <div class="regiao-col-header">Região</div>
+                            <div class="regiao-col-header">Inicial</div>
+                            <div class="regiao-col-header">Usado</div>
+                            <div class="regiao-col-header">Restante</div>
+                        </div>
                         ${Object.entries(item.regioes).map(([reg, r]) => {
+                            let inicial = 0;
+                            let gasto = 0;
                             let disp = 0;
-                            if (r.inicial && r.inicial !== '__' && r.gasto) {
-                                const inicial = parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0;
-                                const gasto = parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
-                                disp = inicial - gasto;
+                            
+                            if (r.inicial && r.inicial !== '__') {
+                                inicial = parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0;
                             }
-                            return `<span class="regiao-qty">Restante Reg ${reg}: ${disp.toLocaleString()}</span>`;
+                            if (r.gasto && r.gasto !== '__') {
+                                gasto = parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
+                            }
+                            disp = inicial - gasto;
+                            
+                            const statusClass = disp === 0 ? 'danger' : disp < 100 ? 'warning' : 'success';
+                            
+                            return `
+                                <div class="regiao-row ${statusClass}">
+                                    <div class="regiao-col regiao-nome">Região ${reg}</div>
+                                    <div class="regiao-col regiao-inicial">${inicial.toLocaleString()}</div>
+                                    <div class="regiao-col regiao-gasto">${gasto.toLocaleString()}</div>
+                                    <div class="regiao-col regiao-restante">${disp.toLocaleString()}</div>
+                                </div>
+                            `;
                         }).join('')}
                     </div>
                 </div>
