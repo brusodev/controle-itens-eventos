@@ -1443,7 +1443,7 @@ header h1 {
 
 /* Centralizar formulários */
 .form-container {
-    max-width: 900px;
+    max-width: 1050px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -2260,7 +2260,34 @@ body, html {
     }
 }
 
+/* ========================================
+   Forms de emissão das O.S.s
+   ======================================== */
+
 /* Ajuste no layout dos itens da O.S. para acomodar os alertas */
+
+#os-evento{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 580px;
+}
+
+/* Campo Data do Evento */
+#os-data-evento {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 280px;
+}
+
+#os-responsavel{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 360px;
+}
+
 .item-os {
     margin-bottom: 20px;
     padding: 15px;
@@ -2289,13 +2316,13 @@ body, html {
 .item-os .form-field:nth-child(1) {
     /* Categoria */
     flex: 0 1 150px;
-    min-width: 140px;
+    min-width: 240px;
 }
 
 .item-os .form-field:nth-child(2) {
     /* Item */
     flex: 2;
-    min-width: 200px;
+    min-width: 240px;
 }
 
 .item-os .form-field:nth-child(3) {
