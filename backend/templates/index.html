@@ -405,7 +405,7 @@
                     <span>Usuários</span>
                 </a>
                 <a href="/api/auditoria/view" class="nav-btn" title="Auditoria do Sistema">
-                    <span>📋</span>
+                    <span>🕵</span>
                     <span>Auditoria</span>
                 </a>
                 {% endif %}
@@ -554,7 +554,7 @@
                                     Os dados do contrato serão preenchidos automaticamente
                                 </small>
                             </label>
-                            <select id="os-grupo-select" required onchange="carregarDadosDetentora()" style="padding: 12px; font-size: 1rem;">
+                            <select id="os-grupo-select" required onchange="carregarDadosDetentora()" style="padding: 12px; font-size: 1rem; max-width: 240px;">
                                 <option value="">-- Selecione o Grupo --</option>
                                 <option value="1">Grupo 1</option>
                                 <option value="2">Grupo 2</option>
@@ -664,7 +664,7 @@
                     
                     <div class="form-group">
                         <label for="os-fiscal">Nome do(a) Fiscal *</label>
-                        <input type="text" id="os-fiscal" required placeholder="Julia Nascimento Tomas" style="width: 512px;" list="lista-fiscais">
+                        <input type="text" id="os-fiscal" required placeholder="Julia Nascimento Tomas" style="width: 380px;" list="lista-fiscais">
                         <datalist id="lista-fiscais"></datalist>
                     </div>
 

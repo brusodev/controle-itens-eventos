@@ -596,8 +596,8 @@ function adicionarItemOS() {
                 <label class="field-label">Categoria</label>
                 <select class="os-categoria" onchange="atualizarItensOS(this)">
                     <option value="">Selecione Categoria</option>
-                    <option value="coffee_break_bebidas_quentes">Coffee Break e Bebidas Quentes</option>
-                    <option value="fornecimento_agua_mineral">Fornecimento de Água Mineral</option>
+                    <option value="coffee_break_bebidas_quentes">Coffee e Bebidas Quentes</option>
+                    <option value="fornecimento_agua_mineral">Água Mineral</option>
                     <option value="kit_lanche">Kit Lanche</option>
                     <option value="fornecimento_biscoitos">Fornecimento de Biscoitos</option>
                     <option value="almoco_jantar">Almoço/Jantar</option>

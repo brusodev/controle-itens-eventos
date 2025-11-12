@@ -17,9 +17,26 @@ def listar_detentoras():
         else:
             detentoras = Detentora.query.filter_by(ativo=True).order_by(Detentora.grupo, Detentora.nome).all()
         
-        return jsonify([d.to_dict() for d in detentoras]), 200
+        # ✅ Serializar com tratamento de erro
+        resultado = []
+        for d in detentoras:
+            try:
+                resultado.append(d.to_dict())
+            except Exception as e:
+                # Se falhar em uma, adicionar dados básicos
+                print(f'⚠️ Erro ao serializar detentora {d.id}: {str(e)}')
+                resultado.append({
+                    'id': d.id,
+                    'nome': str(d.nome) if d.nome else 'Sem nome',
+                    'grupo': str(d.grupo) if d.grupo else 'Sem grupo'
+                })
+        
+        return jsonify(resultado), 200
     
     except Exception as e:
+        print(f'❌ ERRO em listar_detentoras: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'erro': str(e)}), 500
 
 
@@ -44,21 +61,42 @@ def obter_por_grupo(grupo):
     try:
         print(f'🔍 [API] Buscando Detentora para grupo: {grupo} (tipo: {type(grupo)})')
         
-        detentora = Detentora.query.filter_by(grupo=grupo, ativo=True).first()
+        # Converter para string se necessário
+        grupo_str = str(grupo).strip()
         
-        print(f'📊 [API] Detentoras encontradas: {Detentora.query.filter_by(ativo=True).count()}')
-        print(f'📋 [API] Grupos disponíveis: {[d.grupo for d in Detentora.query.filter_by(ativo=True).all()]}')
+        # ✅ Buscar detentora ativa
+        detentora = Detentora.query.filter_by(grupo=grupo_str, ativo=True).first()
         
         if not detentora:
-            print(f'❌ [API] Detentora não encontrada para grupo {grupo}')
-            return jsonify({'erro': 'Detentora não encontrada para este grupo'}), 404
+            print(f'❌ [API] Detentora não encontrada para grupo "{grupo_str}"')
+            # Debug: listar grupos disponíveis
+            grupos_disponiveis = [d.grupo for d in Detentora.query.filter_by(ativo=True).all()]
+            print(f'📋 [API] Grupos disponíveis: {grupos_disponiveis}')
+            return jsonify({'erro': f'Detentora não encontrada para o grupo "{grupo_str}"'}), 404
         
         print(f'✅ [API] Detentora encontrada: {detentora.nome}')
-        return jsonify(detentora.to_dict()), 200
+        
+        # ✅ Serializar com tratamento de erro
+        try:
+            resultado = detentora.to_dict()
+            print(f'✅ [API] Dados serializados com sucesso')
+            return jsonify(resultado), 200
+        except Exception as serialize_error:
+            print(f'❌ [API] Erro ao serializar: {str(serialize_error)}')
+            # Retornar dados básicos em caso de erro de serialização
+            return jsonify({
+                'id': detentora.id,
+                'nome': str(detentora.nome) if detentora.nome else 'Sem nome',
+                'grupo': str(detentora.grupo) if detentora.grupo else 'Sem grupo',
+                'cnpj': str(detentora.cnpj) if detentora.cnpj else '',
+                'erro_serializacao': 'Alguns campos não puderam ser processados'
+            }), 200
     
     except Exception as e:
-        print(f'❌ [API] ERRO: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        print(f'❌ [API] ERRO NÃO TRATADO: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': f'Erro ao buscar detentora: {str(e)}'}), 500
 
 
 @detentoras_bp.route('/<int:detentora_id>', methods=['GET'])

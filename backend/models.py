@@ -133,19 +133,35 @@ class Detentora(db.Model):
     ordens_servico = db.relationship('OrdemServico', backref='detentora_obj', lazy=True)
     
     def to_dict(self):
-        return {
-            'id': self.id,
-            'contratoNum': self.contrato_num,
-            'dataAssinatura': self.data_assinatura,
-            'prazoVigencia': self.prazo_vigencia,
-            'nome': self.nome,
-            'cnpj': self.cnpj,
-            'servico': self.servico,
-            'grupo': self.grupo,
-            'ativo': self.ativo,
-            'criadoEm': self.criado_em.isoformat() if self.criado_em else None,
-            'atualizadoEm': self.atualizado_em.isoformat() if self.atualizado_em else None
-        }
+        try:
+            return {
+                'id': self.id,
+                'contratoNum': self.contrato_num or '',
+                'dataAssinatura': self.data_assinatura or '',
+                'prazoVigencia': self.prazo_vigencia or '',
+                'nome': self.nome or '',
+                'cnpj': self.cnpj or '',
+                'servico': self.servico or 'COFFEE BREAK',
+                'grupo': self.grupo or '',
+                'ativo': bool(self.ativo) if self.ativo is not None else True,
+                'criadoEm': self.criado_em.isoformat() if self.criado_em else None,
+                'atualizadoEm': self.atualizado_em.isoformat() if self.atualizado_em else None
+            }
+        except (AttributeError, TypeError) as e:
+            # ✅ Retornar valores seguros em caso de erro
+            return {
+                'id': self.id,
+                'contratoNum': str(self.contrato_num) if self.contrato_num else '',
+                'dataAssinatura': str(self.data_assinatura) if self.data_assinatura else '',
+                'prazoVigencia': str(self.prazo_vigencia) if self.prazo_vigencia else '',
+                'nome': str(self.nome) if self.nome else '',
+                'cnpj': str(self.cnpj) if self.cnpj else '',
+                'servico': str(self.servico) if self.servico else 'COFFEE BREAK',
+                'grupo': str(self.grupo) if self.grupo else '',
+                'ativo': True,
+                'criadoEm': None,
+                'atualizadoEm': None
+            }
 
 
 class OrdemServico(db.Model):
