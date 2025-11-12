@@ -384,10 +384,10 @@ function filtrarAlimentacao() {
                     </div>
                     <div class="regioes-summary">
                         <div class="regioes-header">
-                            <div class="regiao-col-header">Região</div>
+                            <div class="regiao-col-header">Reg.</div>
                             <div class="regiao-col-header">Inicial</div>
                             <div class="regiao-col-header">Usado</div>
-                            <div class="regiao-col-header">Restante</div>
+                            <div class="regiao-col-header">Rest.</div>
                         </div>
                         ${Object.entries(item.regioes).map(([reg, r]) => {
                             let inicial = 0;
@@ -406,7 +406,7 @@ function filtrarAlimentacao() {
                             
                             return `
                                 <div class="regiao-row ${statusClass}">
-                                    <div class="regiao-col regiao-nome">Região ${reg}</div>
+                                    <div class="regiao-col regiao-nome">${reg}</div>
                                     <div class="regiao-col regiao-inicial">${inicial.toLocaleString()}</div>
                                     <div class="regiao-col regiao-gasto">${gasto.toLocaleString()}</div>
                                     <div class="regiao-col regiao-restante">${disp.toLocaleString()}</div>
@@ -3086,27 +3086,46 @@ function inicializarMenuMobile() {
         // Criar tabs no sidebar
         criarTabsSidebar();
         
-        // Event listeners
-        const hamburgerBtn = document.getElementById('hamburger-btn');
-        const sidebarOverlay = document.getElementById('sidebar-overlay');
-        const closeSidebarBtn = document.querySelector('.close-sidebar');
+        // Event listeners com retry para elementos que podem não estar prontos
+        let tentativas = 0;
+        const maxTentativas = 10;
         
-        if (hamburgerBtn) {
-            hamburgerBtn.addEventListener('click', abrirSidebar);
-            console.log('✅ Botão hamburger conectado');
-        } else {
-            console.warn('⚠️ Botão hamburger não encontrado');
+        function conectarElementos() {
+            const hamburgerBtn = document.querySelector('.hamburger-menu');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            const closeSidebarBtn = document.querySelector('.close-sidebar');
+            
+            let elementosEncontrados = false;
+            
+            if (hamburgerBtn) {
+                hamburgerBtn.addEventListener('click', abrirSidebar);
+                console.log('✅ Botão hamburger conectado');
+                elementosEncontrados = true;
+            }
+            
+            if (closeSidebarBtn) {
+                closeSidebarBtn.addEventListener('click', fecharSidebar);
+                console.log('✅ Botão fechar sidebar conectado');
+                elementosEncontrados = true;
+            }
+            
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', fecharSidebar);
+                console.log('✅ Overlay conectado');
+                elementosEncontrados = true;
+            }
+            
+            // Se elementos não foram encontrados e ainda temos tentativas, tenta novamente
+            if (!elementosEncontrados && tentativas < maxTentativas) {
+                tentativas++;
+                console.log(`⏳ Tentando conectar elementos novamente... (${tentativas}/${maxTentativas})`);
+                setTimeout(conectarElementos, 100);
+            } else if (!elementosEncontrados && tentativas >= maxTentativas) {
+                console.warn('⚠️ Botão hamburger não encontrado após múltiplas tentativas');
+            }
         }
         
-        if (closeSidebarBtn) {
-            closeSidebarBtn.addEventListener('click', fecharSidebar);
-            console.log('✅ Botão fechar sidebar conectado');
-        }
-        
-        if (sidebarOverlay) {
-            sidebarOverlay.addEventListener('click', fecharSidebar);
-            console.log('✅ Overlay conectado');
-        }
+        conectarElementos();
         
         // Sincronizar tabs do sidebar com tabs principais
         sincronizarTabsSidebar();
@@ -3178,7 +3197,7 @@ function abrirSidebar() {
     console.log('📱 Abrindo sidebar...');
     const sidebar = document.getElementById('mobile-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerBtn = document.querySelector('.hamburger-menu');
     const hamburgerToggle = document.querySelector('.mobile-menu-toggle');
     
     if (sidebar) {
@@ -3208,7 +3227,7 @@ function fecharSidebar() {
     console.log('📱 Fechando sidebar...');
     const sidebar = document.getElementById('mobile-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerBtn = document.querySelector('.hamburger-menu');
     const hamburgerToggle = document.querySelector('.mobile-menu-toggle');
     
     if (sidebar) {

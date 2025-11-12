@@ -13,6 +13,7 @@
     --light-bg: #f8f9fa;
     --dark-text: #212529;
     --border-color: #dee2e6;
+    --btn-editar-stock: #764ba2;
 }
 
 body {
@@ -286,7 +287,7 @@ header h1 {
 
 /* Colunas individuais */
 .regiao-col {
-    padding: 11px 10px;
+    padding: 5px 5px;
     text-align: center;
     font-size: 0.9rem;
     display: flex;
