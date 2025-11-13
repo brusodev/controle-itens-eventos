@@ -21,6 +21,15 @@ wheels/
 *.egg
 MANIFEST
 
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+.venv
+venv
+env
+
 # Flask
 instance/
 *.db
