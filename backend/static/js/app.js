@@ -15,6 +15,34 @@ let proximoIdRequisicao = 1;
 let proximoIdOS = 1;
 let osEditandoId = null; // ID da O.S. sendo editada
 
+// Categorias disponíveis
+let categorias = {
+    'estrutura_e_espaco': [
+        'Local do evento (salão, auditório, espaço aberto)',
+        'Mesas e cadeiras',
+        'Palco / púlpito',
+        'Decoração (flores, banners, iluminação ambiente)',
+        'Som e iluminação técnica',
+        'Gerador de energia (reserva)',
+        'Internet / Wi-Fi'
+    ],
+    'equipamentos': [
+        'Microfones (sem fio e de lapela)',
+        'Projetor / telão / TVs',
+        'Computador / notebook de apoio',
+        'Cabos, extensões e adaptadores',
+        'Caixas de som',
+        'Material de sinalização (placas, totens, adesivos)'
+    ],
+    'materiais_de_apoio': [
+        'Lista de presença / credenciamento',
+        'Crachás / pulseiras de identificação',
+        'Kits para participantes (se houver)',
+        'Papelaria (canetas, blocos, pranchetas)',
+        'Brindes / lembranças'
+    ]
+};
+
 // ========================================
 // DADOS DE ALIMENTAÇÃO
 // ========================================
@@ -137,33 +165,6 @@ function salvarDados() {
 
 function inicializarEstoqueExemplo() {
     // Baseado no JSON fornecido
-    const categorias = {
-        'estrutura_e_espaco': [
-            'Local do evento (salão, auditório, espaço aberto)',
-            'Mesas e cadeiras',
-            'Palco / púlpito',
-            'Decoração (flores, banners, iluminação ambiente)',
-            'Som e iluminação técnica',
-            'Gerador de energia (reserva)',
-            'Internet / Wi-Fi'
-        ],
-        'equipamentos': [
-            'Microfones (sem fio e de lapela)',
-            'Projetor / telão / TVs',
-            'Computador / notebook de apoio',
-            'Cabos, extensões e adaptadores',
-            'Caixas de som',
-            'Material de sinalização (placas, totens, adesivos)'
-        ],
-        'materiais_de_apoio': [
-            'Lista de presença / credenciamento',
-            'Crachás / pulseiras de identificação',
-            'Kits para participantes (se houver)',
-            'Papelaria (canetas, blocos, pranchetas)',
-            'Brindes / lembranças'
-        ]
-    };
-
     for (let categoria in categorias) {
         categorias[categoria].forEach(nome => {
             estoque.push({
@@ -2290,27 +2291,67 @@ function configurarFormularios() {
     document.getElementById('form-item').addEventListener('submit', function(e) {
         e.preventDefault();
         
+        const categoriaSelecionada = document.getElementById('item-categoria').value;
+        const categoria = Object.keys(categorias).find(cat => 
+            categorias[cat].find(nome => nome === document.getElementById('item-nome').value)
+        );
+        
         const dados = {
-            categoria: document.getElementById('item-categoria').value,
+            categoria: categoriaSelecionada,
             nome: document.getElementById('item-nome').value,
             quantidade: parseInt(document.getElementById('item-quantidade').value),
             unidade: document.getElementById('item-unidade').value
         };
         
         if (itemEditandoId) {
-            // Editar
+            // Editar localmente (backend não implementa PUT ainda)
             const item = estoque.find(i => i.id === itemEditandoId);
             Object.assign(item, dados);
+            salvarDados();
         } else {
-            // Adicionar
-            estoque.push({
-                id: proximoIdEstoque++,
-                ...dados,
-                dataCadastro: new Date().toISOString()
+            // Adicionar - ENVIAR PARA BACKEND
+            fetch('/api/itens', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    item: '1',  // Código do item
+                    descricao: dados.nome,
+                    categoria_id: 1,  // Ajustar conforme necessário
+                    unidade: dados.unidade,
+                    regioes: {
+                        '1': { inicial: dados.quantidade, gasto: '0' },
+                        '2': { inicial: dados.quantidade, gasto: '0' },
+                        '3': { inicial: dados.quantidade, gasto: '0' },
+                        '4': { inicial: dados.quantidade, gasto: '0' },
+                        '5': { inicial: dados.quantidade, gasto: '0' },
+                        '6': { inicial: dados.quantidade, gasto: '0' }
+                    }
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(novoItem => {
+                // Adicionar também localmente para visualização imediata
+                estoque.push({
+                    id: proximoIdEstoque++,
+                    ...dados,
+                    dataCadastro: new Date().toISOString()
+                });
+                salvarDados();
+                alert('✅ Item adicionado com sucesso e salvo no banco de dados!');
+            })
+            .catch(erro => {
+                console.error('Erro ao salvar item no banco:', erro);
+                alert('❌ Erro ao salvar item no banco de dados: ' + erro.message);
             });
         }
         
-        salvarDados();
         fecharModalItem();
         renderizarEstoque();
     });
@@ -3142,7 +3183,7 @@ function criarTabsSidebar() {
     console.log('📋 Tabs principais encontradas:', mainTabs.length);
     
     if (!sidebarTabs) {
-        console.error('❌ Container sidebar-tabs não encontrado!');
+        console.warn('⚠️ Container sidebar-tabs não encontrado! (Pode ser normal em desktop)');
         return;
     }
     
