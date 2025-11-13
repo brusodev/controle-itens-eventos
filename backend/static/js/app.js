@@ -72,9 +72,11 @@ let sugestoesOS = {
 
 document.addEventListener('DOMContentLoaded', async function() {
     carregarDados();
+    carregarCategoriasLocalStorage();
     inicializarDataAtual();
     configurarAbas();
     configurarFormularios();
+    renderizarCategorias();
     
     // Carregar dados da API
     await renderizarAlimentacao();
@@ -2215,6 +2217,94 @@ function removerItem(id) {
 }
 
 // ========================================
+// GERENCIAR CATEGORIAS
+// ========================================
+
+function renderizarCategorias() {
+    const container = document.getElementById('lista-categorias');
+    container.innerHTML = '';
+
+    for (let catId in categorias) {
+        const nomes = {
+            'estrutura_e_espaco': 'Estrutura e Espaço',
+            'equipamentos': 'Equipamentos',
+            'materiais_de_apoio': 'Materiais de Apoio'
+        };
+        
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = `
+            <div class="item-header">
+                <span class="item-categoria">${nomes[catId] || catId}</span>
+                <span class="badge badge-info">${categorias[catId].length} itens</span>
+            </div>
+            <div class="item-body">
+                <h3>ID: ${catId}</h3>
+                <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                    <strong>Itens:</strong><br>
+                    ${categorias[catId].slice(0, 3).join(', ')}${categorias[catId].length > 3 ? '...' : ''}
+                </p>
+            </div>
+            <div class="item-footer">
+                <button class="btn-small btn-secondary" onclick="editarCategoria('${catId}')">✏️ Editar</button>
+                <button class="btn-small btn-danger" onclick="removerCategoria('${catId}')">🗑️ Remover</button>
+            </div>
+        `;
+        container.appendChild(card);
+    }
+}
+
+function mostrarModalNovaCategoria() {
+    document.getElementById('modal-categoria-titulo').textContent = 'Nova Categoria';
+    document.getElementById('form-categoria').reset();
+    document.getElementById('categoria-id').disabled = false;
+    document.getElementById('modal-categoria').style.display = 'flex';
+}
+
+function editarCategoria(catId) {
+    document.getElementById('modal-categoria-titulo').textContent = 'Editar Categoria';
+    document.getElementById('categoria-id').value = catId;
+    document.getElementById('categoria-id').disabled = true;
+    
+    const nomes = {
+        'estrutura_e_espaco': 'Estrutura e Espaço',
+        'equipamentos': 'Equipamentos',
+        'materiais_de_apoio': 'Materiais de Apoio'
+    };
+    
+    document.getElementById('categoria-nome').value = nomes[catId] || catId;
+    document.getElementById('categoria-itens').value = categorias[catId].join('\n');
+    document.getElementById('modal-categoria').style.display = 'flex';
+}
+
+function fecharModalCategoria() {
+    document.getElementById('modal-categoria').style.display = 'none';
+}
+
+function removerCategoria(catId) {
+    if (!confirm('Deseja realmente remover esta categoria?\n\nTodos os itens serão perdidos!')) return;
+    
+    delete categorias[catId];
+    salvarCategoriasLocalStorage();
+    renderizarCategorias();
+}
+
+function salvarCategoriasLocalStorage() {
+    localStorage.setItem('categorias', JSON.stringify(categorias));
+}
+
+function carregarCategoriasLocalStorage() {
+    const saved = localStorage.getItem('categorias');
+    if (saved) {
+        try {
+            categorias = JSON.parse(saved);
+        } catch (e) {
+            console.error('Erro ao carregar categorias:', e);
+        }
+    }
+}
+
+// ========================================
 // NOVA REQUISIÇÃO
 // ========================================
 
@@ -2354,6 +2444,42 @@ function configurarFormularios() {
         
         fecharModalItem();
         renderizarEstoque();
+    });
+    
+    // Form: Adicionar/Editar Categoria
+    document.getElementById('form-categoria').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const catId = document.getElementById('categoria-id').value.trim();
+        const catNome = document.getElementById('categoria-nome').value.trim();
+        const itensTexto = document.getElementById('categoria-itens').value.trim();
+        
+        if (!catId || !catNome) {
+            alert('❌ ID e Nome da categoria são obrigatórios!');
+            return;
+        }
+        
+        // Validar ID (apenas letras minúsculas e underscore)
+        if (!/^[a-z_]+$/.test(catId)) {
+            alert('❌ ID deve conter apenas letras minúsculas e underscore (ex: nova_categoria)');
+            return;
+        }
+        
+        // Converter itens de texto para array
+        const itens = itensTexto.split('\n').map(i => i.trim()).filter(i => i.length > 0);
+        
+        if (itens.length === 0) {
+            alert('❌ Adicione pelo menos um item à categoria!');
+            return;
+        }
+        
+        // Salvar categoria
+        categorias[catId] = itens;
+        salvarCategoriasLocalStorage();
+        
+        alert('✅ Categoria salva com sucesso!');
+        fecharModalCategoria();
+        renderizarCategorias();
     });
     
     // Form: Nova Requisição
