@@ -2312,6 +2312,9 @@ function editarCategoria(catId) {
 
 function fecharModalCategoria() {
     document.getElementById('modal-categoria').style.display = 'none';
+    document.getElementById('form-categoria').reset();
+    document.getElementById('form-categoria').dataset.catIdBD = '';
+    document.getElementById('categoria-id').disabled = false;
 }
 
 function removerCategoria(catId) {
@@ -2323,8 +2326,30 @@ function removerCategoria(catId) {
 }
 
 function editarCategoriaDB(catId) {
-    // Função placeholder para editar categoria do banco
-    alert('Edição de categorias ainda não disponível');
+    // Buscar dados da categoria no backend
+    fetch(`/api/categorias/${catId}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Categoria não encontrada');
+            return response.json();
+        })
+        .then(cat => {
+            // Preencher modal com dados da categoria
+            document.getElementById('modal-categoria-titulo').textContent = 'Editar Categoria';
+            document.getElementById('categoria-id').value = catId;
+            document.getElementById('categoria-id').disabled = true;
+            document.getElementById('categoria-nome').value = cat.nome;
+            document.getElementById('categoria-itens').value = '';  // Não editamos itens pelo modal, apenas nome/tipo
+            
+            // Mostrar modal
+            document.getElementById('modal-categoria').style.display = 'flex';
+            
+            // Marcar como edição de categoria do banco
+            document.getElementById('form-categoria').dataset.catIdBD = catId;
+        })
+        .catch(erro => {
+            console.error('Erro ao carregar categoria:', erro);
+            alert('❌ Erro ao carregar categoria: ' + erro.message);
+        });
 }
 
 function removerCategoriaDB(catId) {
@@ -2531,15 +2556,51 @@ function configurarFormularios() {
     document.getElementById('form-categoria').addEventListener('submit', function(e) {
         e.preventDefault();
         
+        const form = document.getElementById('form-categoria');
         const catId = document.getElementById('categoria-id').value.trim();
         const catNome = document.getElementById('categoria-nome').value.trim();
         const itensTexto = document.getElementById('categoria-itens').value.trim();
+        const catIdBD = form.dataset.catIdBD;  // ID do banco (se editando)
         
         if (!catId || !catNome) {
             alert('❌ ID e Nome da categoria são obrigatórios!');
             return;
         }
         
+        // Se está editando do banco, só validar nome
+        if (catIdBD) {
+            // Editar categoria do banco
+            fetch(`/api/categorias/${catIdBD}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nome: catNome,
+                    tipo: catId,
+                    natureza: catId
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('✅ Categoria atualizada com sucesso!');
+                fecharModalCategoria();
+                form.dataset.catIdBD = '';  // Limpar
+                renderizarCategorias();
+            })
+            .catch(erro => {
+                console.error('Erro ao atualizar categoria:', erro);
+                alert('❌ Erro ao atualizar categoria: ' + erro.message);
+            });
+            return;
+        }
+        
+        // Se é criação nova, validar ID e itens
         // Validar ID (apenas letras minúsculas e underscore)
         if (!/^[a-z_]+$/.test(catId)) {
             alert('❌ ID deve conter apenas letras minúsculas e underscore (ex: nova_categoria)');
@@ -2554,14 +2615,9 @@ function configurarFormularios() {
             return;
         }
         
-        // Determinar se está criando ou editando
-        const isEditando = document.getElementById('categoria-id').disabled;
-        const method = isEditando ? 'PUT' : 'POST';
-        const url = isEditando ? `/api/categorias/${catId}` : '/api/categorias';
-        
-        // Salvar no backend
-        fetch(url, {
-            method: method,
+        // Criar nova categoria
+        fetch('/api/categorias', {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
