@@ -2220,6 +2220,25 @@ function removerItem(id) {
 // GERENCIAR CATEGORIAS
 // ========================================
 
+function mostrarAbaCategories() {
+    // Esconder todas as abas
+    document.querySelectorAll('.tab-content').forEach(section => {
+        section.style.display = 'none';
+        section.classList.remove('active');
+    });
+    
+    // Mostrar aba de categorias
+    const abaCategories = document.getElementById('tab-categorias');
+    if (abaCategories) {
+        abaCategories.style.display = 'block';
+        abaCategories.classList.add('active');
+        abaCategories.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Renderizar categorias
+    renderizarCategorias();
+}
+
 function renderizarCategorias() {
     const container = document.getElementById('lista-categorias');
     container.innerHTML = '';
