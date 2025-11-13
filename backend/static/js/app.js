@@ -2293,13 +2293,31 @@ function salvarCategoriasLocalStorage() {
     localStorage.setItem('categorias', JSON.stringify(categorias));
 }
 
-function carregarCategoriasLocalStorage() {
+async function carregarCategoriasLocalStorage() {
+    try {
+        // Tentar carregar do backend
+        const response = await fetch('/api/categorias');
+        if (response.ok) {
+            const categoriasBackend = await response.json();
+            // Converter para formato esperado
+            categoriasBackend.forEach(cat => {
+                if (cat.nome && !categorias[cat.tipo]) {
+                    categorias[cat.tipo] = []; // Será preenchido com itens
+                }
+            });
+        }
+    } catch (erro) {
+        console.warn('Não foi possível carregar categorias do backend, usando localStorage', erro);
+    }
+    
+    // Fallback: carregar do localStorage
     const saved = localStorage.getItem('categorias');
     if (saved) {
         try {
-            categorias = JSON.parse(saved);
+            const savedCats = JSON.parse(saved);
+            Object.assign(categorias, savedCats);
         } catch (e) {
-            console.error('Erro ao carregar categorias:', e);
+            console.error('Erro ao carregar categorias do localStorage:', e);
         }
     }
 }
@@ -2473,13 +2491,42 @@ function configurarFormularios() {
             return;
         }
         
-        // Salvar categoria
-        categorias[catId] = itens;
-        salvarCategoriasLocalStorage();
+        // Determinar se está criando ou editando
+        const isEditando = document.getElementById('categoria-id').disabled;
+        const method = isEditando ? 'PUT' : 'POST';
+        const url = isEditando ? `/api/categorias/${catId}` : '/api/categorias';
         
-        alert('✅ Categoria salva com sucesso!');
-        fecharModalCategoria();
-        renderizarCategorias();
+        // Salvar no backend
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                nome: catNome,
+                tipo: catId,
+                natureza: catId
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Também salvar localmente para visualização imediata
+            categorias[catId] = itens;
+            salvarCategoriasLocalStorage();
+            
+            alert('✅ Categoria salva no banco de dados com sucesso!');
+            fecharModalCategoria();
+            renderizarCategorias();
+        })
+        .catch(erro => {
+            console.error('Erro ao salvar categoria:', erro);
+            alert('❌ Erro ao salvar categoria: ' + erro.message);
+        });
     });
     
     // Form: Nova Requisição
