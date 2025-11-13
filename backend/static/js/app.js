@@ -2241,36 +2241,50 @@ function mostrarAbaCategories() {
 
 function renderizarCategorias() {
     const container = document.getElementById('lista-categorias');
-    container.innerHTML = '';
+    container.innerHTML = '<p>Carregando categorias...</p>';
 
-    for (let catId in categorias) {
-        const nomes = {
-            'estrutura_e_espaco': 'Estrutura e Espaço',
-            'equipamentos': 'Equipamentos',
-            'materiais_de_apoio': 'Materiais de Apoio'
-        };
-        
-        const card = document.createElement('div');
-        card.className = 'item-card';
-        card.innerHTML = `
-            <div class="item-header">
-                <span class="item-categoria">${nomes[catId] || catId}</span>
-                <span class="badge badge-info">${categorias[catId].length} itens</span>
-            </div>
-            <div class="item-body">
-                <h3>ID: ${catId}</h3>
-                <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
-                    <strong>Itens:</strong><br>
-                    ${categorias[catId].slice(0, 3).join(', ')}${categorias[catId].length > 3 ? '...' : ''}
-                </p>
-            </div>
-            <div class="item-footer">
-                <button class="btn-small btn-secondary" onclick="editarCategoria('${catId}')">✏️ Editar</button>
-                <button class="btn-small btn-danger" onclick="removerCategoria('${catId}')">🗑️ Remover</button>
-            </div>
-        `;
-        container.appendChild(card);
-    }
+    // Carregar categorias do backend
+    fetch('/api/categorias')
+        .then(response => {
+            if (!response.ok) throw new Error('Erro ao carregar categorias');
+            return response.json();
+        })
+        .then(categoriasBD => {
+            container.innerHTML = '';
+            
+            if (categoriasBD.length === 0) {
+                container.innerHTML = '<p class="empty-message">Nenhuma categoria encontrada.</p>';
+                return;
+            }
+            
+            // Mostrar categorias do banco de dados
+            categoriasBD.forEach(cat => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.innerHTML = `
+                    <div class="item-header">
+                        <span class="item-categoria">${cat.nome}</span>
+                        <span class="badge badge-info">${cat.tipo}</span>
+                    </div>
+                    <div class="item-body">
+                        <h3>ID: ${cat.id}</h3>
+                        <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                            <strong>Tipo:</strong> ${cat.tipo}<br>
+                            ${cat.natureza ? `<strong>Natureza:</strong> ${cat.natureza}` : ''}
+                        </p>
+                    </div>
+                    <div class="item-footer">
+                        <button class="btn-small btn-secondary" onclick="editarCategoriaDB(${cat.id})">✏️ Editar</button>
+                        <button class="btn-small btn-danger" onclick="removerCategoriaDB(${cat.id})">🗑️ Remover</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        })
+        .catch(erro => {
+            console.error('Erro ao carregar categorias:', erro);
+            container.innerHTML = `<p class="empty-message">❌ Erro ao carregar categorias: ${erro.message}</p>`;
+        });
 }
 
 function mostrarModalNovaCategoria() {
@@ -2306,6 +2320,36 @@ function removerCategoria(catId) {
     delete categorias[catId];
     salvarCategoriasLocalStorage();
     renderizarCategorias();
+}
+
+function editarCategoriaDB(catId) {
+    // Função placeholder para editar categoria do banco
+    alert('Edição de categorias ainda não disponível');
+}
+
+function removerCategoriaDB(catId) {
+    if (!confirm('Deseja realmente remover esta categoria do banco de dados?')) return;
+    
+    fetch(`/api/categorias/${catId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Erro ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert('✅ Categoria removida com sucesso!');
+        renderizarCategorias();
+    })
+    .catch(erro => {
+        console.error('Erro ao remover categoria:', erro);
+        alert('❌ Erro ao remover categoria: ' + erro.message);
+    });
 }
 
 function salvarCategoriasLocalStorage() {
