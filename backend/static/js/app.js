@@ -15,6 +15,34 @@ let proximoIdRequisicao = 1;
 let proximoIdOS = 1;
 let osEditandoId = null; // ID da O.S. sendo editada
 
+// Categorias disponíveis
+let categorias = {
+    'estrutura_e_espaco': [
+        'Local do evento (salão, auditório, espaço aberto)',
+        'Mesas e cadeiras',
+        'Palco / púlpito',
+        'Decoração (flores, banners, iluminação ambiente)',
+        'Som e iluminação técnica',
+        'Gerador de energia (reserva)',
+        'Internet / Wi-Fi'
+    ],
+    'equipamentos': [
+        'Microfones (sem fio e de lapela)',
+        'Projetor / telão / TVs',
+        'Computador / notebook de apoio',
+        'Cabos, extensões e adaptadores',
+        'Caixas de som',
+        'Material de sinalização (placas, totens, adesivos)'
+    ],
+    'materiais_de_apoio': [
+        'Lista de presença / credenciamento',
+        'Crachás / pulseiras de identificação',
+        'Kits para participantes (se houver)',
+        'Papelaria (canetas, blocos, pranchetas)',
+        'Brindes / lembranças'
+    ]
+};
+
 // ========================================
 // DADOS DE ALIMENTAÇÃO
 // ========================================
@@ -44,9 +72,11 @@ let sugestoesOS = {
 
 document.addEventListener('DOMContentLoaded', async function() {
     carregarDados();
+    carregarCategoriasLocalStorage();
     inicializarDataAtual();
     configurarAbas();
     configurarFormularios();
+    renderizarCategorias();
     
     // Carregar dados da API
     await renderizarAlimentacao();
@@ -137,33 +167,6 @@ function salvarDados() {
 
 function inicializarEstoqueExemplo() {
     // Baseado no JSON fornecido
-    const categorias = {
-        'estrutura_e_espaco': [
-            'Local do evento (salão, auditório, espaço aberto)',
-            'Mesas e cadeiras',
-            'Palco / púlpito',
-            'Decoração (flores, banners, iluminação ambiente)',
-            'Som e iluminação técnica',
-            'Gerador de energia (reserva)',
-            'Internet / Wi-Fi'
-        ],
-        'equipamentos': [
-            'Microfones (sem fio e de lapela)',
-            'Projetor / telão / TVs',
-            'Computador / notebook de apoio',
-            'Cabos, extensões e adaptadores',
-            'Caixas de som',
-            'Material de sinalização (placas, totens, adesivos)'
-        ],
-        'materiais_de_apoio': [
-            'Lista de presença / credenciamento',
-            'Crachás / pulseiras de identificação',
-            'Kits para participantes (se houver)',
-            'Papelaria (canetas, blocos, pranchetas)',
-            'Brindes / lembranças'
-        ]
-    };
-
     for (let categoria in categorias) {
         categorias[categoria].forEach(nome => {
             estoque.push({
@@ -2214,6 +2217,200 @@ function removerItem(id) {
 }
 
 // ========================================
+// GERENCIAR CATEGORIAS
+// ========================================
+
+function mostrarAbaCategories() {
+    // Esconder todas as abas
+    document.querySelectorAll('.tab-content').forEach(section => {
+        section.style.display = 'none';
+        section.classList.remove('active');
+    });
+    
+    // Mostrar aba de categorias
+    const abaCategories = document.getElementById('tab-categorias');
+    if (abaCategories) {
+        abaCategories.style.display = 'block';
+        abaCategories.classList.add('active');
+        abaCategories.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Renderizar categorias
+    renderizarCategorias();
+}
+
+function renderizarCategorias() {
+    const container = document.getElementById('lista-categorias');
+    container.innerHTML = '<p>Carregando categorias...</p>';
+
+    // Carregar categorias do backend
+    fetch('/api/categorias')
+        .then(response => {
+            if (!response.ok) throw new Error('Erro ao carregar categorias');
+            return response.json();
+        })
+        .then(categoriasBD => {
+            container.innerHTML = '';
+            
+            if (categoriasBD.length === 0) {
+                container.innerHTML = '<p class="empty-message">Nenhuma categoria encontrada.</p>';
+                return;
+            }
+            
+            // Mostrar categorias do banco de dados
+            categoriasBD.forEach(cat => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.innerHTML = `
+                    <div class="item-header">
+                        <span class="item-categoria">${cat.nome}</span>
+                        <span class="badge badge-info">${cat.tipo}</span>
+                    </div>
+                    <div class="item-body">
+                        <h3>ID: ${cat.id}</h3>
+                        <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                            <strong>Tipo:</strong> ${cat.tipo}<br>
+                            ${cat.natureza ? `<strong>Natureza:</strong> ${cat.natureza}` : ''}
+                        </p>
+                    </div>
+                    <div class="item-footer">
+                        <button class="btn-small btn-secondary" onclick="editarCategoriaDB(${cat.id})">✏️ Editar</button>
+                        <button class="btn-small btn-danger" onclick="removerCategoriaDB(${cat.id})">🗑️ Remover</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        })
+        .catch(erro => {
+            console.error('Erro ao carregar categorias:', erro);
+            container.innerHTML = `<p class="empty-message">❌ Erro ao carregar categorias: ${erro.message}</p>`;
+        });
+}
+
+function mostrarModalNovaCategoria() {
+    document.getElementById('modal-categoria-titulo').textContent = 'Nova Categoria';
+    document.getElementById('form-categoria').reset();
+    document.getElementById('categoria-id').disabled = false;
+    document.getElementById('modal-categoria').style.display = 'flex';
+}
+
+function editarCategoria(catId) {
+    document.getElementById('modal-categoria-titulo').textContent = 'Editar Categoria';
+    document.getElementById('categoria-id').value = catId;
+    document.getElementById('categoria-id').disabled = true;
+    
+    const nomes = {
+        'estrutura_e_espaco': 'Estrutura e Espaço',
+        'equipamentos': 'Equipamentos',
+        'materiais_de_apoio': 'Materiais de Apoio'
+    };
+    
+    document.getElementById('categoria-nome').value = nomes[catId] || catId;
+    document.getElementById('categoria-itens').value = categorias[catId].join('\n');
+    document.getElementById('modal-categoria').style.display = 'flex';
+}
+
+function fecharModalCategoria() {
+    document.getElementById('modal-categoria').style.display = 'none';
+    document.getElementById('form-categoria').reset();
+    document.getElementById('form-categoria').dataset.catIdBD = '';
+    document.getElementById('categoria-id').disabled = false;
+}
+
+function removerCategoria(catId) {
+    if (!confirm('Deseja realmente remover esta categoria?\n\nTodos os itens serão perdidos!')) return;
+    
+    delete categorias[catId];
+    salvarCategoriasLocalStorage();
+    renderizarCategorias();
+}
+
+function editarCategoriaDB(catId) {
+    // Buscar dados da categoria no backend
+    fetch(`/api/categorias/${catId}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Categoria não encontrada');
+            return response.json();
+        })
+        .then(cat => {
+            // Preencher modal com dados da categoria
+            document.getElementById('modal-categoria-titulo').textContent = 'Editar Categoria';
+            document.getElementById('categoria-id').value = catId;
+            document.getElementById('categoria-id').disabled = true;
+            document.getElementById('categoria-nome').value = cat.nome;
+            document.getElementById('categoria-itens').value = '';  // Não editamos itens pelo modal, apenas nome/tipo
+            
+            // Mostrar modal
+            document.getElementById('modal-categoria').style.display = 'flex';
+            
+            // Marcar como edição de categoria do banco
+            document.getElementById('form-categoria').dataset.catIdBD = catId;
+        })
+        .catch(erro => {
+            console.error('Erro ao carregar categoria:', erro);
+            alert('❌ Erro ao carregar categoria: ' + erro.message);
+        });
+}
+
+function removerCategoriaDB(catId) {
+    if (!confirm('Deseja realmente remover esta categoria do banco de dados?')) return;
+    
+    fetch(`/api/categorias/${catId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Erro ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert('✅ Categoria removida com sucesso!');
+        renderizarCategorias();
+    })
+    .catch(erro => {
+        console.error('Erro ao remover categoria:', erro);
+        alert('❌ Erro ao remover categoria: ' + erro.message);
+    });
+}
+
+function salvarCategoriasLocalStorage() {
+    localStorage.setItem('categorias', JSON.stringify(categorias));
+}
+
+async function carregarCategoriasLocalStorage() {
+    try {
+        // Tentar carregar do backend
+        const response = await fetch('/api/categorias');
+        if (response.ok) {
+            const categoriasBackend = await response.json();
+            // Converter para formato esperado
+            categoriasBackend.forEach(cat => {
+                if (cat.nome && !categorias[cat.tipo]) {
+                    categorias[cat.tipo] = []; // Será preenchido com itens
+                }
+            });
+        }
+    } catch (erro) {
+        console.warn('Não foi possível carregar categorias do backend, usando localStorage', erro);
+    }
+    
+    // Fallback: carregar do localStorage
+    const saved = localStorage.getItem('categorias');
+    if (saved) {
+        try {
+            const savedCats = JSON.parse(saved);
+            Object.assign(categorias, savedCats);
+        } catch (e) {
+            console.error('Erro ao carregar categorias do localStorage:', e);
+        }
+    }
+}
+
+// ========================================
 // NOVA REQUISIÇÃO
 // ========================================
 
@@ -2290,29 +2487,165 @@ function configurarFormularios() {
     document.getElementById('form-item').addEventListener('submit', function(e) {
         e.preventDefault();
         
+        const categoriaSelecionada = document.getElementById('item-categoria').value;
+        const categoria = Object.keys(categorias).find(cat => 
+            categorias[cat].find(nome => nome === document.getElementById('item-nome').value)
+        );
+        
         const dados = {
-            categoria: document.getElementById('item-categoria').value,
+            categoria: categoriaSelecionada,
             nome: document.getElementById('item-nome').value,
             quantidade: parseInt(document.getElementById('item-quantidade').value),
             unidade: document.getElementById('item-unidade').value
         };
         
         if (itemEditandoId) {
-            // Editar
+            // Editar localmente (backend não implementa PUT ainda)
             const item = estoque.find(i => i.id === itemEditandoId);
             Object.assign(item, dados);
+            salvarDados();
         } else {
-            // Adicionar
-            estoque.push({
-                id: proximoIdEstoque++,
-                ...dados,
-                dataCadastro: new Date().toISOString()
+            // Adicionar - ENVIAR PARA BACKEND
+            fetch('/api/itens', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    item: '1',  // Código do item
+                    descricao: dados.nome,
+                    categoria_id: 1,  // Ajustar conforme necessário
+                    unidade: dados.unidade,
+                    regioes: {
+                        '1': { inicial: dados.quantidade, gasto: '0' },
+                        '2': { inicial: dados.quantidade, gasto: '0' },
+                        '3': { inicial: dados.quantidade, gasto: '0' },
+                        '4': { inicial: dados.quantidade, gasto: '0' },
+                        '5': { inicial: dados.quantidade, gasto: '0' },
+                        '6': { inicial: dados.quantidade, gasto: '0' }
+                    }
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(novoItem => {
+                // Adicionar também localmente para visualização imediata
+                estoque.push({
+                    id: proximoIdEstoque++,
+                    ...dados,
+                    dataCadastro: new Date().toISOString()
+                });
+                salvarDados();
+                alert('✅ Item adicionado com sucesso e salvo no banco de dados!');
+            })
+            .catch(erro => {
+                console.error('Erro ao salvar item no banco:', erro);
+                alert('❌ Erro ao salvar item no banco de dados: ' + erro.message);
             });
         }
         
-        salvarDados();
         fecharModalItem();
         renderizarEstoque();
+    });
+    
+    // Form: Adicionar/Editar Categoria
+    document.getElementById('form-categoria').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = document.getElementById('form-categoria');
+        const catId = document.getElementById('categoria-id').value.trim();
+        const catNome = document.getElementById('categoria-nome').value.trim();
+        const itensTexto = document.getElementById('categoria-itens').value.trim();
+        const catIdBD = form.dataset.catIdBD;  // ID do banco (se editando)
+        
+        if (!catId || !catNome) {
+            alert('❌ ID e Nome da categoria são obrigatórios!');
+            return;
+        }
+        
+        // Se está editando do banco, só validar nome
+        if (catIdBD) {
+            // Editar categoria do banco
+            fetch(`/api/categorias/${catIdBD}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nome: catNome,
+                    tipo: catId,
+                    natureza: catId
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('✅ Categoria atualizada com sucesso!');
+                fecharModalCategoria();
+                form.dataset.catIdBD = '';  // Limpar
+                renderizarCategorias();
+            })
+            .catch(erro => {
+                console.error('Erro ao atualizar categoria:', erro);
+                alert('❌ Erro ao atualizar categoria: ' + erro.message);
+            });
+            return;
+        }
+        
+        // Se é criação nova, validar ID e itens
+        // Validar ID (apenas letras minúsculas e underscore)
+        if (!/^[a-z_]+$/.test(catId)) {
+            alert('❌ ID deve conter apenas letras minúsculas e underscore (ex: nova_categoria)');
+            return;
+        }
+        
+        // Converter itens de texto para array
+        const itens = itensTexto.split('\n').map(i => i.trim()).filter(i => i.length > 0);
+        
+        if (itens.length === 0) {
+            alert('❌ Adicione pelo menos um item à categoria!');
+            return;
+        }
+        
+        // Criar nova categoria
+        fetch('/api/categorias', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                nome: catNome,
+                tipo: catId,
+                natureza: catId
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Também salvar localmente para visualização imediata
+            categorias[catId] = itens;
+            salvarCategoriasLocalStorage();
+            
+            alert('✅ Categoria salva no banco de dados com sucesso!');
+            fecharModalCategoria();
+            renderizarCategorias();
+        })
+        .catch(erro => {
+            console.error('Erro ao salvar categoria:', erro);
+            alert('❌ Erro ao salvar categoria: ' + erro.message);
+        });
     });
     
     // Form: Nova Requisição
@@ -3142,7 +3475,7 @@ function criarTabsSidebar() {
     console.log('📋 Tabs principais encontradas:', mainTabs.length);
     
     if (!sidebarTabs) {
-        console.error('❌ Container sidebar-tabs não encontrado!');
+        console.warn('⚠️ Container sidebar-tabs não encontrado! (Pode ser normal em desktop)');
         return;
     }
     
