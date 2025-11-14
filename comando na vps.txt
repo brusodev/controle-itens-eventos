@@ -1,5 +1,13 @@
 COMANDO PARA APP CONTROLE ITENS NA VPS
+git pull origin main
 
 sudo systemctl restart controle-itens
 
 sudo systemctl status controle-itens
+
+
+
+git pull origin main
+cd backend
+python scripts/migracao/add_motivo_exclusao.py  # ← Importante!
+sudo systemctl restart controle-itens
