@@ -60,8 +60,9 @@ def listar_ordens():
     """Lista todas as ordens de serviço"""
     try:
         busca = request.args.get('busca', '')
+        modulo = request.args.get('modulo', 'coffee')
         
-        query = OrdemServico.query
+        query = OrdemServico.query.filter_by(modulo=modulo)
         
         if busca:
             query = query.filter(
@@ -138,6 +139,7 @@ def criar_ordem():
             detentora=dados.get('detentora'),
             cnpj=dados.get('cnpj'),
             servico=dados.get('servico'),
+            modulo=dados.get('modulo') or request.args.get('modulo', 'coffee'),
             grupo=grupo,
             regiao_estoque=regiao_estoque,  # ✅ VINCULAR REGIÃO
             evento=dados.get('evento'),
@@ -259,6 +261,7 @@ def atualizar_ordem(os_id):
         os.detentora = dados.get('detentora', os.detentora)
         os.cnpj = dados.get('cnpj', os.cnpj)
         os.servico = dados.get('servico', os.servico)
+        os.modulo = dados.get('modulo', os.modulo)
         
         # Atualizar grupo e região
         grupo = dados.get('grupo', os.grupo)

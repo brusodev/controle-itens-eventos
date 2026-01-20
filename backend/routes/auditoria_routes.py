@@ -65,7 +65,10 @@ def listar_auditorias():
 @admin_requerido
 def view_auditoria():
     """Página de visualização de auditoria"""
-    return render_template('auditoria.html')
+    from flask import session
+    return render_template('auditoria.html',
+                         usuario_nome=session.get('usuario_nome'),
+                         usuario_perfil=session.get('usuario_perfil', 'comum'))
 
 
 @auditoria_bp.route('/usuarios', methods=['GET'])

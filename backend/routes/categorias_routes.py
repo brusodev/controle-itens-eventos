@@ -7,9 +7,10 @@ categorias_bp = Blueprint('categorias', __name__)
 
 @categorias_bp.route('/', methods=['GET'])
 def listar_categorias():
-    """Lista todas as categorias"""
+    """Lista todas as categorias filtrando por módulo"""
     try:
-        categorias = Categoria.query.all()
+        modulo = request.args.get('modulo', 'coffee')
+        categorias = Categoria.query.filter_by(modulo=modulo).all()
         return jsonify([cat.to_dict() for cat in categorias]), 200
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
@@ -44,7 +45,10 @@ def criar_categoria():
         categoria = Categoria(
             nome=dados['nome'],
             tipo=dados['tipo'],
-            natureza=dados.get('natureza')
+            natureza=dados.get('natureza'),
+            modulo=dados.get('modulo', 'coffee'),
+            icone=dados.get('icone'),
+            descricao=dados.get('descricao')
         )
         
         db.session.add(categoria)
@@ -81,6 +85,9 @@ def atualizar_categoria(cat_id):
         categoria.nome = dados.get('nome', categoria.nome)
         categoria.tipo = dados.get('tipo', categoria.tipo)
         categoria.natureza = dados.get('natureza', categoria.natureza)
+        categoria.modulo = dados.get('modulo', categoria.modulo)
+        categoria.icone = dados.get('icone', categoria.icone)
+        categoria.descricao = dados.get('descricao', categoria.descricao)
         
         db.session.commit()
         

@@ -1,0 +1,139 @@
+{% macro sidebar(usuario_nome, usuario_perfil, current_path='') %}
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-toggle" onclick="toggleSidebar()">
+            <span>&lsaquo;</span>
+        </div>
+        
+        <div class="sidebar-header">
+            <div class="sidebar-logo">🎯</div>
+            <div class="sidebar-title">Controle Itens</div>
+        </div>
+
+        <div class="sidebar-menu">
+            <a href="/dashboard" class="menu-item {{ 'active' if '/dashboard' in current_path }}" id="menu-dashboard" title="Trocar Módulo">
+                <span class="menu-icon">🔄</span>
+                <span class="menu-text">Trocar Módulo</span>
+            </a>
+            
+            <div class="menu-divider"></div>
+
+            <a href="/estoque" class="menu-item {{ 'active' if '/estoque' in current_path or '/alimentacao' in current_path }}" id="menu-alimentacao" title="Itens">
+                <span class="menu-icon">📦</span>
+                <span class="menu-text">Estoque</span>
+            </a>
+            <a href="javascript:void(0)" class="menu-item" id="menu-categorias" title="Categorias" onclick="mostrarAbaCategories()">
+                <span class="menu-icon">🏷️</span>
+                <span class="menu-text">Categorias</span>
+            </a>
+            <a href="/emitir-os" class="menu-item {{ 'active' if '/emitir-os' in current_path }}" id="menu-emitir-os" title="Emitir O.S.">
+                <span class="menu-icon">📝</span>
+                <span class="menu-text">Emitir O.S.</span>
+            </a>
+            <a href="/ordens-servico" class="menu-item {{ 'active' if '/ordens-servico' in current_path }}" id="menu-ordens" title="Minhas Ordens">
+                <span class="menu-icon">📋</span>
+                <span class="menu-text">Ordens</span>
+            </a>
+            <a href="/relatorios" class="menu-item {{ 'active' if '/relatorios' in current_path }}" id="menu-relatorios" title="Relatórios">
+                <span class="menu-icon">📊</span>
+                <span class="menu-text">Relatórios</span>
+            </a>
+            
+            <div class="menu-divider"></div>
+
+            <a href="/detentoras" class="menu-item {{ 'active' if '/detentoras' in current_path }}" id="menu-detentoras" title="Detentoras">
+                <span class="menu-icon">🏢</span>
+                <span class="menu-text">Detentoras</span>
+            </a>
+
+            {% if usuario_perfil == 'admin' %}
+            <a href="/gerenciar-usuarios" class="menu-item {{ 'active' if '/gerenciar-usuarios' in current_path }}" id="menu-usuarios" title="Usuários">
+                <span class="menu-icon">👥</span>
+                <span class="menu-text">Usuários</span>
+            </a>
+            <a href="/api/auditoria/view" class="menu-item {{ 'active' if '/auditoria' in current_path }}" id="menu-auditoria" title="Auditoria">
+                <span class="menu-icon">🕵</span>
+                <span class="menu-text">Auditoria</span>
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user-summary">
+                <div class="sidebar-user-avatar">{{ usuario_nome[0] if usuario_nome else 'U' }}</div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name">{{ usuario_nome.split()[0] if usuario_nome else 'Usuário' }}</div>
+                    <div class="sidebar-user-role">{{ usuario_perfil }}</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+{% endmacro %}
+
+{% macro topbar(usuario_nome) %}
+    <!-- Topbar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="mobile-toggle" onclick="toggleMobileSidebar()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h2 id="page-module-title">Módulo: Carregando...</h2>
+        </div>
+        <div class="topbar-right">
+            <div class="dropdown">
+                <button class="topbar-user-btn" onclick="toggleUserDropdown()">
+                    {{ (usuario_nome.split()[0] if usuario_nome else 'Usuário') | upper }} ▼
+                </button>
+                <div class="dropdown-content" id="user-dropdown">
+                    <a href="/gerenciar-conta">👤 Meu Perfil</a>
+                    <a href="/alterar-senha">🔐 Alterar Senha</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="javascript:void(0)" onclick="fazerLogout()" style="color: #d32f2f;">🚪 Sair</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro script_layout() %}
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+        }
+
+        function toggleMobileSidebar() {
+            document.getElementById('sidebar').classList.toggle('mobile-active');
+        }
+
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('user-dropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function fazerLogout() {
+            if (confirm('Deseja realmente sair?')) {
+                window.location.href = '/auth/logout';
+            }
+        }
+
+        // Recuperar estado do sidebar e atualizar título do módulo
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('sidebar_collapsed') === 'true') {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+
+            // Atualizar título do módulo na topbar imediatamente
+            const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+            const titleElement = document.getElementById('page-module-title');
+            if (titleElement) {
+                const icon = modulo === 'coffee' ? '☕' : '🚚';
+                const label = modulo === 'coffee' ? 'Coffee Break' : 'Transporte';
+                titleElement.textContent = `Módulo: ${icon} ${label}`;
+            }
+        });
+    </script>
+{% endmacro %}

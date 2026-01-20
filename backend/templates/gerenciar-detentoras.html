@@ -3,32 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciar Detentoras - Sistema</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>☕</text></svg>">
+    <title id="page-title">Gerenciar Detentoras - Sistema</title>
+    <link id="favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>☕</text></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/detentoras.css') }}">
 </head>
 <body>
-    <!-- Navbar -->
-    <div class="navbar">
-        <div class="navbar-title">🏢 Gerenciar Detentoras</div>
-        <a href="/" class="btn-voltar">← Voltar ao Sistema</a>
-    </div>
+    {% from "layout_parts.html" import sidebar, topbar, script_layout %}
+    
+    {{ sidebar(usuario_nome, usuario_perfil, request.path) }}
 
-    <!-- Container Principal -->
-    <div class="container">
-        <div class="page-header">
-            <h1>Empresas Detentoras de Contratos</h1>
-            <button class="btn btn-primary" onclick="abrirModalNova()">
-                ➕ Nova Detentora
-            </button>
+    <div class="main-wrapper">
+        {{ topbar(usuario_nome) }}
+
+        <div class="main-content">
+            <div class="content-header">
+                <div>
+                    <h1>🏢 Empresas Detentoras</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="abrirModalNova()">
+                        <span>➕</span> Nova Detentora
+                    </button>
+                </div>
+            </div>
+
+            <div class="page-container">
+                <!-- Alertas -->
+                <div id="alertas"></div>
+
+                <!-- Lista de Detentoras -->
+                <div class="card">
+                    <div id="lista-detentoras" class="cards-grid"></div>
+                </div>
+            </div>
         </div>
-
-        <!-- Alertas -->
-        <div id="alertas"></div>
-
-        <!-- Lista de Detentoras -->
-        <div id="lista-detentoras" class="cards-grid"></div>
     </div>
 
     <!-- Modal: Adicionar/Editar Detentora -->
@@ -104,6 +114,7 @@
         </div>
     </div>
 
+    {{ script_layout() }}
     <script>
         const usuarioPerfil = '{{ usuario_perfil }}';
         let detentoras = [];
@@ -124,13 +135,37 @@
         }
 
         // Carregar detentoras ao abrir a página
+        const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+
         document.addEventListener('DOMContentLoaded', function() {
+            configurarModulo();
             carregarDetentoras();
+            
+            // Atualizar título do módulo na topbar
+            const titleElement = document.getElementById('page-module-title');
+            if (titleElement) {
+                titleElement.textContent = `Módulo: ${moduloAtual === 'coffee' ? 'Coffee Break' : 'Transporte'}`;
+            }
         });
+
+        function configurarModulo() {
+            const isTransporte = moduloAtual === 'transporte';
+            const titulo = isTransporte ? 'Transportes' : 'Coffee Break';
+            const emoji = isTransporte ? '🚗' : '☕';
+            
+            document.getElementById('page-title').textContent = `Gerenciar Detentoras - ${titulo}`;
+            document.getElementById('favicon').href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>${emoji}</text></svg>`;
+            
+            // Ajustar o campo "Serviço" padrão no modal
+            const servicoInput = document.getElementById('servico');
+            if (servicoInput) {
+                servicoInput.value = isTransporte ? 'SERVIÇOS DE TRANSPORTE' : 'COFFEE BREAK';
+            }
+        }
 
         async function carregarDetentoras() {
             try {
-                const response = await fetch('/api/detentoras/?incluir_inativas=true');
+                const response = await fetch(`/api/detentoras/?incluir_inativas=true&modulo=${moduloAtual}`);
                 if (response.ok) {
                     detentoras = await response.json();
                     renderizarDetentoras();
@@ -216,7 +251,11 @@
             document.getElementById('modal-titulo').textContent = 'Nova Detentora';
             document.getElementById('form-detentora').reset();
             document.getElementById('detentora-id').value = '';
-            document.getElementById('servico').value = 'COFFEE BREAK';
+            
+            // Definir serviço padrão baseado no módulo
+            const isTransporte = moduloAtual === 'transporte';
+            document.getElementById('servico').value = isTransporte ? 'SERVIÇOS DE TRANSPORTE' : 'COFFEE BREAK';
+            
             document.getElementById('modal-detentora').style.display = 'block';
         }
 
@@ -250,7 +289,8 @@
                 dataAssinatura: document.getElementById('data-assinatura').value,
                 prazoVigencia: document.getElementById('prazo-vigencia').value,
                 servico: document.getElementById('servico').value,
-                ativo: document.getElementById('ativo').value === 'true'
+                ativo: document.getElementById('ativo').value === 'true',
+                modulo: moduloAtual // ✅ Incluindo o módulo atual
             };
 
             try {
@@ -335,5 +375,6 @@
             }
         }
     </script>
+    {{ script_layout() }}
 </body>
 </html>

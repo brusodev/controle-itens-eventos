@@ -11,11 +11,14 @@ def listar_detentoras():
     """Lista todas as detentoras ativas"""
     try:
         incluir_inativas = request.args.get('incluir_inativas', 'false').lower() == 'true'
+        modulo = request.args.get('modulo', 'coffee')
         
-        if incluir_inativas:
-            detentoras = Detentora.query.order_by(Detentora.grupo, Detentora.nome).all()
-        else:
-            detentoras = Detentora.query.filter_by(ativo=True).order_by(Detentora.grupo, Detentora.nome).all()
+        query = Detentora.query.filter_by(modulo=modulo)
+        
+        if not incluir_inativas:
+            query = query.filter_by(ativo=True)
+            
+        detentoras = query.order_by(Detentora.grupo, Detentora.nome).all()
         
         # ✅ Serializar com tratamento de erro
         resultado = []
@@ -45,7 +48,8 @@ def listar_detentoras():
 def listar_grupos():
     """Lista todos os grupos únicos cadastrados"""
     try:
-        grupos = db.session.query(Detentora.grupo).filter_by(ativo=True).distinct().order_by(Detentora.grupo).all()
+        modulo = request.args.get('modulo', 'coffee')
+        grupos = db.session.query(Detentora.grupo).filter_by(ativo=True, modulo=modulo).distinct().order_by(Detentora.grupo).all()
         grupos_lista = [g[0] for g in grupos if g[0]]
         
         return jsonify(grupos_lista), 200
@@ -59,13 +63,14 @@ def listar_grupos():
 def obter_por_grupo(grupo):
     """Obtém dados da detentora por grupo"""
     try:
-        print(f'🔍 [API] Buscando Detentora para grupo: {grupo} (tipo: {type(grupo)})')
+        modulo = request.args.get('modulo', 'coffee')
+        print(f'🔍 [API] Buscando Detentora para grupo: {grupo} (modulo: {modulo})')
         
         # Converter para string se necessário
         grupo_str = str(grupo).strip()
         
         # ✅ Buscar detentora ativa
-        detentora = Detentora.query.filter_by(grupo=grupo_str, ativo=True).first()
+        detentora = Detentora.query.filter_by(grupo=grupo_str, modulo=modulo, ativo=True).first()
         
         if not detentora:
             print(f'❌ [API] Detentora não encontrada para grupo "{grupo_str}"')
@@ -131,10 +136,12 @@ def criar_detentora():
         if not dados.get('contratoNum'):
             return jsonify({'erro': 'Número do contrato é obrigatório'}), 400
         
-        # Verificar se já existe detentora com mesmo grupo
-        existe = Detentora.query.filter_by(grupo=dados['grupo'], ativo=True).first()
+        modulo = dados.get('modulo', 'coffee')
+        
+        # Verificar se já existe detentora com mesmo grupo no mesmo modulo
+        existe = Detentora.query.filter_by(grupo=dados['grupo'], modulo=modulo, ativo=True).first()
         if existe:
-            return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}"'}), 409
+            return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}" neste módulo'}), 409
         
         # Criar nova detentora
         detentora = Detentora(
@@ -144,6 +151,7 @@ def criar_detentora():
             nome=dados['nome'],
             cnpj=dados['cnpj'],
             servico=dados.get('servico', 'COFFEE BREAK'),
+            modulo=modulo,
             grupo=dados['grupo'],
             ativo=dados.get('ativo', True)
         )
@@ -179,11 +187,12 @@ def atualizar_detentora(detentora_id):
         # Salvar dados anteriores para auditoria
         dados_antes = detentora.to_dict()
         
-        # Verificar se está tentando mudar grupo para um já existente
+        # Verificar se está tentando mudar grupo para um já existente no mesmo modulo
         if 'grupo' in dados and dados['grupo'] != detentora.grupo:
-            existe = Detentora.query.filter_by(grupo=dados['grupo'], ativo=True).filter(Detentora.id != detentora_id).first()
+            modulo = dados.get('modulo', detentora.modulo)
+            existe = Detentora.query.filter_by(grupo=dados['grupo'], modulo=modulo, ativo=True).filter(Detentora.id != detentora_id).first()
             if existe:
-                return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}"'}), 409
+                return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}" neste módulo'}), 409
         
         # Atualizar campos
         if 'contratoNum' in dados:
@@ -198,6 +207,8 @@ def atualizar_detentora(detentora_id):
             detentora.cnpj = dados['cnpj']
         if 'servico' in dados:
             detentora.servico = dados['servico']
+        if 'modulo' in dados:
+            detentora.modulo = dados['modulo']
         if 'grupo' in dados:
             detentora.grupo = dados['grupo']
         if 'ativo' in dados:

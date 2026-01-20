@@ -11,13 +11,14 @@ def listar_itens():
     try:
         categoria_id = request.args.get('categoria_id', type=int)
         tipo = request.args.get('tipo')
+        modulo = request.args.get('modulo', 'coffee')
         
-        query = Item.query
+        query = Item.query.join(Categoria).filter(Categoria.modulo == modulo)
         
         if categoria_id:
-            query = query.filter_by(categoria_id=categoria_id)
+            query = query.filter(Item.categoria_id == categoria_id)
         elif tipo:
-            query = query.join(Categoria).filter(Categoria.tipo == tipo)
+            query = query.filter(Categoria.tipo == tipo)
         
         itens = query.all()
         return jsonify([item.to_dict() for item in itens]), 200

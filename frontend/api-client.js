@@ -39,6 +39,10 @@ class APIClient {
     // ==================== ITENS ====================
     
     static async listarItens(params = {}) {
+        // Garantir que o módulo atual seja enviado se não especificado
+        if (!params.modulo) {
+            params.modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        }
         const query = new URLSearchParams(params).toString();
         return this.request(`/itens/?${query}`);
     }
@@ -70,7 +74,8 @@ class APIClient {
     // ==================== ALIMENTAÇÃO ====================
     
     static async listarAlimentacao() {
-        return this.request('/alimentacao/');
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        return this.request(`/alimentacao/?modulo=${modulo}`);
     }
     
     static async listarCategoriasAlimentacao() {
@@ -104,8 +109,11 @@ class APIClient {
     // ==================== ORDENS DE SERVIÇO ====================
     
     static async listarOrdensServico(busca = '') {
-        const params = busca ? `?busca=${busca}` : '';
-        return this.request(`/ordens-servico/${params}`);
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        const params = new URLSearchParams();
+        if (busca) params.append('busca', busca);
+        params.append('modulo', modulo);
+        return this.request(`/ordens-servico/?${params.toString()}`);
     }
     
     static async obterOrdemServico(id) {
@@ -113,6 +121,9 @@ class APIClient {
     }
     
     static async criarOrdemServico(dados) {
+        if (!dados.modulo) {
+            dados.modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        }
         return this.request('/ordens-servico/', {
             method: 'POST',
             body: JSON.stringify(dados)

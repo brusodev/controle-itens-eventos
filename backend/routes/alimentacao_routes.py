@@ -7,9 +7,11 @@ alimentacao_bp = Blueprint('alimentacao', __name__)
 
 @alimentacao_bp.route('/', methods=['GET'])
 def listar_alimentacao():
-    """Lista todos os itens de alimentação organizados por categoria"""
+    """Lista todos os itens organizados por categoria, filtrando por módulo"""
     try:
-        categorias = Categoria.query.filter_by(tipo='alimentacao').all()
+        modulo = request.args.get('modulo', 'coffee')
+        # Removido filtro fixo por tipo='alimentacao' para suportar as novas modalidades de transporte
+        categorias = Categoria.query.filter_by(modulo=modulo).all()
         
         resultado = {}
         for cat in categorias:
@@ -26,9 +28,10 @@ def listar_alimentacao():
 
 @alimentacao_bp.route('/categorias', methods=['GET'])
 def listar_categorias():
-    """Lista todas as categorias de alimentação"""
+    """Lista todas as categorias do módulo atual"""
     try:
-        categorias = Categoria.query.filter_by(tipo='alimentacao').all()
+        modulo = request.args.get('modulo', 'coffee')
+        categorias = Categoria.query.filter_by(modulo=modulo).all()
         return jsonify([cat.to_dict() for cat in categorias]), 200
     
     except Exception as e:
@@ -42,15 +45,17 @@ def criar_categoria():
     """Cria uma nova categoria de alimentação"""
     try:
         dados = request.json
+        modulo = dados.get('modulo', 'coffee')
         
-        # Verificar se já existe
-        if Categoria.query.filter_by(nome=dados['nome']).first():
-            return jsonify({'erro': 'Categoria já existe'}), 400
+        # Verificar se já existe no mesmo módulo
+        if Categoria.query.filter_by(nome=dados['nome'], modulo=modulo).first():
+            return jsonify({'erro': 'Categoria já existe neste módulo'}), 400
         
         categoria = Categoria(
             nome=dados['nome'],
             tipo='alimentacao',
-            natureza=dados.get('natureza', '')
+            natureza=dados.get('natureza', ''),
+            modulo=modulo
         )
         db.session.add(categoria)
         db.session.commit()
@@ -68,8 +73,9 @@ def filtrar_alimentacao():
     try:
         categoria = request.args.get('categoria', '')
         busca = request.args.get('busca', '')
+        modulo = request.args.get('modulo', 'coffee')
         
-        query = Item.query.join(Categoria).filter(Categoria.tipo == 'alimentacao')
+        query = Item.query.join(Categoria).filter(Categoria.tipo == 'alimentacao', Categoria.modulo == modulo)
         
         if categoria:
             query = query.filter(Categoria.nome == categoria)
@@ -135,11 +141,12 @@ def resumo_estoque():
     """Retorna resumo de estoque por região"""
     try:
         regiao = request.args.get('regiao', type=int)
+        modulo = request.args.get('modulo', 'coffee')
         
-        estoques = EstoqueRegional.query
+        estoques = EstoqueRegional.query.join(Item).join(Categoria).filter(Categoria.modulo == modulo)
         
         if regiao:
-            estoques = estoques.filter_by(regiao_numero=regiao)
+            estoques = estoques.filter(EstoqueRegional.regiao_numero == regiao)
         
         estoques = estoques.all()
         

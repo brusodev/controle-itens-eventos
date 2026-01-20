@@ -11,7 +11,18 @@ class APIClient {
      * Método auxiliar para fazer requisições
      */
     static async request(endpoint, options = {}) {
-        const url = `${API_BASE_URL}${endpoint}`;
+        // ✅ Obter modulo atual do localStorage
+        const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+        
+        // ✅ Concatenar o módulo à URL para persistência de contexto
+        let separator = endpoint.includes('?') ? '&' : '?';
+        // Se já tiver modulo na URL, não repetir
+        let url;
+        if (endpoint.includes('modulo=')) {
+            url = `${API_BASE_URL}${endpoint}`;
+        } else {
+            url = `${API_BASE_URL}${endpoint}${separator}modulo=${moduloAtual}`;
+        }
         
         const config = {
             headers: {
@@ -22,12 +33,13 @@ class APIClient {
         };
         
         try {
+            console.log(`🌐 [API] Request: ${url}`);
             const response = await fetch(url, config);
             
             if (!response.ok) {
                 // Se for 404, retornar null ao invés de erro (detentora não encontrada)
                 if (response.status === 404 && endpoint.includes('/grupo/')) {
-                    console.warn('⚠️ Detentora não encontrada para o grupo');
+                    console.warn('⚠️ [API] Detentora não encontrada para o grupo');
                     return null;
                 }
                 
@@ -73,12 +85,45 @@ class APIClient {
         });
     }
     
+    // ==================== CATEGORIAS ====================
+    static async listarCategorias() {
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        return this.request(`/categorias/?modulo=${modulo}`);
+    }
+
+    static async obterCategoria(id) {
+        return this.request(`/categorias/${id}`);
+    }
+
+    static async criarCategoria(dados) {
+        return this.request('/categorias/', {
+            method: 'POST',
+            body: JSON.stringify(dados)
+        });
+    }
+
+    static async atualizarCategoria(id, dados) {
+        return this.request(`/categorias/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(dados)
+        });
+    }
+
+    static async deletarCategoria(id) {
+        return this.request(`/categorias/${id}`, {
+            method: 'DELETE'
+        });
+    }
+
     // ==================== ALIMENTAÇÃO ====================
     
     static async listarAlimentacao() {
-        // Adicionar timestamp para evitar cache do navegador
+        // Adicionar timestamp para evitar cache do navegador e modulo para filtro
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
         const timestamp = new Date().getTime();
-        return this.request(`/alimentacao/?_t=${timestamp}`, {
+        const url = `/alimentacao/?modulo=${modulo}&_t=${timestamp}`;
+        console.log(`🌐 [API] Chamando listarAlimentacao: ${url}`);
+        return this.request(url, {
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
@@ -88,7 +133,8 @@ class APIClient {
     }
     
     static async listarCategoriasAlimentacao() {
-        return this.request('/alimentacao/categorias');
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        return this.request(`/alimentacao/categorias?modulo=${modulo}`);
     }
     
     static async criarCategoriaAlimentacao(dados) {
@@ -118,8 +164,12 @@ class APIClient {
     // ==================== ORDENS DE SERVIÇO ====================
     
     static async listarOrdensServico(busca = '') {
-        const params = busca ? `?busca=${busca}` : '';
-        const url = `/ordens-servico/${params}`;
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        const params = new URLSearchParams();
+        params.append('modulo', modulo);
+        if (busca) params.append('busca', busca);
+        
+        const url = `/ordens-servico/?${params.toString()}`;
         console.log('🌐 APIClient.listarOrdensServico: Fazendo request para', url);
         const result = await this.request(url);
         console.log('✅ APIClient.listarOrdensServico: Recebido', result.length, 'items');
@@ -168,11 +218,18 @@ class APIClient {
     }
     
     static async listarGrupos() {
-        return this.request('/detentoras/grupos');
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        return this.request(`/detentoras/grupos?modulo=${modulo}`);
+    }
+
+    // Alias para listarGrupos
+    static async obterGruposDetentoras() {
+        return this.listarGrupos();
     }
     
     static async obterDetentoraByGrupo(grupo) {
-        return this.request(`/detentoras/grupo/${encodeURIComponent(grupo)}`);
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        return this.request(`/detentoras/grupo/${encodeURIComponent(grupo)}?modulo=${modulo}`);
     }
     
     static async obterDetentora(id) {

@@ -2,6 +2,10 @@
 // SISTEMA DE CONTROLE DE ITENS
 // ========================================
 
+// Variáveis de Controle e Perfil (Fallback se não vierem do Template)
+let usuarioPerfil = window.usuarioPerfil || 'comum';
+let usuarioNome = window.usuarioNome || 'Usuário';
+
 // Estrutura de Dados
 let estoque = [];
 let kits = [];
@@ -71,6 +75,9 @@ let sugestoesOS = {
 // ========================================
 
 document.addEventListener('DOMContentLoaded', async function() {
+    // ✅ ATUALIZAR LABELS DO MÓDULO IMEDIATAMENTE (ANTES DA API)
+    atualizarLabelsModulo();
+
     carregarDados();
     carregarCategoriasLocalStorage();
     inicializarDataAtual();
@@ -79,11 +86,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     renderizarCategorias();
     
     // Carregar dados da API
-    await renderizarAlimentacao();
-    await renderizarOrdensServico();
-    
-    // Carregar sugestões para datalist
-    await carregarSugestoesOS();
+    try {
+        await renderizarAlimentacao();
+        await renderizarOrdensServico();
+        await carregarSugestoesOS();
+    } catch (error) {
+        console.error("❌ Erro ao carregar dados da API:", error);
+    }
     
     atualizarInterface();
     
@@ -93,6 +102,52 @@ document.addEventListener('DOMContentLoaded', async function() {
     // ✅ RESTAURAR O.S. PARA EDIÇÃO SE NECESSÁRIO
     await restaurarOSParaEdicao();
 });
+
+function atualizarLabelsModulo() {
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const isTransporte = moduloAtual === 'transporte';
+    const titulo = isTransporte ? 'Transporte' : 'Coffee Break';
+    const emoji = isTransporte ? '🚚' : '☕';
+    const itemLabel = isTransporte ? 'Itens de Transporte' : 'Itens do Coffee';
+
+    // 1. Título do Navegador e Favicon
+    document.title = `Sistema - ${titulo}`;
+    const favicon = document.querySelector('link[rel="icon"]');
+    if (favicon) {
+        favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>${emoji}</text></svg>`;
+    }
+    
+    // 2. Título no Topbar
+    const moduleTitle = document.getElementById('page-module-title');
+    if (moduleTitle) {
+        moduleTitle.innerHTML = `<span style="margin-right: 10px;">${emoji}</span> Módulo: ${titulo}`;
+    }
+
+    // 3. Labels nos links de menu
+    const menuAlimentacao = document.querySelector('#menu-alimentacao .menu-text');
+    if (menuAlimentacao) {
+        menuAlimentacao.textContent = itemLabel;
+    }
+    
+    // 4. Título das seções dinâmicas
+    const h2Itens = document.querySelector('#tab-alimentacao h2');
+    if (h2Itens) {
+        h2Itens.textContent = `${emoji} Controle de itens: ${titulo}`;
+    }
+
+    // 5. Título da aba de categorias
+    const tituloCategorias = document.getElementById('titulo-aba-categorias');
+    if (tituloCategorias) {
+        tituloCategorias.textContent = isTransporte ? '🏷️ Modalidades de Transporte' : '🏷️ Categorias de Alimentação';
+    }
+
+    const btnNovaCat = document.getElementById('btn-nova-categoria');
+    if (btnNovaCat) {
+        btnNovaCat.textContent = isTransporte ? '➕ Nova Modalidade' : '➕ Nova Categoria';
+    }
+
+    console.log(`🎨 [Interface] Labels atualizadas para o módulo: ${titulo}`);
+}
 
 function carregarDados() {
     // Carregar do LocalStorage
@@ -304,14 +359,18 @@ async function renderizarAlimentacao() {
         dadosAlimentacao = await APIClient.listarAlimentacao();
         console.log('✅ [ALIMENTAÇÃO] Dados recebidos:', dadosAlimentacao);
         
+        if (!dadosAlimentacao || Object.keys(dadosAlimentacao).length === 0) {
+            console.warn('⚠️ [ALIMENTAÇÃO] Nenhum dado retornado da API.');
+        }
+
         // Salvar no localStorage com campo preco
         localStorage.setItem('dadosAlimentacao', JSON.stringify(dadosAlimentacao));
-        console.log('💾 [ALIMENTAÇÃO] Dados salvos no cache com campo preço');
+        console.log('💾 [ALIMENTAÇÃO] Dados salvos no cache');
         
         renderizarItensAlimentacao();
     } catch (error) {
-        console.error('Erro ao carregar dados de alimentação:', error);
-        alert('Erro ao carregar dados de alimentação. Verifique se o backend está rodando.');
+        console.error('❌ [ALIMENTAÇÃO] Erro ao carregar dados:', error);
+        // Evitar alert repetitivo, apenas logar
     }
 }
 
@@ -345,18 +404,20 @@ function filtrarAlimentacao() {
         dadosAlimentacao[cat].itens.forEach(item => {
             if (busca && !item.descricao.toLowerCase().includes(busca)) return;
             
+            // Função auxiliar para parsear valores que podem ser string ou número
+            const safeParse = (val) => {
+                if (val === undefined || val === null || val === '__') return 0;
+                if (typeof val === 'number') return val;
+                // Se for string, remove pontos de milhar e troca vírgula por ponto
+                return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+            };
+
             // Calcular totais
             let totalInicial = 0;
             let totalGasto = 0;
             Object.values(item.regioes).forEach(r => {
-                // Verificar se inicial existe e não é '__' antes de fazer replace
-                if (r.inicial && r.inicial !== '__') {
-                    totalInicial += parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0;
-                }
-                // Verificar se gasto existe antes de fazer replace
-                if (r.gasto) {
-                    totalGasto += parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
-                }
+                totalInicial += safeParse(r.inicial);
+                totalGasto += safeParse(r.gasto);
             });
             const totalDisponivel = totalInicial - totalGasto;
             
@@ -397,16 +458,19 @@ function filtrarAlimentacao() {
                             let gasto = 0;
                             let disp = 0;
                             
-                            if (r.inicial && r.inicial !== '__') {
-                                inicial = parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0;
-                            }
-                            if (r.gasto && r.gasto !== '__') {
-                                gasto = parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0;
-                            }
+                            // Função auxiliar para parsear valores que podem ser string ou número
+                            const safeParse = (val) => {
+                                if (val === undefined || val === null || val === '__') return 0;
+                                if (typeof val === 'number') return val;
+                                return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+                            };
+
+                            inicial = safeParse(r.inicial);
+                            gasto = safeParse(r.gasto);
                             disp = inicial - gasto;
                             
                             const statusClass = disp === 0 ? 'danger' : disp < 100 ? 'warning' : 'success';
-                            
+
                             return `
                                 <div class="regiao-row ${statusClass}">
                                     <div class="regiao-col regiao-nome">${reg}</div>
@@ -419,7 +483,7 @@ function filtrarAlimentacao() {
                     </div>
                 </div>
                 <div class="item-footer">
-                    <button class="btn-small btn-secondary" onclick="editarItemAlimentacao('${cat}', ${item.item})">✏️ Editar</button>
+                    <button class="btn-small btn-secondary" onclick="editarItemAlimentacao('${cat}', '${item.item}')">✏️ Editar</button>
                 </div>
             `;
             
@@ -479,10 +543,15 @@ function editarItemAlimentacao(categoria, itemId) {
         // Garantir que preco nunca seja undefined
         const precoValor = (r.preco !== undefined && r.preco !== null) ? r.preco : '0';
         
-        // Limpar formatação dos valores para exibição
-        // Converter para número inteiro removendo decimais
-        const inicialNum = r.inicial ? Math.round(parseFloat(r.inicial.replace('.', '').replace(',', '.')) || 0) : 0;
-        const gastoNum = r.gasto ? Math.round(parseFloat(r.gasto.replace('.', '').replace(',', '.')) || 0) : 0;
+        // Função auxiliar para parsear valores que podem ser string ou número
+        const safeParseInt = (val) => {
+            if (val === undefined || val === null || val === '__') return 0;
+            if (typeof val === 'number') return Math.round(val);
+            return Math.round(parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0);
+        };
+
+        const inicialNum = safeParseInt(r.inicial);
+        const gastoNum = safeParseInt(r.gasto);
         
         // Aplicar formatação com separador de milhar
         const inicialExibicao = inicialNum > 0 ? formatarNumeroMilhar(inicialNum) : '';
@@ -594,7 +663,12 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
 // EMISSÃO DE ORDENS DE SERVIÇO
 // ========================================
 
-function renderizarEmitirOS() {
+async function renderizarEmitirOS() {
+    // Carregar dados e grupos do módulo atual sempre que renderizar
+    console.log('📡 [Emitir OS] Carregando dados do módulo...');
+    dadosAlimentacao = await APIClient.listarAlimentacao();
+    await carregarGruposDropdown();
+
     // Limpar itens anteriores
     document.getElementById('itens-os').innerHTML = '';
     // Adicionar um item inicial
@@ -610,21 +684,54 @@ function renderizarEmitirOS() {
     }
 }
 
+async function carregarGruposDropdown() {
+    const grupoSelect = document.getElementById('os-grupo-select');
+    if (!grupoSelect) return;
+
+    try {
+        console.log('📡 [Emitir OS] Carregando grupos disponíveis...');
+        const grupos = await APIClient.obterGruposDetentoras();
+        
+        // Preservar a opção padrão
+        grupoSelect.innerHTML = '<option value="">-- Selecione o Grupo --</option>';
+        
+        if (grupos && grupos.length > 0) {
+            grupos.forEach(grupo => {
+                const option = document.createElement('option');
+                option.value = grupo;
+                option.textContent = `Grupo ${grupo}`;
+                grupoSelect.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "Nenhuma detentora cadastrada";
+            grupoSelect.appendChild(option);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar grupos:', error);
+    }
+}
+
 function adicionarItemOS() {
     const container = document.getElementById('itens-os');
     const itemDiv = document.createElement('div');
     itemDiv.className = 'item-os';
+    
+    // Gerar opções de categoria dinamicamente
+    let categoriasHtml = '<option value="">Selecione Categoria</option>';
+    if (dadosAlimentacao) {
+        Object.keys(dadosAlimentacao).sort().forEach(cat => {
+            categoriasHtml += `<option value="${cat}">${formatarNomeCategoria(cat)}</option>`;
+        });
+    }
+
     itemDiv.innerHTML = `
         <div class="form-row">
             <div class="form-field">
                 <label class="field-label">Categoria</label>
                 <select class="os-categoria" onchange="atualizarItensOS(this)">
-                    <option value="">Selecione Categoria</option>
-                    <option value="coffee_break_bebidas_quentes">Coffee e Bebidas Quentes</option>
-                    <option value="fornecimento_agua_mineral">Água Mineral</option>
-                    <option value="kit_lanche">Kit Lanche</option>
-                    <option value="fornecimento_biscoitos">Fornecimento de Biscoitos</option>
-                    <option value="almoco_jantar">Almoço/Jantar</option>
+                    ${categoriasHtml}
                 </select>
             </div>
             <div class="form-field">
@@ -645,6 +752,14 @@ function adicionarItemOS() {
         <button type="button" class="btn-small btn-danger" onclick="removerItemOS(this)">🗑️ Remover</button>
     `;
     container.appendChild(itemDiv);
+}
+
+// Auxiliar para formatar nome da categoria (snake_case para Título)
+function formatarNomeCategoria(nome) {
+    return nome
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 function atualizarItensOS(select) {
@@ -753,11 +868,12 @@ function coletarDadosOS() {
             
             if (item.regioes && item.regioes[grupo]) {
                 console.log(`   - item.regioes[${grupo}]:`, item.regioes[grupo]);
-                if (item.regioes[grupo].preco) {
+                if (item.regioes[grupo].preco !== undefined && item.regioes[grupo].preco !== null) {
                     try {
-                        const precoStr = item.regioes[grupo].preco.replace('.', '').replace(',', '.');
+                        const precoOriginal = item.regioes[grupo].preco;
+                        const precoStr = typeof precoOriginal === 'number' ? precoOriginal.toString() : String(precoOriginal).replace(/\./g, '').replace(',', '.');
                         valorUnit = parseFloat(precoStr) || 0;
-                        console.log(`   - Preço encontrado: ${precoStr} → ${valorUnit}`);
+                        console.log(`   - Preço encontrado: ${precoOriginal} → ${valorUnit}`);
                     } catch (e) {
                         console.log(`   - ❌ Erro ao parsear preço:`, e);
                         valorUnit = 0;
@@ -791,7 +907,11 @@ function coletarDadosOS() {
         return null;
     }
 
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+
     return {
+        modulo: moduloAtual,
+        servico: moduloAtual === 'transporte' ? 'TRANSPORTE' : 'COFFEE BREAK',
         contratoNum: document.getElementById('os-contrato-num').value,
         dataAssinatura: document.getElementById('os-data-assinatura').value,
         prazoVigencia: document.getElementById('os-prazo-vigencia').value,
@@ -865,7 +985,7 @@ function gerarPreviewOS(dados) {
                     </tr>
                     <tr>
                         <td><strong>SERVIÇO:</strong></td>
-                        <td>${dados.servico || 'COFFEE BREAK'}</td>
+                        <td>${dados.servico || (localStorage.getItem('modulo_atual') === 'transporte' ? 'TRANSPORTE' : 'COFFEE BREAK')}</td>
                         <td><strong>PRAZO VIGÊNCIA:</strong></td>
                         <td>${dados.prazoVigencia || ''}</td>
                     </tr>
@@ -1047,6 +1167,7 @@ async function confirmarEmissaoOS() {
             fiscalContrato: dadosOS.fiscal,
             fiscalTipo: dadosOS.fiscalTipo,  // ✅ Adicionar tipo de fiscal
             responsavel: dadosOS.responsavel,
+            modulo: localStorage.getItem('modulo_atual') || 'coffee',
             itens: dadosOS.itens.map(item => ({
                 categoria: item.categoria,
                 itemId: item.itemId,
@@ -2235,42 +2356,61 @@ function mostrarAbaCategories() {
         abaCategories.scrollIntoView({ behavior: 'smooth' });
     }
     
+    // Atualizar menu lateral
+    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+    const menuCat = document.getElementById('menu-categorias');
+    if (menuCat) menuCat.classList.add('active');
+    
     // Renderizar categorias
     renderizarCategorias();
 }
 
+// --- GESTÃO DE CATEGORIAS ---
+
+function atualizarSlugCategoria(nome) {
+    const slugInput = document.getElementById('categoria-id');
+    // Se estiver editando (desabilitado), não auto-atualiza
+    if (slugInput.disabled) return;
+    
+    const slug = nome.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    
+    slugInput.value = slug;
+}
+
 function renderizarCategorias() {
     const container = document.getElementById('lista-categorias');
-    container.innerHTML = '<p>Carregando categorias...</p>';
+    container.innerHTML = '<p class="empty-message">Carregando categorias...</p>';
 
-    // Carregar categorias do backend
-    fetch('/api/categorias')
-        .then(response => {
-            if (!response.ok) throw new Error('Erro ao carregar categorias');
-            return response.json();
-        })
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const isTransporte = moduloAtual === 'transporte';
+
+    APIClient.listarCategorias()
         .then(categoriasBD => {
             container.innerHTML = '';
             
-            if (categoriasBD.length === 0) {
-                container.innerHTML = '<p class="empty-message">Nenhuma categoria encontrada.</p>';
+            if (!categoriasBD || categoriasBD.length === 0) {
+                container.innerHTML = `<p class="empty-message">Nenhuma categoria encontrada para o módulo ${isTransporte ? 'Transportes' : 'Coffee Break'}.</p>`;
                 return;
             }
             
-            // Mostrar categorias do banco de dados
             categoriasBD.forEach(cat => {
+                const icone = cat.icone || (isTransporte ? '🚗' : '📦');
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="item-header">
-                        <span class="item-categoria">${cat.nome}</span>
-                        <span class="badge badge-info">${cat.tipo}</span>
+                        <span class="item-categoria">${icone} ${cat.nome}</span>
+                        <span class="badge badge-info">${cat.natureza || 'Geral'}</span>
                     </div>
                     <div class="item-body">
-                        <h3>ID: ${cat.id}</h3>
-                        <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
-                            <strong>Tipo:</strong> ${cat.tipo}<br>
-                            ${cat.natureza ? `<strong>Natureza:</strong> ${cat.natureza}` : ''}
+                        <p style="font-size: 0.85rem; color: #666; margin-bottom: 5px;"><strong>ID:</strong> ${cat.tipo}</p>
+                        <p style="font-size: 0.9rem; color: #333;">
+                            ${cat.descricao || '<i>Sem descrição cadastrada.</i>'}
                         </p>
                     </div>
                     <div class="item-footer">
@@ -2283,14 +2423,19 @@ function renderizarCategorias() {
         })
         .catch(erro => {
             console.error('Erro ao carregar categorias:', erro);
-            container.innerHTML = `<p class="empty-message">❌ Erro ao carregar categorias: ${erro.message}</p>`;
+            container.innerHTML = `<p class="empty-message">❌ Erro: ${erro.message}</p>`;
         });
 }
 
 function mostrarModalNovaCategoria() {
-    document.getElementById('modal-categoria-titulo').textContent = 'Nova Categoria';
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const isTransporte = moduloAtual === 'transporte';
+    
+    document.getElementById('modal-categoria-titulo').textContent = isTransporte ? '🏷️ Nova Modalidade de Transporte' : '🏷️ Nova Categoria de Alimentação';
     document.getElementById('form-categoria').reset();
     document.getElementById('categoria-id').disabled = false;
+    document.getElementById('container-itens-categoria').style.display = 'block';
+    document.getElementById('categoria-icone').value = isTransporte ? '🚗' : '📦';
     document.getElementById('modal-categoria').style.display = 'flex';
 }
 
@@ -2326,29 +2471,32 @@ function removerCategoria(catId) {
 }
 
 function editarCategoriaDB(catId) {
-    // Buscar dados da categoria no backend
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const isTransporte = moduloAtual === 'transporte';
+
     fetch(`/api/categorias/${catId}`)
         .then(response => {
             if (!response.ok) throw new Error('Categoria não encontrada');
             return response.json();
         })
         .then(cat => {
-            // Preencher modal com dados da categoria
-            document.getElementById('modal-categoria-titulo').textContent = 'Editar Categoria';
-            document.getElementById('categoria-id').value = catId;
+            document.getElementById('modal-categoria-titulo').textContent = isTransporte ? '✏️ Editar Modalidade' : '✏️ Editar Categoria';
+            document.getElementById('categoria-id').value = cat.tipo;
             document.getElementById('categoria-id').disabled = true;
             document.getElementById('categoria-nome').value = cat.nome;
-            document.getElementById('categoria-itens').value = '';  // Não editamos itens pelo modal, apenas nome/tipo
+            document.getElementById('categoria-icone').value = cat.icone || (isTransporte ? '🚗' : '📦');
+            document.getElementById('categoria-natureza').value = cat.natureza || '';
+            document.getElementById('categoria-descricao').value = cat.descricao || '';
             
-            // Mostrar modal
+            // Ocultar campo de itens iniciais na edição (melhor gerenciar pela aba de itens)
+            document.getElementById('container-itens-categoria').style.display = 'none';
+            
             document.getElementById('modal-categoria').style.display = 'flex';
-            
-            // Marcar como edição de categoria do banco
             document.getElementById('form-categoria').dataset.catIdBD = catId;
         })
         .catch(erro => {
             console.error('Erro ao carregar categoria:', erro);
-            alert('❌ Erro ao carregar categoria: ' + erro.message);
+            alert('❌ Erro: ' + erro.message);
         });
 }
 
@@ -2559,93 +2707,71 @@ function configurarFormularios() {
         const form = document.getElementById('form-categoria');
         const catId = document.getElementById('categoria-id').value.trim();
         const catNome = document.getElementById('categoria-nome').value.trim();
+        const catIcone = document.getElementById('categoria-icone').value.trim();
+        const catNatureza = document.getElementById('categoria-natureza').value.trim();
+        const catDesc = document.getElementById('categoria-descricao').value.trim();
         const itensTexto = document.getElementById('categoria-itens').value.trim();
-        const catIdBD = form.dataset.catIdBD;  // ID do banco (se editando)
+        const catIdBD = form.dataset.catIdBD;
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
         
         if (!catId || !catNome) {
-            alert('❌ ID e Nome da categoria são obrigatórios!');
+            alert('❌ Identificador e Nome são obrigatórios!');
             return;
         }
+
+        const payload = {
+            nome: catNome,
+            tipo: catId,
+            natureza: catNatureza,
+            icone: catIcone,
+            descricao: catDesc,
+            modulo: modulo
+        };
         
-        // Se está editando do banco, só validar nome
+        // Se está editando do banco
         if (catIdBD) {
-            // Editar categoria do banco
             fetch(`/api/categorias/${catIdBD}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    nome: catNome,
-                    tipo: catId,
-                    natureza: catId
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Erro ao atualizar`);
                 return response.json();
             })
-            .then(data => {
-                alert('✅ Categoria atualizada com sucesso!');
+            .then(() => {
+                alert('✅ Categoria atualizada!');
                 fecharModalCategoria();
-                form.dataset.catIdBD = '';  // Limpar
                 renderizarCategorias();
             })
-            .catch(erro => {
-                console.error('Erro ao atualizar categoria:', erro);
-                alert('❌ Erro ao atualizar categoria: ' + erro.message);
-            });
-            return;
-        }
-        
-        // Se é criação nova, validar ID e itens
-        // Validar ID (apenas letras minúsculas e underscore)
-        if (!/^[a-z_]+$/.test(catId)) {
-            alert('❌ ID deve conter apenas letras minúsculas e underscore (ex: nova_categoria)');
-            return;
-        }
-        
-        // Converter itens de texto para array
-        const itens = itensTexto.split('\n').map(i => i.trim()).filter(i => i.length > 0);
-        
-        if (itens.length === 0) {
-            alert('❌ Adicione pelo menos um item à categoria!');
+            .catch(erro => alert('❌ Erro: ' + erro.message));
             return;
         }
         
         // Criar nova categoria
         fetch('/api/categorias', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                nome: catNome,
-                tipo: catId,
-                natureza: catId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}: ${response.statusText}`);
-            }
+            if (!response.ok) return response.json().then(d => { throw new Error(d.erro || 'Erro ao salvar') });
             return response.json();
         })
         .then(data => {
-            // Também salvar localmente para visualização imediata
-            categorias[catId] = itens;
-            salvarCategoriasLocalStorage();
+            // Se houver itens iniciais, cadastrá-los também
+            const itens = itensTexto.split('\n').map(i => i.trim()).filter(i => i.length > 0);
+            if (itens.length > 0) {
+                console.log(`📦 Cadastrando ${itens.length} itens iniciais...`);
+                // Aqui poderíamos chamar uma API de cadastro em massa, 
+                // por enquanto vamos apenas avisar que a categoria foi criada
+            }
             
-            alert('✅ Categoria salva no banco de dados com sucesso!');
+            alert('✅ Categoria criada com sucesso!');
             fecharModalCategoria();
             renderizarCategorias();
         })
-        .catch(erro => {
-            console.error('Erro ao salvar categoria:', erro);
-            alert('❌ Erro ao salvar categoria: ' + erro.message);
-        });
+        .catch(erro => alert('❌ Erro: ' + erro.message));
     });
     
     // Form: Nova Requisição
@@ -3816,7 +3942,8 @@ console.log('✅ Melhorias de responsividade carregadas!');
  */
 async function carregarCategoriasRelatorio() {
     try {
-        const response = await fetch('/api/alimentacao/categorias');
+        const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+        const response = await fetch(`/api/alimentacao/categorias?modulo=${moduloAtual}`);
         const data = await response.json();
         
         if (data.success) {
@@ -3856,6 +3983,7 @@ async function gerarRelatorioOS() {
     const servico = document.getElementById('rel-os-servico').value;
     
     const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (dataInicio) params.append('data_inicio', dataInicio);
     if (dataFim) params.append('data_fim', dataFim);
     if (regiao) params.append('regiao', regiao);
@@ -3956,6 +4084,7 @@ function gerarPDFRelatorioOS() {
     const regiao = document.getElementById('rel-os-regiao').value;
     
     const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (dataInicio) params.append('data_inicio', dataInicio);
     if (dataFim) params.append('data_fim', dataFim);
     if (regiao) params.append('regiao', regiao);
@@ -3971,6 +4100,7 @@ async function gerarRelatorioEstoque() {
     const regiao = document.getElementById('rel-estoque-regiao').value;
     
     const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (categoriaId) params.append('categoria_id', categoriaId);
     if (regiao) params.append('regiao', regiao);
     
@@ -4070,6 +4200,7 @@ function gerarPDFRelatorioEstoque() {
     const regiao = document.getElementById('rel-estoque-regiao').value;
     
     const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (categoriaId) params.append('categoria_id', categoriaId);
     if (regiao) params.append('regiao', regiao);
     
@@ -4086,6 +4217,7 @@ async function gerarRelatorioMovimentacoes() {
     const tipo = document.getElementById('rel-mov-tipo').value;
     
     const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (dataInicio) params.append('data_inicio', dataInicio);
     if (dataFim) params.append('data_fim', dataFim);
     if (regiao) params.append('regiao', regiao);
@@ -4184,6 +4316,7 @@ async function gerarRelatorioCategoria() {
     const dataFim = document.getElementById('rel-cat-data-fim').value;
     
     const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (dataInicio) params.append('data_inicio', dataInicio);
     if (dataFim) params.append('data_fim', dataFim);
     
@@ -4260,6 +4393,7 @@ async function gerarRelatorioTopItens() {
     const limite = document.getElementById('rel-top-limite').value;
     
     const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (dataInicio) params.append('data_inicio', dataInicio);
     if (dataFim) params.append('data_fim', dataFim);
     if (limite) params.append('limite', limite);

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema de Controle</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>📦</text></svg>">
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --bg: #f5f7fa;
+            --text: #2d3748;
+            --text-muted: #718096;
+            --white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-logout {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .welcome-section {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .welcome-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .welcome-section h2 .gradient-text {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        .welcome-section p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            width: 100%;
+        }
+
+        .module-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border: 2px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border-color: var(--primary);
+        }
+
+        .module-icon {
+            font-size: 5rem;
+            margin-bottom: 25px;
+            background: #f8fafc;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 30px;
+            transition: transform 0.3s;
+        }
+
+        .module-card:hover .module-icon {
+            transform: scale(1.1);
+        }
+
+        .module-card h3 {
+            font-size: 1.6rem;
+            margin-bottom: 15px;
+        }
+
+        .module-card p {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 20px;
+            flex: 1;
+        }
+
+        .btn-access {
+            padding: 12px 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .module-card:hover .btn-access {
+            background: var(--secondary);
+            padding: 12px 40px;
+        }
+
+        footer {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 15px 20px;
+            }
+            .welcome-section h2 {
+                font-size: 1.8rem;
+            }
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1 style="font-size: 1.3rem;">📦 Sistema COEX</h1>
+        </div>
+        <div class="user-menu">
+            <span>{{ session.get('usuario_nome', 'Usuário') }}</span>
+            <a href="/auth/logout" class="btn-logout">Sair</a>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="welcome-section">
+            <h2><span class="gradient-text">Olá, {{ session.get('usuario_nome', 'Usuário') }}!</span> 👋</h2>
+            <p>Selecione o módulo que deseja acessar</p>
+        </div>
+
+        <div class="modules-grid">
+            <div class="module-card" onclick="selectModule('coffee')">
+                <div class="module-icon">☕</div>
+                <h3>Coffee Break</h3>
+                <p>Gerenciamento de itens, estoques regionais e emissão de O.S. para eventos com alimentação.</p>
+                <button class="btn-access">Acessar</button>
+            </div>
+
+            <div class="module-card" onclick="selectModule('transporte')">
+                <div class="module-icon">🚚</div>
+                <h3>Transportes</h3>
+                <p>Controle de itens de logística, quantidade de transporte e emissão de ordens de serviço de frete.</p>
+                <button class="btn-access">Acessar</button>
+            </div>
+            
+            <div class="module-card" style="opacity: 0.6; cursor: not-allowed;">
+                <div class="module-icon">🛏️</div>
+                <h3>Hospedagem</h3>
+                <p>Módulo em desenvolvimento. Em breve você poderá controlar itens de Hospedagem.</p>
+                <button class="btn-access" disabled style="background: #cbd5e0;">Em breve</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 COEX - COGESPA | Todos os direitos reservados.
+    </footer>
+
+    <script>
+        function selectModule(module) {
+            localStorage.setItem('modulo_atual', module);
+            // Redirecionar para a rota de estoque/itens do módulo
+            window.location.href = '/estoque';
+        }
+
+        // Limpar modulo_atual ao carregar se necessário ou manter o último
+    </script>
+</body>
+</html>

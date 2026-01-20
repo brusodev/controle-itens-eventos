@@ -25,6 +25,7 @@ let alimentacaoEditando = null;
 // ========================================
 
 document.addEventListener('DOMContentLoaded', async function() {
+    configurarModulo();
     carregarDados();
     inicializarDataAtual();
     configurarAbas();
@@ -36,6 +37,22 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     atualizarInterface();
 });
+
+function configurarModulo() {
+    const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+    const tituloAlimentacao = document.querySelector('button[data-tab="alimentacao"]');
+    const headerAlimentacao = document.querySelector('#tab-alimentacao h2');
+    
+    if (modulo === 'transporte') {
+        if (tituloAlimentacao) tituloAlimentacao.innerHTML = '🚐 Itens Transporte';
+        if (headerAlimentacao) headerAlimentacao.innerHTML = '🚐 Estoque de Transportes';
+        document.title = 'Sistema de Controle - Transportes';
+    } else {
+        if (tituloAlimentacao) tituloAlimentacao.innerHTML = '🍽️ Itens do Coffee';
+        if (headerAlimentacao) headerAlimentacao.innerHTML = '🍽️ Estoque do Coffee Break';
+        document.title = 'Sistema de Controle - Coffee Break';
+    }
+}
 
 function carregarDados() {
     // Carregar do LocalStorage

@@ -17,8 +17,11 @@ class Categoria(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), unique=True, nullable=False)
-    tipo = db.Column(db.String(50), nullable=False)  # 'alimentacao', 'estoque', etc
-    natureza = db.Column(db.String(10))  # Código da natureza da despesa
+    tipo = db.Column(db.String(50), nullable=False)  # 'alimentacao', 'estoque', etc (slug)
+    natureza = db.Column(db.String(50))  # Código da natureza da despesa ou sub-tipo
+    modulo = db.Column(db.String(50), default='coffee')  # 'coffee', 'transporte', etc
+    icone = db.Column(db.String(50))  # Emoji ou classe de ícone
+    descricao = db.Column(db.Text)  # Descrição longa
     
     # Relacionamento
     itens = db.relationship('Item', backref='categoria', lazy=True, cascade='all, delete-orphan')
@@ -28,7 +31,10 @@ class Categoria(db.Model):
             'id': self.id,
             'nome': self.nome,
             'tipo': self.tipo,
-            'natureza': self.natureza
+            'natureza': self.natureza,
+            'modulo': self.modulo,
+            'icone': self.icone,
+            'descricao': self.descricao
         }
 
 
@@ -133,6 +139,7 @@ class Detentora(db.Model):
     nome = db.Column(db.String(200), nullable=False)
     cnpj = db.Column(db.String(20), nullable=False)
     servico = db.Column(db.String(100), default='COFFEE BREAK')
+    modulo = db.Column(db.String(50), default='coffee')  # 'coffee', 'transporte', etc
     
     # Grupo (campo principal para seleção)
     grupo = db.Column(db.String(100), nullable=False, index=True)
@@ -155,6 +162,7 @@ class Detentora(db.Model):
                 'nome': self.nome or '',
                 'cnpj': self.cnpj or '',
                 'servico': self.servico or 'COFFEE BREAK',
+                'modulo': self.modulo or 'coffee',
                 'grupo': self.grupo or '',
                 'ativo': bool(self.ativo) if self.ativo is not None else True,
                 'criadoEm': self.criado_em.isoformat() if self.criado_em else None,
@@ -194,6 +202,7 @@ class OrdemServico(db.Model):
     detentora = db.Column(db.String(200))
     cnpj = db.Column(db.String(20))
     servico = db.Column(db.String(200))          # Ex: "COFFEE BREAK"
+    modulo = db.Column(db.String(50), default='coffee')  # 'coffee', 'transporte'
     grupo = db.Column(db.String(50))             # Número do grupo
     regiao_estoque = db.Column(db.Integer)       # Região do estoque (1-6) vinculada ao grupo
     
@@ -231,6 +240,7 @@ class OrdemServico(db.Model):
             'detentora': self.detentora,
             'cnpj': self.cnpj,
             'servico': self.servico,
+            'modulo': self.modulo,
             'grupo': self.grupo,
             'evento': self.evento,
             'data': self.data,

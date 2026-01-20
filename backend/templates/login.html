@@ -104,7 +104,7 @@
                     
                     mostrarAlerta('Login realizado com sucesso! Redirecionando...', 'sucesso');
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = '/dashboard';
                     }, 1500);
                 } else {
                     mostrarAlerta(dados.erro || 'Erro ao fazer login', 'erro');

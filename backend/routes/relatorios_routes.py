@@ -25,9 +25,11 @@ def relatorio_ordens_servico():
     - regiao (1-6)
     - contratada
     - servico
+    - modulo
     """
     try:
-        query = OrdemServico.query
+        modulo = request.args.get('modulo', 'coffee')
+        query = OrdemServico.query.filter_by(modulo=modulo)
         
         # Filtros
         data_inicio = request.args.get('data_inicio')
@@ -39,7 +41,9 @@ def relatorio_ordens_servico():
         if data_inicio:
             query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:
-            query = query.filter(OrdemServico.data_emissao <= datetime.strptime(data_fim, '%Y-%m-%d'))
+            # ✅ Ajustar para o final do dia (23:59:59) para incluir registros de hoje
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(OrdemServico.data_emissao <= dt_fim)
         if regiao:
             query = query.filter(OrdemServico.regiao_estoque == int(regiao))
         if contratada:
@@ -85,6 +89,7 @@ def relatorio_estoque_posicao():
     Pode filtrar por categoria ou região
     """
     try:
+        modulo = request.args.get('modulo', 'coffee')
         categoria_id = request.args.get('categoria_id')
         regiao = request.args.get('regiao')
         
@@ -98,7 +103,8 @@ def relatorio_estoque_posicao():
             EstoqueRegional.quantidade_inicial,
             EstoqueRegional.quantidade_gasto
         ).join(Categoria, Item.categoria_id == Categoria.id)\
-         .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)
+         .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)\
+         .filter(Categoria.modulo == modulo)
         
         if categoria_id:
             query = query.filter(Item.categoria_id == int(categoria_id))
@@ -178,6 +184,7 @@ def relatorio_movimentacoes():
     Filtros: data_inicio, data_fim, item_id, regiao, tipo
     """
     try:
+        modulo = request.args.get('modulo', 'coffee')
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         item_id = request.args.get('item_id')
@@ -191,12 +198,15 @@ def relatorio_movimentacoes():
             EstoqueRegional.regiao_numero
         ).join(Item, MovimentacaoEstoque.item_id == Item.id)\
          .join(OrdemServico, MovimentacaoEstoque.ordem_servico_id == OrdemServico.id)\
-         .join(EstoqueRegional, MovimentacaoEstoque.estoque_regional_id == EstoqueRegional.id)
+         .join(EstoqueRegional, MovimentacaoEstoque.estoque_regional_id == EstoqueRegional.id)\
+         .filter(OrdemServico.modulo == modulo)
         
         if data_inicio:
             query = query.filter(MovimentacaoEstoque.data_movimentacao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:
-            query = query.filter(MovimentacaoEstoque.data_movimentacao <= datetime.strptime(data_fim, '%Y-%m-%d'))
+            # ✅ Ajustar para o final do dia (23:59:59)
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(MovimentacaoEstoque.data_movimentacao <= dt_fim)
         if item_id:
             query = query.filter(MovimentacaoEstoque.item_id == int(item_id))
         if regiao:
@@ -248,6 +258,7 @@ def relatorio_consumo_categoria():
     Relatório consolidado de consumo por categoria
     """
     try:
+        modulo = request.args.get('modulo', 'coffee')
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         
@@ -260,12 +271,15 @@ def relatorio_consumo_categoria():
             func.count(ItemOrdemServico.id).label('vezes_utilizado')
         ).join(Categoria, Item.categoria_id == Categoria.id)\
          .join(ItemOrdemServico, Item.id == ItemOrdemServico.item_id)\
-         .join(OrdemServico, ItemOrdemServico.ordem_servico_id == OrdemServico.id)
+         .join(OrdemServico, ItemOrdemServico.ordem_servico_id == OrdemServico.id)\
+         .filter(Categoria.modulo == modulo)
         
         if data_inicio:
             query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:
-            query = query.filter(OrdemServico.data_emissao <= datetime.strptime(data_fim, '%Y-%m-%d'))
+            # ✅ Ajustar para o final do dia (23:59:59) para incluir registros de hoje
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(OrdemServico.data_emissao <= dt_fim)
         
         resultados = query.group_by(
             Categoria.nome,
@@ -310,6 +324,7 @@ def relatorio_itens_mais_utilizados():
     Top 10 (ou N) itens mais utilizados
     """
     try:
+        modulo = request.args.get('modulo', 'coffee')
         limite = int(request.args.get('limite', 10))
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
@@ -320,12 +335,15 @@ def relatorio_itens_mais_utilizados():
             Categoria.nome.label('categoria'),
             func.sum(ItemOrdemServico.quantidade_total).label('total_consumido'),
             func.count(ItemOrdemServico.id).label('vezes_utilizado')
-        ).join(ItemOrdemServico).join(Categoria).join(OrdemServico)
+        ).join(ItemOrdemServico).join(Categoria).join(OrdemServico)\
+         .filter(Categoria.modulo == modulo)
         
         if data_inicio:
             query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:
-            query = query.filter(OrdemServico.data_emissao <= datetime.strptime(data_fim, '%Y-%m-%d'))
+            # ✅ Ajustar para o final do dia (23:59:59)
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(OrdemServico.data_emissao <= dt_fim)
         
         resultados = query.group_by(
             Item.descricao,
@@ -359,6 +377,7 @@ def gerar_pdf_estoque():
     Gera PDF do relatório de posição de estoque
     """
     try:
+        modulo = request.args.get('modulo', 'coffee')
         regiao = request.args.get('regiao')
         categoria_id = request.args.get('categoria_id')
         
@@ -371,7 +390,8 @@ def gerar_pdf_estoque():
             EstoqueRegional.quantidade_inicial,
             EstoqueRegional.quantidade_gasto
         ).join(Categoria, Item.categoria_id == Categoria.id)\
-         .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)
+         .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)\
+         .filter(Categoria.modulo == modulo)
         
         if categoria_id:
             query = query.filter(Item.categoria_id == int(categoria_id))
@@ -498,16 +518,19 @@ def gerar_pdf_ordens_servico():
     Gera PDF do relatório de Ordens de Serviço
     """
     try:
+        modulo = request.args.get('modulo', 'coffee')
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         regiao = request.args.get('regiao')
         
-        query = OrdemServico.query
+        query = OrdemServico.query.filter_by(modulo=modulo)
         
         if data_inicio:
             query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:
-            query = query.filter(OrdemServico.data_emissao <= datetime.strptime(data_fim, '%Y-%m-%d'))
+            # ✅ Ajustar para o final do dia (23:59:59)
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(OrdemServico.data_emissao <= dt_fim)
         if regiao:
             query = query.filter(OrdemServico.regiao_estoque == int(regiao))
         
