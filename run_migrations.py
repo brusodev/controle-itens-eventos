@@ -54,7 +54,8 @@ def run_migrations():
         "migrate_add_diarias.py",
         "migrate_add_qtd_solicitada.py",
         "migrate_add_item_bec.py",
-        "migrate_categorias.py",  # Nova migration
+        "migrate_categorias.py",
+        "migrate_add_modulo.py",  # Suporte a módulos (Coffee/Transporte)
     ]
     
     print(f"📋 Migrations encontradas: {len(migrations)}\n")

@@ -33,7 +33,10 @@ with app.app_context():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     nome VARCHAR(100) UNIQUE NOT NULL,
                     tipo VARCHAR(50) NOT NULL,
-                    natureza VARCHAR(10),
+                    natureza VARCHAR(50),
+                    modulo VARCHAR(50) DEFAULT 'coffee',
+                    icone VARCHAR(50),
+                    descricao TEXT,
                     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
                     atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
