@@ -95,6 +95,15 @@ def emitir_os():
                          usuario_nome=session.get('usuario_nome'),
                          usuario_perfil=session.get('usuario_perfil', 'comum'))
 
+@views_bp.route('/categorias')
+@login_requerido
+def gerenciar_categorias_view():
+    """Página de Gerenciamento de Categorias"""
+    return render_template('index.html', 
+                         secao_ativa='categorias',
+                         usuario_nome=session.get('usuario_nome'),
+                         usuario_perfil=session.get('usuario_perfil', 'comum'))
+
 @views_bp.route('/ordens-servico')
 @login_requerido
 def ordens_servico():

@@ -22,7 +22,7 @@
                 <span class="menu-icon">📦</span>
                 <span class="menu-text">Estoque</span>
             </a>
-            <a href="javascript:void(0)" class="menu-item" id="menu-categorias" title="Categorias" onclick="mostrarAbaCategories()">
+            <a href="/categorias" class="menu-item {{ 'active' if '/categorias' in current_path or secao_ativa == 'categorias' }}" id="menu-categorias" title="Categorias">
                 <span class="menu-icon">🏷️</span>
                 <span class="menu-text">Categorias</span>
             </a>
@@ -118,6 +118,10 @@
             if (confirm('Deseja realmente sair?')) {
                 window.location.href = '/auth/logout';
             }
+        }
+
+        function mostrarAbaCategories() {
+            window.location.href = '/categorias';
         }
 
         // Recuperar estado do sidebar e atualizar título do módulo
