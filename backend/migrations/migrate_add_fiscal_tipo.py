@@ -3,9 +3,10 @@ Script para adicionar coluna 'fiscal_tipo' na tabela ordens_servico
 """
 import sqlite3
 import os
+from pathlib import Path
 
-# Caminho do banco de dados
-DB_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'controle_itens.db')
+# Caminho do banco de dados - Sobe dois níveis para sair de backend/migrations e entrar em backend/instance
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'instance', 'controle_itens.db')
 
 def migrate():
     conn = sqlite3.connect(DB_PATH)

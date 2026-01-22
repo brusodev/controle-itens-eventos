@@ -4,6 +4,13 @@ Execute: python migrate_data.py
 """
 
 import json
+import sys
+import os
+from pathlib import Path
+
+# Adicionar o diretório pai ao pipe para importar app e models
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from app import create_app
 from models import db, Categoria, Item, EstoqueRegional
 

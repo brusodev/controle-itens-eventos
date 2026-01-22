@@ -66,6 +66,10 @@ def run_migrations():
     # Mudar para diretório backend
     os.chdir(str(migrations_dir.parent))
     
+    # Adicionar o diretório backend ao PYTHONPATH para que os scripts encontrem o app
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(migrations_dir.parent) + os.pathsep + env.get("PYTHONPATH", "")
+    
     for migration in migrations:
         migration_path = migrations_dir / migration
         
@@ -80,7 +84,8 @@ def run_migrations():
                 [sys.executable, str(migration_path)],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
+                env=env
             )
             
             if result.returncode == 0:
