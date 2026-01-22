@@ -45,7 +45,7 @@ def run_migrations():
     
     # Lista de migrations em ordem
     migrations = [
-        "migrate_data.py",
+        # "migrate_data.py", # Removido para evitar drop_all() acidental
         "migrate_add_observacoes.py",
         "migrate_add_responsavel.py",
         "migrate_add_campos_os.py",
