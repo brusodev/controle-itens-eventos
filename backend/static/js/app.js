@@ -105,10 +105,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 function atualizarLabelsModulo() {
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
-    const isTransporte = moduloAtual === 'transporte';
-    const titulo = isTransporte ? 'Transporte' : 'Coffee Break';
-    const emoji = isTransporte ? '🚚' : '☕';
-    const itemLabel = isTransporte ? 'Itens de Transporte' : 'Itens do Coffee';
+    const moduloLabels = {
+        'coffee': { titulo: 'Coffee Break', emoji: '☕', itemLabel: 'Itens do Coffee', catLabel: 'Categorias de Alimentação', novaCat: 'Nova Categoria', icon: '📦' },
+        'transporte': { titulo: 'Transporte', emoji: '🚚', itemLabel: 'Itens de Transporte', catLabel: 'Modalidades de Transporte', novaCat: 'Nova Modalidade', icon: '🚗' },
+        'organizacao': { titulo: 'Organização', emoji: '📋', itemLabel: 'Itens Organização', catLabel: 'Categorias de Organização', novaCat: 'Nova Categoria', icon: '📋' }
+    };
+    const cfg = moduloLabels[moduloAtual] || moduloLabels['coffee'];
+    const titulo = cfg.titulo;
+    const emoji = cfg.emoji;
+    const itemLabel = cfg.itemLabel;
 
     // 1. Título do Navegador e Favicon
     document.title = `Sistema - ${titulo}`;
@@ -116,7 +121,7 @@ function atualizarLabelsModulo() {
     if (favicon) {
         favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>${emoji}</text></svg>`;
     }
-    
+
     // 2. Título no Topbar
     const moduleTitle = document.getElementById('page-module-title');
     if (moduleTitle) {
@@ -128,7 +133,7 @@ function atualizarLabelsModulo() {
     if (menuAlimentacao) {
         menuAlimentacao.textContent = itemLabel;
     }
-    
+
     // 4. Título das seções dinâmicas
     const h2Itens = document.querySelector('#tab-alimentacao h2');
     if (h2Itens) {
@@ -138,12 +143,12 @@ function atualizarLabelsModulo() {
     // 5. Título da aba de categorias
     const tituloCategorias = document.getElementById('titulo-aba-categorias');
     if (tituloCategorias) {
-        tituloCategorias.textContent = isTransporte ? '🏷️ Modalidades de Transporte' : '🏷️ Categorias de Alimentação';
+        tituloCategorias.textContent = `🏷️ ${cfg.catLabel}`;
     }
 
     const btnNovaCat = document.getElementById('btn-nova-categoria');
     if (btnNovaCat) {
-        btnNovaCat.textContent = isTransporte ? '➕ Nova Modalidade' : '➕ Nova Categoria';
+        btnNovaCat.textContent = `➕ ${cfg.novaCat}`;
     }
 
     console.log(`🎨 [Interface] Labels atualizadas para o módulo: ${titulo}`);
@@ -502,7 +507,14 @@ function formatarCategoriaAlimentacao(categoria) {
         'fornecimento_agua_mineral': 'Fornecimento de Água Mineral',
         'kit_lanche': 'Kit Lanche',
         'fornecimento_biscoitos': 'Fornecimento de Biscoitos',
-        'almoco_jantar': 'Almoço/Jantar'
+        'almoco_jantar': 'Almoço/Jantar',
+        'transporte_veiculos_leves': 'Veículos Leves',
+        'transporte_veiculos_pesados': 'Veículos Pesados',
+        'transporte_fretamento': 'Fretamento',
+        'montagem_decoracao': 'Montagem e Decoração',
+        'recursos_humanos': 'Recursos Humanos',
+        'equipamento_informatica': 'Equipamentos e Informática',
+        'material_grafico_expediente': 'Material Gráfico e de Expediente'
     };
     return nomes[categoria] || categoria;
 }
@@ -536,13 +548,18 @@ function editarItemAlimentacao(categoria, itemId) {
     const regioesDiv = document.getElementById('regioes-quantidades');
     regioesDiv.innerHTML = '';
     
-    for (let reg = 1; reg <= 6; reg++) {
+    // Determinar quantidade de regiões conforme módulo
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const maxRegioes = moduloAtual === 'organizacao' ? 3 : 6;
+    const nomeGruposOrg = { 1: 'Capital/RMSP', 2: 'Interior', 3: 'Litoral' };
+
+    for (let reg = 1; reg <= maxRegioes; reg++) {
         const r = item.regioes[reg.toString()] || { inicial: '', gasto: '0', preco: '0' };
         console.log(`🔍 [EDITAR] Região ${reg}:`, r);
-        
+
         // Garantir que preco nunca seja undefined
         const precoValor = (r.preco !== undefined && r.preco !== null) ? r.preco : '0';
-        
+
         // Função auxiliar para parsear valores que podem ser string ou número
         const safeParseInt = (val) => {
             if (val === undefined || val === null || val === '__') return 0;
@@ -552,20 +569,21 @@ function editarItemAlimentacao(categoria, itemId) {
 
         const inicialNum = safeParseInt(r.inicial);
         const gastoNum = safeParseInt(r.gasto);
-        
+
         // Aplicar formatação com separador de milhar
         const inicialExibicao = inicialNum > 0 ? formatarNumeroMilhar(inicialNum) : '';
         const gastoExibicao = formatarNumeroMilhar(gastoNum);
-        
+
         // Definir readonly apenas para usuários comuns (não admin)
         const isAdmin = usuarioPerfil === 'admin';
         const readonlyAttr = isAdmin ? '' : 'readonly';
         const readonlyStyle = isAdmin ? '' : ' style="background: #f0f0f0;"';
-        
+
+        const labelGrupo = moduloAtual === 'organizacao' ? `Grupo ${reg} - ${nomeGruposOrg[reg]}` : `Região ${reg}`;
         const regDiv = document.createElement('div');
         regDiv.className = 'form-group';
         regDiv.innerHTML = `
-            <label style="font-weight: 600; margin-bottom: 8px; display: block;">Região ${reg}:</label>
+            <label style="font-weight: 600; margin-bottom: 8px; display: block;">${labelGrupo}:</label>
             <div class="regiao-inputs">
                 <div style="flex: 1;">
                     <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Inicial</label>
@@ -688,29 +706,141 @@ async function carregarGruposDropdown() {
     const grupoSelect = document.getElementById('os-grupo-select');
     if (!grupoSelect) return;
 
-    try {
-        console.log('📡 [Emitir OS] Carregando grupos disponíveis...');
-        const grupos = await APIClient.obterGruposDetentoras();
-        
-        // Preservar a opção padrão
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+
+    if (moduloAtual === 'organizacao') {
+        // Para organização: 3 grupos fixos com nomes + dropdown de detentora
+        const nomeGrupos = { 1: 'Capital/RMSP', 2: 'Interior', 3: 'Litoral' };
         grupoSelect.innerHTML = '<option value="">-- Selecione o Grupo --</option>';
-        
-        if (grupos && grupos.length > 0) {
-            grupos.forEach(grupo => {
-                const option = document.createElement('option');
-                option.value = grupo;
-                option.textContent = `Grupo ${grupo}`;
-                grupoSelect.appendChild(option);
-            });
-        } else {
+        for (let g = 1; g <= 3; g++) {
             const option = document.createElement('option');
-            option.value = "";
-            option.textContent = "Nenhuma detentora cadastrada";
+            option.value = g;
+            option.textContent = `Grupo ${g} - ${nomeGrupos[g]}`;
             grupoSelect.appendChild(option);
         }
-    } catch (error) {
-        console.error('❌ Erro ao carregar grupos:', error);
+        // Mudar handler para carregar detentoras do grupo
+        grupoSelect.onchange = function() { onGrupoOrganizacaoChange(this.value); };
+        // Adicionar select de detentora se não existir
+        _criarDropdownDetentora();
+    } else {
+        try {
+            console.log('📡 [Emitir OS] Carregando grupos disponíveis...');
+            const grupos = await APIClient.obterGruposDetentoras();
+
+            grupoSelect.innerHTML = '<option value="">-- Selecione o Grupo --</option>';
+
+            if (grupos && grupos.length > 0) {
+                grupos.forEach(grupo => {
+                    const option = document.createElement('option');
+                    option.value = grupo;
+                    option.textContent = `Grupo ${grupo}`;
+                    grupoSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Nenhuma detentora cadastrada";
+                grupoSelect.appendChild(option);
+            }
+            // Restaurar handler padrão
+            grupoSelect.onchange = function() { carregarDadosDetentora(); };
+        } catch (error) {
+            console.error('❌ Erro ao carregar grupos:', error);
+        }
     }
+}
+
+function _criarDropdownDetentora() {
+    // Verificar se já existe o select de detentora
+    let detentoraSelect = document.getElementById('os-detentora-select');
+    if (detentoraSelect) return;
+
+    // Encontrar o container do campo detentora e substituir por select
+    const detentoraInput = document.getElementById('os-detentora');
+    if (!detentoraInput) return;
+    const detentoraContainer = detentoraInput.parentElement;
+    detentoraContainer.innerHTML = `
+        <label for="os-detentora-select">Nome da Detentora *</label>
+        <select id="os-detentora-select" required onchange="onDetentoraOrganizacaoChange(this.value)">
+            <option value="">Selecione o Grupo primeiro</option>
+        </select>
+        <input type="hidden" id="os-detentora" value="">
+    `;
+}
+
+async function onGrupoOrganizacaoChange(grupo) {
+    const detentoraSelect = document.getElementById('os-detentora-select');
+    if (!detentoraSelect) return;
+
+    // Limpar campos de contrato
+    ['os-contrato-num', 'os-data-assinatura', 'os-prazo-vigencia', 'os-cnpj', 'os-servico'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const hiddenDet = document.getElementById('os-detentora');
+    if (hiddenDet) hiddenDet.value = '';
+
+    // Atualizar campo oculto de grupo
+    const grupoInput = document.getElementById('os-grupo');
+    if (grupoInput) grupoInput.value = grupo || '';
+
+    if (!grupo) {
+        detentoraSelect.innerHTML = '<option value="">Selecione o Grupo primeiro</option>';
+        return;
+    }
+
+    detentoraSelect.innerHTML = '<option value="">Carregando...</option>';
+
+    try {
+        const detentoras = await APIClient.listarDetentorasPorGrupo(grupo);
+        detentoraSelect.innerHTML = '<option value="">Selecione a Detentora</option>';
+
+        if (detentoras.length === 0) {
+            detentoraSelect.innerHTML = '<option value="">Nenhuma detentora cadastrada para este grupo</option>';
+            return;
+        }
+
+        detentoras.forEach(det => {
+            const option = document.createElement('option');
+            option.value = det.id;
+            option.textContent = det.nome;
+            option.setAttribute('data-contrato', det.contratoNum || '');
+            option.setAttribute('data-data-assinatura', det.dataAssinatura || '');
+            option.setAttribute('data-prazo', det.prazoVigencia || '');
+            option.setAttribute('data-cnpj', det.cnpj || '');
+            option.setAttribute('data-servico', det.servico || '');
+            option.setAttribute('data-nome', det.nome || '');
+            detentoraSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar detentoras:', error);
+        detentoraSelect.innerHTML = '<option value="">Erro ao carregar detentoras</option>';
+    }
+}
+
+function onDetentoraOrganizacaoChange(detentoraId) {
+    const detentoraSelect = document.getElementById('os-detentora-select');
+    if (!detentoraSelect || !detentoraId) return;
+
+    const opt = detentoraSelect.options[detentoraSelect.selectedIndex];
+
+    document.getElementById('os-contrato-num').value = opt.getAttribute('data-contrato') || '';
+    document.getElementById('os-cnpj').value = opt.getAttribute('data-cnpj') || '';
+    document.getElementById('os-servico').value = opt.getAttribute('data-servico') || '';
+    document.getElementById('os-detentora').value = opt.getAttribute('data-nome') || '';
+
+    const dataAss = opt.getAttribute('data-data-assinatura') || '';
+    if (dataAss) {
+        const inputData = document.getElementById('os-data-assinatura');
+        if (dataAss.includes('/')) {
+            const parts = dataAss.split('/');
+            if (parts.length === 3) inputData.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        } else {
+            inputData.value = dataAss;
+        }
+    }
+
+    document.getElementById('os-prazo-vigencia').value = opt.getAttribute('data-prazo') || '';
 }
 
 function adicionarItemOS() {
@@ -911,7 +1041,7 @@ function coletarDadosOS() {
 
     return {
         modulo: moduloAtual,
-        servico: moduloAtual === 'transporte' ? 'TRANSPORTE' : 'COFFEE BREAK',
+        servico: document.getElementById('os-servico').value || (moduloAtual === 'transporte' ? 'TRANSPORTE' : moduloAtual === 'organizacao' ? 'ORGANIZAÇÃO DE EVENTOS' : 'COFFEE BREAK'),
         contratoNum: document.getElementById('os-contrato-num').value,
         dataAssinatura: document.getElementById('os-data-assinatura').value,
         prazoVigencia: document.getElementById('os-prazo-vigencia').value,
@@ -985,7 +1115,7 @@ function gerarPreviewOS(dados) {
                     </tr>
                     <tr>
                         <td><strong>SERVIÇO:</strong></td>
-                        <td>${dados.servico || (localStorage.getItem('modulo_atual') === 'transporte' ? 'TRANSPORTE' : 'COFFEE BREAK')}</td>
+                        <td>${dados.servico || ({'transporte':'TRANSPORTE','organizacao':'ORGANIZAÇÃO DE EVENTOS'}[localStorage.getItem('modulo_atual')] || 'COFFEE BREAK')}</td>
                         <td><strong>PRAZO VIGÊNCIA:</strong></td>
                         <td>${dados.prazoVigencia || ''}</td>
                     </tr>
@@ -2387,19 +2517,20 @@ function renderizarCategorias() {
     container.innerHTML = '<p class="empty-message">Carregando categorias...</p>';
 
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
-    const isTransporte = moduloAtual === 'transporte';
+    const nomesModulo = { 'coffee': 'Coffee Break', 'transporte': 'Transportes', 'organizacao': 'Organização' };
+    const iconesModulo = { 'coffee': '📦', 'transporte': '🚗', 'organizacao': '📋' };
 
     APIClient.listarCategorias()
         .then(categoriasBD => {
             container.innerHTML = '';
-            
+
             if (!categoriasBD || categoriasBD.length === 0) {
-                container.innerHTML = `<p class="empty-message">Nenhuma categoria encontrada para o módulo ${isTransporte ? 'Transportes' : 'Coffee Break'}.</p>`;
+                container.innerHTML = `<p class="empty-message">Nenhuma categoria encontrada para o módulo ${nomesModulo[moduloAtual] || 'Coffee Break'}.</p>`;
                 return;
             }
-            
+
             categoriasBD.forEach(cat => {
-                const icone = cat.icone || (isTransporte ? '🚗' : '📦');
+                const icone = cat.icone || (iconesModulo[moduloAtual] || '📦');
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
@@ -2429,13 +2560,14 @@ function renderizarCategorias() {
 
 function mostrarModalNovaCategoria() {
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
-    const isTransporte = moduloAtual === 'transporte';
-    
-    document.getElementById('modal-categoria-titulo').textContent = isTransporte ? '🏷️ Nova Modalidade de Transporte' : '🏷️ Nova Categoria de Alimentação';
+    const titulosModal = { 'coffee': 'Nova Categoria de Alimentação', 'transporte': 'Nova Modalidade de Transporte', 'organizacao': 'Nova Categoria de Organização' };
+    const iconesModal = { 'coffee': '📦', 'transporte': '🚗', 'organizacao': '📋' };
+
+    document.getElementById('modal-categoria-titulo').textContent = `🏷️ ${titulosModal[moduloAtual] || titulosModal['coffee']}`;
     document.getElementById('form-categoria').reset();
     document.getElementById('categoria-id').disabled = false;
     document.getElementById('container-itens-categoria').style.display = 'block';
-    document.getElementById('categoria-icone').value = isTransporte ? '🚗' : '📦';
+    document.getElementById('categoria-icone').value = iconesModal[moduloAtual] || '📦';
     document.getElementById('modal-categoria').style.display = 'flex';
 }
 
@@ -2472,7 +2604,8 @@ function removerCategoria(catId) {
 
 function editarCategoriaDB(catId) {
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
-    const isTransporte = moduloAtual === 'transporte';
+    const titulosEditar = { 'coffee': 'Editar Categoria', 'transporte': 'Editar Modalidade', 'organizacao': 'Editar Categoria' };
+    const iconesEditar = { 'coffee': '📦', 'transporte': '🚗', 'organizacao': '📋' };
 
     fetch(`/api/categorias/${catId}`)
         .then(response => {
@@ -2480,11 +2613,11 @@ function editarCategoriaDB(catId) {
             return response.json();
         })
         .then(cat => {
-            document.getElementById('modal-categoria-titulo').textContent = isTransporte ? '✏️ Editar Modalidade' : '✏️ Editar Categoria';
+            document.getElementById('modal-categoria-titulo').textContent = `✏️ ${titulosEditar[moduloAtual] || 'Editar Categoria'}`;
             document.getElementById('categoria-id').value = cat.tipo;
             document.getElementById('categoria-id').disabled = true;
             document.getElementById('categoria-nome').value = cat.nome;
-            document.getElementById('categoria-icone').value = cat.icone || (isTransporte ? '🚗' : '📦');
+            document.getElementById('categoria-icone').value = cat.icone || (iconesEditar[moduloAtual] || '📦');
             document.getElementById('categoria-natureza').value = cat.natureza || '';
             document.getElementById('categoria-descricao').value = cat.descricao || '';
             

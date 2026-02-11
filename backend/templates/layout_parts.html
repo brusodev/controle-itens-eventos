@@ -132,11 +132,25 @@
 
             // Atualizar título do módulo na topbar imediatamente
             const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+            const moduloConfig = {
+                'coffee': { icon: '☕', label: 'Coffee Break', menuIcon: '🍽️', menuText: 'Itens do Coffee' },
+                'transporte': { icon: '🚚', label: 'Transporte', menuIcon: '🚐', menuText: 'Itens Transporte' },
+                'organizacao': { icon: '📋', label: 'Organização', menuIcon: '📋', menuText: 'Itens Organização' }
+            };
+            const cfg = moduloConfig[modulo] || moduloConfig['coffee'];
+
             const titleElement = document.getElementById('page-module-title');
             if (titleElement) {
-                const icon = modulo === 'coffee' ? '☕' : '🚚';
-                const label = modulo === 'coffee' ? 'Coffee Break' : 'Transporte';
-                titleElement.textContent = `Módulo: ${icon} ${label}`;
+                titleElement.textContent = `Módulo: ${cfg.icon} ${cfg.label}`;
+            }
+
+            // Atualizar label do menu de estoque conforme módulo
+            const menuAlimentacao = document.getElementById('menu-alimentacao');
+            if (menuAlimentacao) {
+                const iconSpan = menuAlimentacao.querySelector('.menu-icon');
+                const textSpan = menuAlimentacao.querySelector('.menu-text');
+                if (iconSpan) iconSpan.textContent = cfg.menuIcon;
+                if (textSpan) textSpan.textContent = cfg.menuText;
             }
         });
     </script>

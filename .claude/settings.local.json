@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(python:*)",
+      "Bash(set PYTHONIOENCODING=utf-8:*)",
+      "Bash(timeout:*)",
+      "Bash(curl:*)",
+      "Bash(fc:*)",
+      "Bash(more:*)",
+      "Bash(cmd /c \"fc /N \"c:UsersSEDUC.SEE-902951-NDesktopmeus projetoscontrole-itens-eventosfrontendapp.js\" \"c:UsersSEDUC.SEE-902951-NDesktopmeus projetoscontrole-itens-eventosbackendstaticjsapp.js\"\")",
+      "Bash(dir:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(netstat:*)"
+    ]
+  }
+}

@@ -7,7 +7,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -142,7 +142,7 @@ class PDFOrdemServico:
             rightMargin=12*mm,  # Reduzido de 20mm para 12mm
             leftMargin=12*mm,   # Reduzido de 20mm para 12mm
             topMargin=10*mm,    # Reduzido de 15mm para 10mm
-            bottomMargin=10*mm, # Reduzido de 15mm para 10mm
+            bottomMargin=14*mm, # Margem inferior para caber numeração de página
             title=f"Ordem de Serviço {dados_os.get('numeroOS', 'N/A')}"
         )
         
@@ -179,8 +179,19 @@ class PDFOrdemServico:
         # Assinaturas
         story.extend(self._criar_secao_assinaturas(dados_os))
         
-        # Construir PDF
-        doc.build(story)
+        # Construir PDF com numeração de página
+        numero_os = self._get_safe(dados_os, 'numeroOS', 'N/A')
+
+        def _rodape_pagina(canvas, doc):
+            """Adiciona número da página no rodapé"""
+            canvas.saveState()
+            canvas.setFont('Helvetica', 6)
+            page_num = canvas.getPageNumber()
+            text = f"O.S. {numero_os} - Página {page_num}"
+            canvas.drawCentredString(doc.pagesize[0] / 2, 8 * mm, text)
+            canvas.restoreState()
+
+        doc.build(story, onFirstPage=_rodape_pagina, onLaterPages=_rodape_pagina)
         
         if not output_path:
             buffer.seek(0)
@@ -400,7 +411,7 @@ class PDFOrdemServico:
         data.append(total_row)
         
         # Larguras: Nº, Descrição, Item BEC, Diárias, Qtde Sol, Qtde Total, Valor Unit, Valor Total
-        table = Table(data, colWidths=[10*mm, 50*mm, 18*mm, 15*mm, 20*mm, 20*mm, 22*mm, 28*mm])
+        table = Table(data, colWidths=[10*mm, 50*mm, 18*mm, 15*mm, 20*mm, 20*mm, 22*mm, 28*mm], repeatRows=1)
         table.setStyle(TableStyle([
             # Cabeçalho
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c6e0b4')),  # Verde claro como no print

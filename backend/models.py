@@ -47,6 +47,7 @@ class Item(db.Model):
     item_codigo = db.Column(db.String(20), nullable=False)  # "1", "2", etc
     descricao = db.Column(db.String(200), nullable=False)
     unidade = db.Column(db.String(50), nullable=False)
+    natureza = db.Column(db.String(50))  # Código BEC individual (sobrepõe categoria se preenchido)
     
     # Relacionamentos
     estoques = db.relationship('EstoqueRegional', backref='item', lazy=True, cascade='all, delete-orphan')
@@ -59,7 +60,7 @@ class Item(db.Model):
             'item': self.item_codigo,
             'descricao': self.descricao,
             'unidade': self.unidade,
-            'natureza': self.categoria.natureza  # Código BEC da categoria
+            'natureza': self.natureza or self.categoria.natureza  # BEC individual ou da categoria
         }
         
         if incluir_estoques:

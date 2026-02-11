@@ -104,6 +104,35 @@ def obter_por_grupo(grupo):
         return jsonify({'erro': f'Erro ao buscar detentora: {str(e)}'}), 500
 
 
+@detentoras_bp.route('/grupo/<grupo>/lista', methods=['GET'])
+@login_requerido
+def listar_por_grupo(grupo):
+    """Lista todas as detentoras ativas de um grupo (para módulos com múltiplas detentoras por grupo)"""
+    try:
+        modulo = request.args.get('modulo', 'coffee')
+        grupo_str = str(grupo).strip()
+
+        detentoras = Detentora.query.filter_by(
+            grupo=grupo_str, modulo=modulo, ativo=True
+        ).order_by(Detentora.nome).all()
+
+        resultado = []
+        for d in detentoras:
+            try:
+                resultado.append(d.to_dict())
+            except Exception:
+                resultado.append({
+                    'id': d.id,
+                    'nome': str(d.nome) if d.nome else 'Sem nome',
+                    'grupo': str(d.grupo) if d.grupo else ''
+                })
+
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
 @detentoras_bp.route('/<int:detentora_id>', methods=['GET'])
 @login_requerido
 def obter_detentora(detentora_id):
@@ -139,9 +168,11 @@ def criar_detentora():
         modulo = dados.get('modulo', 'coffee')
         
         # Verificar se já existe detentora com mesmo grupo no mesmo modulo
-        existe = Detentora.query.filter_by(grupo=dados['grupo'], modulo=modulo, ativo=True).first()
-        if existe:
-            return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}" neste módulo'}), 409
+        # Para organizacao, permite múltiplas detentoras por grupo
+        if modulo != 'organizacao':
+            existe = Detentora.query.filter_by(grupo=dados['grupo'], modulo=modulo, ativo=True).first()
+            if existe:
+                return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}" neste módulo'}), 409
         
         # Criar nova detentora
         detentora = Detentora(
@@ -188,9 +219,10 @@ def atualizar_detentora(detentora_id):
         dados_antes = detentora.to_dict()
         
         # Verificar se está tentando mudar grupo para um já existente no mesmo modulo
-        if 'grupo' in dados and dados['grupo'] != detentora.grupo:
-            modulo = dados.get('modulo', detentora.modulo)
-            existe = Detentora.query.filter_by(grupo=dados['grupo'], modulo=modulo, ativo=True).filter(Detentora.id != detentora_id).first()
+        # Para organizacao, permite múltiplas detentoras por grupo
+        modulo_atual = dados.get('modulo', detentora.modulo)
+        if modulo_atual != 'organizacao' and 'grupo' in dados and dados['grupo'] != detentora.grupo:
+            existe = Detentora.query.filter_by(grupo=dados['grupo'], modulo=modulo_atual, ativo=True).filter(Detentora.id != detentora_id).first()
             if existe:
                 return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}" neste módulo'}), 409
         

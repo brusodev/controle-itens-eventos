@@ -231,6 +231,11 @@ class APIClient {
         const modulo = localStorage.getItem('modulo_atual') || 'coffee';
         return this.request(`/detentoras/grupo/${encodeURIComponent(grupo)}?modulo=${modulo}`);
     }
+
+    static async listarDetentorasPorGrupo(grupo) {
+        const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+        return this.request(`/detentoras/grupo/${encodeURIComponent(grupo)}/lista?modulo=${modulo}`);
+    }
     
     static async obterDetentora(id) {
         return this.request(`/detentoras/${id}`);

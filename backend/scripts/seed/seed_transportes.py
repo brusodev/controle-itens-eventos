@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 # Adicionar o diretório pai ao pipe para importar app e models
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app import create_app, db
 from models import Categoria, Item, EstoqueRegional
