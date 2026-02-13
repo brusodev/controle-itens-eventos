@@ -1,12 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auditoria - Sistema</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>☕</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+{% extends "base.html" %}
+
+{% block title %}Auditoria - Sistema{% endblock %}
+
+{% block extra_css %}
     <style>
         * {
             margin: 0;
@@ -14,7 +10,7 @@
             box-sizing: border-box;
         }
 
-        
+
 
         /* Container */
         .container {
@@ -23,7 +19,7 @@
             padding: 20px;
         }
 
-        
+
 
         .page-header h1 {
             font-size: 2.2rem;
@@ -121,7 +117,7 @@
             transition: all 0.3s ease;
         }
 
-        
+
 
         .btn-primary:hover {
             background: #5568d3;
@@ -420,16 +416,9 @@
             }
         }
     </style>
-</head>
-<body>
-    {% from "layout_parts.html" import sidebar, topbar, script_layout %}
-    
-    {{ sidebar(usuario_nome, usuario_perfil, request.path) }}
+{% endblock %}
 
-    <div class="main-wrapper">
-        {{ topbar(usuario_nome) }}
-
-        <div class="main-content">
+{% block content %}
             <div class="content-header">
                 <div>
                     <h1>🔍 Registro de Auditoria</h1>
@@ -519,7 +508,7 @@
                     </tr>
                 </tbody>
             </table>
-            
+
             <!-- Paginação -->
             <div class="pagination">
                 <button onclick="paginaAnterior()" id="btn-anterior">← Anterior</button>
@@ -541,7 +530,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         let paginaAtual = 1;
         const limite = 50;
@@ -551,7 +542,7 @@
             try {
                 const response = await fetch('/api/auditoria/estatisticas');
                 const stats = await response.json();
-                
+
                 document.getElementById('stat-total').textContent = stats.total.toLocaleString();
                 document.getElementById('stat-24h').textContent = stats.ultimas_24h.toLocaleString();
                 document.getElementById('stat-usuarios').textContent = stats.usuarios_ativos.length;
@@ -565,7 +556,7 @@
             try {
                 const response = await fetch('/api/auditoria/usuarios');
                 const usuarios = await response.json();
-                
+
                 const select = document.getElementById('filter-usuario');
                 usuarios.forEach(u => {
                     const option = document.createElement('option');
@@ -606,7 +597,7 @@
                 atualizarPaginacao(data);
             } catch (error) {
                 console.error('Erro ao carregar auditorias:', error);
-                document.getElementById('auditoria-tbody').innerHTML = 
+                document.getElementById('auditoria-tbody').innerHTML =
                     '<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar dados</td></tr>';
             }
         }
@@ -614,7 +605,7 @@
         // Renderizar tabela
         function renderizarTabela(auditorias) {
             const tbody = document.getElementById('auditoria-tbody');
-            
+
             if (auditorias.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum registro encontrado</td></tr>';
                 return;
@@ -707,7 +698,7 @@
         function abrirDetalhes(auditoria) {
             const modal = document.getElementById('modal-detalhes');
             const body = document.getElementById('modal-body-content');
-            
+
             // Informações gerais
             let html = `
                 <div style="margin-bottom: 25px;">
@@ -747,7 +738,7 @@
             // Parse JSON se necessário
             let dadosAntes = auditoria.dados_antes;
             let dadosDepois = auditoria.dados_depois;
-            
+
             if (typeof dadosAntes === 'string') {
                 try {
                     dadosAntes = JSON.parse(dadosAntes);
@@ -755,7 +746,7 @@
                     dadosAntes = null;
                 }
             }
-            
+
             if (typeof dadosDepois === 'string') {
                 try {
                     dadosDepois = JSON.parse(dadosDepois);
@@ -763,7 +754,7 @@
                     dadosDepois = null;
                 }
             }
-            
+
             const temAntes = dadosAntes && typeof dadosAntes === 'object' && Object.keys(dadosAntes).length > 0;
             const temDepois = dadosDepois && typeof dadosDepois === 'object' && Object.keys(dadosDepois).length > 0;
 
@@ -892,7 +883,7 @@
         function formatarValor(value, key = '') {
             if (value === null || value === undefined) return '<em style="color: #9ca3af;">Vazio</em>';
             if (typeof value === 'boolean') return value ? '✅ Sim' : '❌ Não';
-            
+
             // Formatar regiões de estoque especialmente
             if (key === 'regioes' && typeof value === 'object' && !Array.isArray(value)) {
                 let html = '<div style="margin-top: 5px;">';
@@ -900,29 +891,29 @@
                     html += `<details style="margin: 5px 0; background: #f3f4f6; padding: 8px; border-radius: 4px;">`;
                     html += `<summary style="cursor: pointer; font-weight: 600; color: #667eea;">📍 Região ${regiao}</summary>`;
                     html += '<div style="margin-top: 8px; padding-left: 10px;">';
-                    
+
                     if (typeof dados === 'object') {
                         Object.entries(dados).forEach(([k, v]) => {
                             html += `<div style="margin: 4px 0;"><strong>${formatarChave(k)}:</strong> ${v}</div>`;
                         });
                     }
-                    
+
                     html += '</div></details>';
                 });
                 html += '</div>';
                 return html;
             }
-            
+
             // Formatar arrays (ex: itens da OS)
             if (Array.isArray(value)) {
                 if (value.length === 0) return '<em style="color: #9ca3af;">Nenhum item</em>';
-                
+
                 let html = '<div style="margin-top: 5px;">';
                 value.forEach((item, index) => {
                     html += `<details style="margin: 5px 0; background: #f3f4f6; padding: 8px; border-radius: 4px;">`;
                     html += `<summary style="cursor: pointer; font-weight: 600; color: #667eea;">📦 Item ${index + 1}</summary>`;
                     html += '<div style="margin-top: 8px; padding-left: 10px;">';
-                    
+
                     if (typeof item === 'object') {
                         Object.entries(item).forEach(([k, v]) => {
                             html += `<div style="margin: 4px 0;"><strong>${formatarChave(k)}:</strong> ${formatarValor(v, k)}</div>`;
@@ -930,23 +921,23 @@
                     } else {
                         html += item;
                     }
-                    
+
                     html += '</div></details>';
                 });
                 html += '</div>';
                 return html;
             }
-            
+
             // Formatar objetos aninhados
             if (typeof value === 'object') {
                 return '<pre style="margin: 0; white-space: pre-wrap; background: #f9fafb; padding: 8px; border-radius: 4px; font-size: 0.85rem;">' + JSON.stringify(value, null, 2) + '</pre>';
             }
-            
+
             // Formatar datas ISO
             if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
                 return formatarDataHora(value);
             }
-            
+
             return escapeHtml(String(value));
         }
 
@@ -975,9 +966,4 @@
             carregarAuditorias();
         });
     </script>
-        </div>
-    </div>
-    
-    {{ script_layout() }}
-</body>
-</html>
+{% endblock %}

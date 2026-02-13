@@ -2412,6 +2412,270 @@ body, html {
     }
 }
 
+/* ========================================
+   TABELA COMPACTA DE ITENS DA O.S.
+   ======================================== */
+.tabela-itens-os {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
 
+.tabela-itens-os thead th {
+    background: #495057;
+    color: white;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
 
+.tabela-itens-os tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    transition: background 0.15s;
+}
 
+.tabela-itens-os tbody tr:hover {
+    background: #f0f4ff;
+}
+
+.tabela-itens-os tbody td {
+    padding: 6px 10px;
+    vertical-align: middle;
+}
+
+.tabela-itens-os .item-descricao {
+    font-weight: 500;
+    color: #333;
+}
+
+.tabela-itens-os .item-categoria {
+    color: #6c757d;
+    font-size: 0.82rem;
+}
+
+.tabela-itens-os input[type="number"] {
+    width: 65px;
+    padding: 5px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    text-align: center;
+    background: white;
+}
+
+.tabela-itens-os input[type="number"]:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+}
+
+.tabela-itens-os .td-total {
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.tabela-itens-os .btn-remover-item {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.15s;
+    color: #dc3545;
+}
+
+.tabela-itens-os .btn-remover-item:hover {
+    background: #fee;
+}
+
+/* ========================================
+   MODAL SELETOR DE ITENS
+   ======================================== */
+.seletor-categoria {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.seletor-categoria:last-child {
+    border-bottom: none;
+}
+
+.seletor-cat-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    background: #f8f9fa;
+    transition: background 0.15s;
+    user-select: none;
+    gap: 10px;
+}
+
+.seletor-cat-header:hover {
+    background: #e9ecef;
+}
+
+.seletor-cat-header .cat-toggle {
+    font-size: 0.75rem;
+    color: #6c757d;
+    transition: transform 0.2s;
+    width: 16px;
+    text-align: center;
+}
+
+.seletor-cat-header .cat-toggle.aberto {
+    transform: rotate(90deg);
+}
+
+.seletor-cat-header .cat-nome {
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+}
+
+.seletor-cat-header .cat-contagem {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.seletor-cat-header .cat-badge {
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    min-width: 22px;
+    text-align: center;
+    display: none;
+}
+
+.seletor-cat-header .cat-badge.ativo {
+    display: inline-block;
+}
+
+.seletor-cat-itens {
+    display: none;
+    padding: 0;
+}
+
+.seletor-cat-itens.aberto {
+    display: block;
+}
+
+.seletor-item-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 15px 8px 40px;
+    gap: 12px;
+    border-top: 1px solid #f0f0f0;
+    transition: background 0.1s;
+}
+
+.seletor-item-row:hover {
+    background: #f8f9fa;
+}
+
+.seletor-item-row.selecionado {
+    background: #e8f5e9;
+}
+
+.seletor-item-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.seletor-item-row .item-nome {
+    flex: 1;
+    font-size: 0.92rem;
+    color: #333;
+    cursor: pointer;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.seletor-item-row .item-unidade {
+    font-size: 0.78rem;
+    color: #888;
+    flex-shrink: 0;
+    min-width: 50px;
+}
+
+.seletor-item-row .seletor-campo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.seletor-item-row .seletor-campo label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.seletor-item-row .seletor-campo input[type="number"] {
+    width: 60px;
+    padding: 4px 6px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.seletor-item-row .seletor-campo input[type="number"]:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.seletor-item-row.oculto {
+    display: none;
+}
+
+/* Mobile responsiveness for selector */
+@media (max-width: 768px) {
+    .seletor-item-row {
+        flex-wrap: wrap;
+        padding: 8px 10px 8px 25px;
+        gap: 8px;
+    }
+
+    .seletor-item-row .item-nome {
+        flex: 1 1 calc(100% - 30px);
+        order: 1;
+    }
+
+    .seletor-item-row input[type="checkbox"] {
+        order: 0;
+    }
+
+    .seletor-item-row .item-unidade {
+        order: 2;
+    }
+
+    .seletor-item-row .seletor-campo {
+        order: 3;
+    }
+
+    .tabela-itens-os {
+        font-size: 0.82rem;
+    }
+
+    .tabela-itens-os input[type="number"] {
+        width: 55px;
+    }
+}
+
+.text-muted {
+    color: #6c757d;
+}

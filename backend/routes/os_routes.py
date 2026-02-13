@@ -21,35 +21,39 @@ from controle_estoque import (
 os_bp = Blueprint('ordens_servico', __name__)
 
 
-def gerar_proximo_numero_os():
-    """Gera automaticamente o próximo número de O.S. no formato N/ANO"""
+def gerar_proximo_numero_os(modulo=None):
+    """Gera automaticamente o próximo número de O.S. no formato N/ANO, por módulo"""
     ano_atual = datetime.now().year
-    
-    # Buscar o último número do ano atual
-    ultima_os = OrdemServico.query.filter(
+
+    # Buscar o último número do ano atual para o módulo específico
+    query = OrdemServico.query.filter(
         OrdemServico.numero_os.like(f'%/{ano_atual}')
-    ).order_by(OrdemServico.id.desc()).first()
-    
+    )
+    if modulo:
+        query = query.filter(OrdemServico.modulo == modulo)
+
+    ultima_os = query.order_by(OrdemServico.id.desc()).first()
+
     if ultima_os:
         # Extrair o número da última O.S. (formato: "N/ANO")
         try:
             numero_atual = int(ultima_os.numero_os.split('/')[0])
             proximo_numero = numero_atual + 1
         except (ValueError, IndexError):
-            # Se não conseguir extrair, começar do 1
             proximo_numero = 1
     else:
-        # Primeira O.S. do ano
+        # Primeira O.S. do ano para este módulo
         proximo_numero = 1
-    
+
     return f"{proximo_numero}/{ano_atual}"
 
 
 @os_bp.route('/proximo-numero', methods=['GET'])
 def obter_proximo_numero():
-    """Retorna o próximo número de O.S. disponível"""
+    """Retorna o próximo número de O.S. disponível para o módulo"""
     try:
-        proximo_numero = gerar_proximo_numero_os()
+        modulo = request.args.get('modulo', 'coffee')
+        proximo_numero = gerar_proximo_numero_os(modulo)
         return jsonify({'proximoNumero': proximo_numero}), 200
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
@@ -111,8 +115,9 @@ def criar_ordem():
             print(f"  Qtd Total: {item.get('qtdTotal', 'MISSING')}")
         print("="*60 + "\n")
         
-        # Gerar próximo número automaticamente
-        numero_os_gerado = gerar_proximo_numero_os()
+        # Gerar próximo número automaticamente (por módulo)
+        modulo_os = dados.get('modulo') or request.args.get('modulo', 'coffee')
+        numero_os_gerado = gerar_proximo_numero_os(modulo_os)
         print(f"🔢 Número da O.S. gerado automaticamente: {numero_os_gerado}")
         
         # ✅ VALIDAR E OBTER REGIÃO DO GRUPO

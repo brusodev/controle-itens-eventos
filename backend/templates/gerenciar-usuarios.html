@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciar Usuários - Sistema</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Usuários - Sistema{% endblock %}
+
+{% block extra_css %}
     <style>
         * {
             margin: 0;
@@ -13,7 +10,7 @@
             box-sizing: border-box;
         }
 
-        
+
 
         /* Container */
         .container {
@@ -23,7 +20,7 @@
         }
 
         /* Header */
-        
+
 
         .page-header h1 {
             color: #333;
@@ -31,7 +28,7 @@
             margin: 0;
         }
 
-        
+
 
         .btn-primary:hover {
             transform: translateY(-2px);
@@ -365,7 +362,7 @@
                 padding: 0 15px;
             }
 
-            
+
 
             .page-header h1 {
                 font-size: 1.5rem;
@@ -394,16 +391,9 @@
             }
         }
     </style>
-</head>
-<body>
-    {% from "layout_parts.html" import sidebar, topbar, script_layout %}
-    
-    {{ sidebar(usuario_nome, usuario_perfil, request.path) }}
+{% endblock %}
 
-    <div class="main-wrapper">
-        {{ topbar(usuario_nome) }}
-
-        <div class="main-content">
+{% block content %}
             <div class="content-header">
                 <div>
                     <h1>👥 Gerenciamento de Usuários</h1>
@@ -438,8 +428,6 @@
                     <p>Clique no botão "Novo Usuário" para adicionar o primeiro usuário ao sistema</p>
                 </div>
             </div>
-        </div>
-    </div>
 
     <!-- Modal: Novo/Editar Usuário -->
     <div id="modalUsuario" class="modal">
@@ -451,7 +439,7 @@
             <div id="alertModal" class="alert"></div>
             <form id="formUsuario" onsubmit="salvarUsuario(event)">
                 <input type="hidden" id="usuarioId">
-                
+
                 <div class="form-group">
                     <label for="nome">Nome Completo *</label>
                     <input type="text" id="nome" required placeholder="Digite o nome completo">
@@ -505,11 +493,13 @@
             </form>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         let usuarios = [];
         let editandoId = null;
-        const usuarioPerfil = '{{ usuario_perfil }}'; // Perfil do usuário logado
+        const usuarioPerfil = '{{ usuario_perfil }}';
 
         // Carregar usuários ao carregar a página
         document.addEventListener('DOMContentLoaded', function() {
@@ -533,8 +523,8 @@
         function renderizarUsuarios(filtro = '') {
             const grid = document.getElementById('usersGrid');
             const emptyState = document.getElementById('emptyState');
-            
-            const usuariosFiltrados = usuarios.filter(u => 
+
+            const usuariosFiltrados = usuarios.filter(u =>
                 u.nome.toLowerCase().includes(filtro.toLowerCase()) ||
                 u.email.toLowerCase().includes(filtro.toLowerCase())
             );
@@ -603,21 +593,21 @@
             document.getElementById('modalTitulo').textContent = '➕ Novo Usuário';
             document.getElementById('formUsuario').reset();
             document.getElementById('usuarioId').value = '';
-            
+
             // Configurar senha como obrigatória para novo usuário
             document.getElementById('senhaGroup').style.display = 'block';
             document.getElementById('senhaLabel').textContent = 'Senha *';
             document.getElementById('senha').placeholder = 'Mínimo 6 caracteres';
             document.getElementById('senha').required = true;
             document.getElementById('senhaHelp').style.display = 'none';
-            
+
             document.getElementById('modalUsuario').classList.add('show');
         }
 
         function editarUsuario(id) {
             editandoId = id;
             const usuario = usuarios.find(u => u.id === id);
-            
+
             document.getElementById('modalTitulo').textContent = '✏️ Editar Usuário';
             document.getElementById('usuarioId').value = usuario.id;
             document.getElementById('nome').value = usuario.nome;
@@ -625,7 +615,7 @@
             document.getElementById('cargo').value = usuario.cargo || '';
             document.getElementById('perfil').value = usuario.perfil || 'comum';
             document.getElementById('ativo').value = usuario.ativo.toString();
-            
+
             // Mostrar campo de senha mas como opcional
             document.getElementById('senhaGroup').style.display = 'block';
             document.getElementById('senhaLabel').textContent = 'Nova Senha (opcional)';
@@ -633,7 +623,7 @@
             document.getElementById('senha').required = false;
             document.getElementById('senha').value = '';
             document.getElementById('senhaHelp').style.display = 'block';
-            
+
             document.getElementById('modalUsuario').classList.add('show');
         }
 
@@ -647,13 +637,13 @@
 
             const id = document.getElementById('usuarioId').value;
             const perfilSelecionado = document.getElementById('perfil').value;
-            
+
             // VALIDAÇÃO: Apenas admin pode criar/promover para admin
             if (perfilSelecionado === 'admin' && usuarioPerfil !== 'admin') {
                 mostrarAlertaModal('Apenas administradores podem criar ou promover usuários para administrador', 'error');
                 return;
             }
-            
+
             const dados = {
                 nome: document.getElementById('nome').value,
                 email: document.getElementById('email').value,
@@ -664,7 +654,7 @@
 
             // Incluir senha se for novo usuário OU se foi preenchida ao editar
             const senhaValue = document.getElementById('senha').value;
-            
+
             if (!id) {
                 // Novo usuário - senha obrigatória
                 dados.senha = senhaValue;
@@ -718,7 +708,7 @@
                 mostrarAlerta('Apenas administradores podem ativar/desativar usuários', 'error');
                 return;
             }
-            
+
             try {
                 const response = await fetch(`/auth/api/usuarios/${id}`, {
                     method: 'PUT',
@@ -745,7 +735,7 @@
                 mostrarAlerta('Apenas administradores podem deletar usuários', 'error');
                 return;
             }
-            
+
             if (!confirm('Tem certeza que deseja deletar este usuário? Esta ação não pode ser desfeita.')) {
                 return;
             }
@@ -781,12 +771,6 @@
             alert.className = `alert ${tipo === 'success' ? 'alert-success' : 'alert-error'} show`;
         }
 
-        function fazerLogout() {
-            if (confirm('Tem certeza que deseja sair do sistema?')) {
-                window.location.href = '/auth/logout';
-            }
-        }
-
         // Fechar modal ao clicar fora
         window.onclick = function(event) {
             const modal = document.getElementById('modalUsuario');
@@ -795,19 +779,4 @@
             }
         }
     </script>
-        </div>
-    </div>
-    
-    {{ script_layout() }}
-    <script>
-        // Atualizar título do módulo na topbar
-        document.addEventListener('DOMContentLoaded', () => {
-            const modulo = localStorage.getItem('modulo_atual') || 'coffee';
-            const titleElement = document.getElementById('page-module-title');
-            if (titleElement) {
-                titleElement.textContent = `Módulo: ${modulo === 'coffee' ? 'Coffee Break' : 'Transporte'}`;
-            }
-        });
-    </script>
-</body>
-</html>
+{% endblock %}

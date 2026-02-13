@@ -7,7 +7,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak, KeepTogether, CondPageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -163,21 +163,22 @@ class PDFOrdemServico:
         
         # Tabela de itens
         story.extend(self._criar_tabela_itens(dados_os))
-        story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
+        story.append(Spacer(1, 1.5*mm))
         
-        # Justificativa
+        # Justificativa (pode ficar separada se for muito longa)
         story.extend(self._criar_secao_justificativa(dados_os))
-        story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
+        story.append(Spacer(1, 1.5*mm))
         
         # Observações (se existir)
         if dados_os.get('observacoes'):
             story.extend(self._criar_secao_observacoes(dados_os))
-            story.append(Spacer(1, 1.5*mm))  # Reduzido de 3mm para 1.5mm
+            story.append(Spacer(1, 1.5*mm))
         
-        story.append(Spacer(1, 1*mm))  # Reduzido de 2mm para 1mm
-        
-        # Assinaturas
-        story.extend(self._criar_secao_assinaturas(dados_os))
+        # Assinaturas — SEMPRE manter juntas (nunca separar data/nomes/cargos)
+        # KeepTogether garante que, se não couber no espaço restante, vai tudo para a próxima página
+        bloco_assinaturas = [Spacer(1, 1*mm)]
+        bloco_assinaturas.extend(self._criar_secao_assinaturas(dados_os))
+        story.append(KeepTogether(bloco_assinaturas))
         
         # Construir PDF com numeração de página
         numero_os = self._get_safe(dados_os, 'numeroOS', 'N/A')

@@ -1,0 +1,911 @@
+// ========================================
+// MÓDULO: EMITIR-OS - Emissão de Ordens de Serviço
+// ========================================
+
+async function renderizarEmitirOS() {
+    // Carregar dados e grupos do módulo atual sempre que renderizar
+    console.log('📡 [Emitir OS] Carregando dados do módulo...');
+    dadosAlimentacao = await APIClient.listarAlimentacao();
+    await carregarGruposDropdown();
+
+    // Limpar itens anteriores
+    itensOSSelecionados = [];
+    renderizarTabelaItensOS();
+
+    // ✅ CORRIGIR: Restaurar botões do formulário
+    const containerBotoes = document.getElementById('botoes-formulario-os');
+    if (containerBotoes) {
+        containerBotoes.innerHTML = `
+            <button type="button" class="btn-small btn-primary" onclick="visualizarOS()">👁️ Visualizar O.S.</button>
+            <button type="submit" class="btn-small btn-success">✅ Emitir O.S.</button>
+        `;
+    }
+}
+
+async function carregarGruposDropdown() {
+    const grupoSelect = document.getElementById('os-grupo-select');
+    if (!grupoSelect) return;
+
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+
+    if (moduloAtual === 'organizacao') {
+        // Para organização: 3 grupos fixos com nomes + dropdown de detentora
+        const nomeGrupos = { 1: 'Capital/RMSP', 2: 'Interior', 3: 'Litoral' };
+        grupoSelect.innerHTML = '<option value="">-- Selecione o Grupo --</option>';
+        for (let g = 1; g <= 3; g++) {
+            const option = document.createElement('option');
+            option.value = g;
+            option.textContent = `Grupo ${g} - ${nomeGrupos[g]}`;
+            grupoSelect.appendChild(option);
+        }
+        // Mudar handler para carregar detentoras do grupo
+        grupoSelect.onchange = function() { onGrupoOrganizacaoChange(this.value); };
+        // Adicionar select de detentora se não existir
+        _criarDropdownDetentora();
+    } else {
+        try {
+            console.log('📡 [Emitir OS] Carregando grupos disponíveis...');
+            const grupos = await APIClient.obterGruposDetentoras();
+
+            grupoSelect.innerHTML = '<option value="">-- Selecione o Grupo --</option>';
+
+            if (grupos && grupos.length > 0) {
+                grupos.forEach(grupo => {
+                    const option = document.createElement('option');
+                    option.value = grupo;
+                    option.textContent = `Grupo ${grupo}`;
+                    grupoSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Nenhuma detentora cadastrada";
+                grupoSelect.appendChild(option);
+            }
+            // Restaurar handler padrão
+            grupoSelect.onchange = function() { carregarDadosDetentora(); };
+        } catch (error) {
+            console.error('❌ Erro ao carregar grupos:', error);
+        }
+    }
+}
+
+function _criarDropdownDetentora() {
+    // Verificar se já existe o select de detentora
+    let detentoraSelect = document.getElementById('os-detentora-select');
+    if (detentoraSelect) return;
+
+    // Encontrar o container do campo detentora e substituir por select
+    const detentoraInput = document.getElementById('os-detentora');
+    if (!detentoraInput) return;
+    const detentoraContainer = detentoraInput.parentElement;
+    detentoraContainer.innerHTML = `
+        <label for="os-detentora-select">Nome da Detentora *</label>
+        <select id="os-detentora-select" required onchange="onDetentoraOrganizacaoChange(this.value)">
+            <option value="">Selecione o Grupo primeiro</option>
+        </select>
+        <input type="hidden" id="os-detentora" value="">
+    `;
+}
+
+async function onGrupoOrganizacaoChange(grupo) {
+    const detentoraSelect = document.getElementById('os-detentora-select');
+    if (!detentoraSelect) return;
+
+    // Limpar campos de contrato
+    ['os-contrato-num', 'os-data-assinatura', 'os-prazo-vigencia', 'os-cnpj', 'os-servico'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const hiddenDet = document.getElementById('os-detentora');
+    if (hiddenDet) hiddenDet.value = '';
+
+    // Atualizar campo oculto de grupo
+    const grupoInput = document.getElementById('os-grupo');
+    if (grupoInput) grupoInput.value = grupo || '';
+
+    if (!grupo) {
+        detentoraSelect.innerHTML = '<option value="">Selecione o Grupo primeiro</option>';
+        return;
+    }
+
+    detentoraSelect.innerHTML = '<option value="">Carregando...</option>';
+
+    try {
+        const detentoras = await APIClient.listarDetentorasPorGrupo(grupo);
+        detentoraSelect.innerHTML = '<option value="">Selecione a Detentora</option>';
+
+        if (detentoras.length === 0) {
+            detentoraSelect.innerHTML = '<option value="">Nenhuma detentora cadastrada para este grupo</option>';
+            return;
+        }
+
+        detentoras.forEach(det => {
+            const option = document.createElement('option');
+            option.value = det.id;
+            option.textContent = det.nome;
+            option.setAttribute('data-contrato', det.contratoNum || '');
+            option.setAttribute('data-data-assinatura', det.dataAssinatura || '');
+            option.setAttribute('data-prazo', det.prazoVigencia || '');
+            option.setAttribute('data-cnpj', det.cnpj || '');
+            option.setAttribute('data-servico', det.servico || '');
+            option.setAttribute('data-nome', det.nome || '');
+            detentoraSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar detentoras:', error);
+        detentoraSelect.innerHTML = '<option value="">Erro ao carregar detentoras</option>';
+    }
+}
+
+function onDetentoraOrganizacaoChange(detentoraId) {
+    const detentoraSelect = document.getElementById('os-detentora-select');
+    if (!detentoraSelect || !detentoraId) return;
+
+    const opt = detentoraSelect.options[detentoraSelect.selectedIndex];
+
+    document.getElementById('os-contrato-num').value = opt.getAttribute('data-contrato') || '';
+    document.getElementById('os-cnpj').value = opt.getAttribute('data-cnpj') || '';
+    document.getElementById('os-servico').value = opt.getAttribute('data-servico') || '';
+    document.getElementById('os-detentora').value = opt.getAttribute('data-nome') || '';
+
+    const dataAss = opt.getAttribute('data-data-assinatura') || '';
+    if (dataAss) {
+        const inputData = document.getElementById('os-data-assinatura');
+        if (dataAss.includes('/')) {
+            const parts = dataAss.split('/');
+            if (parts.length === 3) inputData.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        } else {
+            inputData.value = dataAss;
+        }
+    }
+
+    document.getElementById('os-prazo-vigencia').value = opt.getAttribute('data-prazo') || '';
+}
+
+// ========================================
+// SELETOR DE ITENS EM LOTE (NOVO)
+// ========================================
+
+// itensOSSelecionados declarado em globals.js
+
+function abrirSeletorItens() {
+    if (!dadosAlimentacao || Object.keys(dadosAlimentacao).length === 0) {
+        alert('Nenhum item disponível. Verifique se há itens cadastrados para este módulo.');
+        return;
+    }
+
+    const container = document.getElementById('seletor-categorias');
+    container.innerHTML = '';
+
+    const categorias = Object.keys(dadosAlimentacao).sort();
+
+    categorias.forEach((cat, catIdx) => {
+        const catData = dadosAlimentacao[cat];
+        const catNome = formatarNomeCategoria(cat);
+        const itens = catData.itens || [];
+
+        // Quantos itens desta categoria já estão selecionados
+        const selecionadosNaCat = itensOSSelecionados.filter(i => i.categoria === cat).length;
+
+        const catDiv = document.createElement('div');
+        catDiv.className = 'seletor-categoria';
+        catDiv.setAttribute('data-cat', cat);
+
+        let itensHtml = '';
+        itens.forEach(item => {
+            const jaSelecionado = itensOSSelecionados.some(i => i.itemId === item.id && i.categoria === cat);
+            const itemExistente = jaSelecionado ? itensOSSelecionados.find(i => i.itemId === item.id && i.categoria === cat) : null;
+
+            itensHtml += `
+                <div class="seletor-item-row ${jaSelecionado ? 'selecionado' : ''}" data-item-id="${item.id}" data-cat="${cat}" data-nome="${item.descricao.toLowerCase()}">
+                    <input type="checkbox" ${jaSelecionado ? 'checked' : ''} onchange="toggleItemSeletor(this)">
+                    <span class="item-nome" onclick="this.previousElementSibling.click()">${item.descricao}</span>
+                    <span class="item-unidade">${item.unidade || ''}</span>
+                    <div class="seletor-campo">
+                        <label>Diárias:</label>
+                        <input type="number" class="seletor-diarias" min="1" value="${itemExistente ? itemExistente.diarias : 1}" placeholder="1">
+                    </div>
+                    <div class="seletor-campo">
+                        <label>Qtd:</label>
+                        <input type="number" class="seletor-qtd" min="0" value="${itemExistente ? itemExistente.qtdSolicitada : ''}" placeholder="0">
+                    </div>
+                </div>
+            `;
+        });
+
+        catDiv.innerHTML = `
+            <div class="seletor-cat-header" onclick="toggleCategoriaSeletor(this)">
+                <span class="cat-toggle">▶</span>
+                <span class="cat-nome">${catNome}</span>
+                <span class="cat-contagem">${itens.length} itens</span>
+                <span class="cat-badge ${selecionadosNaCat > 0 ? 'ativo' : ''}">${selecionadosNaCat}</span>
+            </div>
+            <div class="seletor-cat-itens">
+                ${itensHtml}
+            </div>
+        `;
+
+        container.appendChild(catDiv);
+    });
+
+    // Expandir a primeira categoria automaticamente
+    if (container.firstChild) {
+        const primeiroHeader = container.firstChild.querySelector('.seletor-cat-header');
+        if (primeiroHeader) toggleCategoriaSeletor(primeiroHeader);
+    }
+
+    // Limpar busca
+    document.getElementById('seletor-busca').value = '';
+    atualizarContadorSeletor();
+
+    document.getElementById('modal-seletor-itens').style.display = 'flex';
+}
+
+function fecharSeletorItens() {
+    document.getElementById('modal-seletor-itens').style.display = 'none';
+}
+
+function toggleCategoriaSeletor(header) {
+    const catDiv = header.parentElement;
+    const itensDiv = catDiv.querySelector('.seletor-cat-itens');
+    const toggle = header.querySelector('.cat-toggle');
+
+    const isOpen = itensDiv.classList.contains('aberto');
+    itensDiv.classList.toggle('aberto');
+    toggle.classList.toggle('aberto');
+}
+
+function expandirTodasCategorias() {
+    document.querySelectorAll('.seletor-cat-itens').forEach(el => el.classList.add('aberto'));
+    document.querySelectorAll('.cat-toggle').forEach(el => el.classList.add('aberto'));
+}
+
+function recolherTodasCategorias() {
+    document.querySelectorAll('.seletor-cat-itens').forEach(el => el.classList.remove('aberto'));
+    document.querySelectorAll('.cat-toggle').forEach(el => el.classList.remove('aberto'));
+}
+
+function toggleItemSeletor(checkbox) {
+    const row = checkbox.closest('.seletor-item-row');
+    row.classList.toggle('selecionado', checkbox.checked);
+
+    // Se marcou e não tem quantidade, focar no campo de quantidade
+    if (checkbox.checked) {
+        const qtdInput = row.querySelector('.seletor-qtd');
+        if (!qtdInput.value || qtdInput.value === '0') {
+            setTimeout(() => qtdInput.focus(), 50);
+        }
+    }
+
+    atualizarContadorSeletor();
+    atualizarBadgeCategoria(row.closest('.seletor-categoria'));
+}
+
+function atualizarContadorSeletor() {
+    const total = document.querySelectorAll('#seletor-categorias .seletor-item-row input[type="checkbox"]:checked').length;
+    document.getElementById('seletor-contador').textContent = `${total} ${total === 1 ? 'item selecionado' : 'itens selecionados'}`;
+}
+
+function atualizarBadgeCategoria(catDiv) {
+    const checked = catDiv.querySelectorAll('.seletor-item-row input[type="checkbox"]:checked').length;
+    const badge = catDiv.querySelector('.cat-badge');
+    badge.textContent = checked;
+    badge.classList.toggle('ativo', checked > 0);
+}
+
+function filtrarItensSeletor() {
+    const busca = document.getElementById('seletor-busca').value.toLowerCase().trim();
+
+    document.querySelectorAll('.seletor-item-row').forEach(row => {
+        const nome = row.getAttribute('data-nome');
+        const match = !busca || nome.includes(busca);
+        row.classList.toggle('oculto', !match);
+    });
+
+    // Mostrar/ocultar categorias sem itens visíveis
+    document.querySelectorAll('.seletor-categoria').forEach(catDiv => {
+        const visíveis = catDiv.querySelectorAll('.seletor-item-row:not(.oculto)').length;
+        catDiv.style.display = visíveis > 0 ? '' : 'none';
+
+        // Expandir categorias com resultados na busca
+        if (busca && visíveis > 0) {
+            catDiv.querySelector('.seletor-cat-itens').classList.add('aberto');
+            catDiv.querySelector('.cat-toggle').classList.add('aberto');
+        }
+    });
+}
+
+function confirmarSelecaoItens() {
+    const rows = document.querySelectorAll('#seletor-categorias .seletor-item-row input[type="checkbox"]:checked');
+
+    if (rows.length === 0) {
+        alert('Selecione pelo menos um item.');
+        return;
+    }
+
+    // Verificar que todos os itens marcados têm quantidade
+    let faltaQtd = false;
+    rows.forEach(cb => {
+        const row = cb.closest('.seletor-item-row');
+        const qtd = parseFloat(row.querySelector('.seletor-qtd').value) || 0;
+        if (qtd <= 0) faltaQtd = true;
+    });
+
+    if (faltaQtd) {
+        if (!confirm('Alguns itens selecionados estão sem quantidade. Deseja continuar? (itens sem quantidade serão ignorados)')) {
+            return;
+        }
+    }
+
+    // Coletar itens novos (que não estão já na lista)
+    rows.forEach(cb => {
+        const row = cb.closest('.seletor-item-row');
+        const itemId = parseInt(row.getAttribute('data-item-id'));
+        const cat = row.getAttribute('data-cat');
+        const diarias = parseInt(row.querySelector('.seletor-diarias').value) || 1;
+        const qtd = parseFloat(row.querySelector('.seletor-qtd').value) || 0;
+
+        if (qtd <= 0) return; // Ignorar sem quantidade
+
+        // Verificar se já existe na lista
+        const existente = itensOSSelecionados.findIndex(i => i.itemId === itemId && i.categoria === cat);
+
+        const catData = dadosAlimentacao[cat];
+        const item = catData.itens.find(i => i.id === itemId);
+        if (!item) return;
+
+        if (existente >= 0) {
+            // Atualizar quantidade e diárias
+            itensOSSelecionados[existente].diarias = diarias;
+            itensOSSelecionados[existente].qtdSolicitada = qtd;
+            itensOSSelecionados[existente].qtdTotal = diarias * qtd;
+        } else {
+            // Adicionar novo
+            itensOSSelecionados.push({
+                categoria: cat,
+                itemId: itemId,
+                descricao: item.descricao,
+                unidade: item.unidade || '',
+                itemBec: item.natureza || catData.natureza || '',
+                diarias: diarias,
+                qtdSolicitada: qtd,
+                qtdTotal: diarias * qtd
+            });
+        }
+    });
+
+    // Remover itens que foram desmarcados
+    const idsNoSeletor = new Set();
+    document.querySelectorAll('#seletor-categorias .seletor-item-row').forEach(row => {
+        const cb = row.querySelector('input[type="checkbox"]');
+        const itemId = parseInt(row.getAttribute('data-item-id'));
+        const cat = row.getAttribute('data-cat');
+        if (cb.checked) {
+            idsNoSeletor.add(`${cat}:${itemId}`);
+        }
+    });
+
+    itensOSSelecionados = itensOSSelecionados.filter(i => idsNoSeletor.has(`${i.categoria}:${i.itemId}`));
+
+    renderizarTabelaItensOS();
+    fecharSeletorItens();
+}
+
+// ========================================
+// TABELA COMPACTA DE ITENS
+// ========================================
+
+function renderizarTabelaItensOS() {
+    const tbody = document.getElementById('itens-os');
+    const msgVazio = document.getElementById('itens-os-vazio');
+    const btnLimpar = document.getElementById('btn-limpar-itens');
+    const tabela = document.getElementById('tabela-itens-os');
+
+    tbody.innerHTML = '';
+
+    if (itensOSSelecionados.length === 0) {
+        msgVazio.style.display = 'block';
+        tabela.style.display = 'none';
+        if (btnLimpar) btnLimpar.style.display = 'none';
+        return;
+    }
+
+    msgVazio.style.display = 'none';
+    tabela.style.display = 'table';
+    if (btnLimpar) btnLimpar.style.display = '';
+
+    itensOSSelecionados.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-idx', idx);
+
+        const total = (item.diarias || 1) * (item.qtdSolicitada || 0);
+        item.qtdTotal = total;
+
+        tr.innerHTML = `
+            <td style="text-align: center; color: #888;">${idx + 1}</td>
+            <td class="item-descricao">${item.descricao}</td>
+            <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
+            <td><input type="number" value="${item.diarias}" min="1" onchange="atualizarItemTabela(${idx}, 'diarias', this.value)"></td>
+            <td><input type="number" value="${item.qtdSolicitada}" min="0" onchange="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
+            <td class="td-total">${total}</td>
+            <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+function atualizarItemTabela(idx, campo, valor) {
+    if (idx < 0 || idx >= itensOSSelecionados.length) return;
+
+    if (campo === 'diarias') {
+        itensOSSelecionados[idx].diarias = parseInt(valor) || 1;
+    } else if (campo === 'qtd') {
+        itensOSSelecionados[idx].qtdSolicitada = parseFloat(valor) || 0;
+    }
+
+    // Recalcular total
+    const item = itensOSSelecionados[idx];
+    item.qtdTotal = (item.diarias || 1) * (item.qtdSolicitada || 0);
+
+    // Atualizar célula de total na tabela
+    const tr = document.querySelector(`#itens-os tr[data-idx="${idx}"]`);
+    if (tr) {
+        const totalCell = tr.querySelector('.td-total');
+        if (totalCell) totalCell.textContent = item.qtdTotal;
+    }
+}
+
+function removerItemOS(idx) {
+    itensOSSelecionados.splice(idx, 1);
+    renderizarTabelaItensOS();
+}
+
+function limparTodosItensOS() {
+    if (itensOSSelecionados.length === 0) return;
+    if (!confirm(`Remover todos os ${itensOSSelecionados.length} itens?`)) return;
+    itensOSSelecionados = [];
+    renderizarTabelaItensOS();
+}
+
+// Manter compatibilidade: adicionar avulso (modo antigo simplificado)
+function adicionarItemOS() {
+    if (!dadosAlimentacao || Object.keys(dadosAlimentacao).length === 0) {
+        alert('Nenhum item disponível. Verifique o módulo selecionado.');
+        return;
+    }
+    // Abrir o seletor diretamente como forma principal
+    abrirSeletorItens();
+}
+
+async function visualizarOS() {
+    const form = document.getElementById('form-emitir-os');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const dadosOS = coletarDadosOS();
+    if (!dadosOS) return;
+
+    // 🔍 DEBUG: Verificar dados coletados
+    console.log('\n' + '='.repeat(60));
+    console.log('🔍 DEBUG visualizarOS() - Dados coletados do formulário:');
+    console.log('='.repeat(60));
+    console.log('Total de itens:', dadosOS.itens.length);
+    dadosOS.itens.forEach((item, idx) => {
+        console.log(`\nItem ${idx + 1}:`);
+        console.log('  Descrição:', item.descricao);
+        console.log('  Diárias:', item.diarias, typeof item.diarias);
+        console.log('  Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
+        console.log('  Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
+    });
+    console.log('='.repeat(60) + '\n');
+
+    // 🔢 Buscar próximo número do backend se for nova O.S.
+    if (!osEditandoId) {
+        try {
+            const moduloAtualOS = localStorage.getItem('modulo_atual') || 'coffee';
+            const response = await fetch(`/api/ordens-servico/proximo-numero?modulo=${moduloAtualOS}`);
+            const data = await response.json();
+            dadosOS.numeroOS = data.proximoNumero;
+            console.log('🔢 Próximo número obtido do backend:', dadosOS.numeroOS);
+        } catch (error) {
+            console.error('❌ Erro ao buscar próximo número:', error);
+            alert('Erro ao buscar número da O.S. Verifique a conexão com o servidor.');
+            return;
+        }
+    }
+
+    const preview = gerarPreviewOS(dadosOS);
+    document.getElementById('preview-os').innerHTML = preview;
+    document.getElementById('modal-visualizar-os').style.display = 'flex';
+}
+
+function fecharModalVisualizarOS() {
+    const modal = document.getElementById('modal-visualizar-os');
+    modal.style.display = 'none';
+
+    // Limpar conteúdo para evitar exibir dados antigos na próxima abertura
+    const preview = document.getElementById('preview-os');
+    if (preview) {
+        preview.innerHTML = '<p style="text-align: center; padding: 20px;">Carregando...</p>';
+    }
+}
+
+function coletarDadosOS() {
+    // Construir itens a partir do array global itensOSSelecionados
+    const grupoSelect = document.getElementById('os-grupo-select');
+    const grupo = grupoSelect ? grupoSelect.value : document.getElementById('os-grupo').value || '1';
+
+    const itensOS = itensOSSelecionados.map((sel, index) => {
+        const catData = dadosAlimentacao[sel.categoria];
+        const item = catData ? catData.itens.find(i => i.id === sel.itemId) : null;
+
+        // Buscar preço da região
+        let valorUnit = 0;
+        if (item && item.regioes && item.regioes[grupo]) {
+            const precoOriginal = item.regioes[grupo].preco;
+            if (precoOriginal !== undefined && precoOriginal !== null) {
+                try {
+                    const precoStr = typeof precoOriginal === 'number'
+                        ? precoOriginal.toString()
+                        : String(precoOriginal).includes(',')
+                            ? String(precoOriginal).replace(/\./g, '').replace(',', '.')
+                            : String(precoOriginal);
+                    valorUnit = parseFloat(precoStr) || 0;
+                } catch (e) {
+                    valorUnit = 0;
+                }
+            }
+        }
+
+        return {
+            num: index + 1,
+            descricao: sel.descricao,
+            unidade: sel.unidade,
+            itemBec: sel.itemBec,
+            diarias: sel.diarias,
+            qtdSolicitada: sel.qtdSolicitada,
+            qtdTotal: sel.qtdTotal,
+            valorUnit: valorUnit,
+            categoria: sel.categoria,
+            itemId: sel.itemId
+        };
+    });
+
+    if (itensOS.length === 0) {
+        alert('Adicione pelo menos um item à O.S.');
+        return null;
+    }
+
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+
+    return {
+        modulo: moduloAtual,
+        servico: document.getElementById('os-servico').value || (moduloAtual === 'transporte' ? 'TRANSPORTE' : moduloAtual === 'organizacao' ? 'ORGANIZAÇÃO DE EVENTOS' : moduloAtual === 'hospedagem' ? 'HOSPEDAGEM' : 'COFFEE BREAK'),
+        contratoNum: document.getElementById('os-contrato-num').value,
+        dataAssinatura: document.getElementById('os-data-assinatura').value,
+        prazoVigencia: document.getElementById('os-prazo-vigencia').value,
+        detentora: document.getElementById('os-detentora').value,
+        cnpj: document.getElementById('os-cnpj').value,
+        servico: document.getElementById('os-servico').value,
+        grupo: document.getElementById('os-grupo').value,
+        evento: document.getElementById('os-evento').value,
+        dataEvento: document.getElementById('os-data-evento').value,
+        horario: document.getElementById('os-horario').value,
+        local: document.getElementById('os-local').value,
+        justificativa: document.getElementById('os-justificativa').value,
+        observacoes: document.getElementById('os-observacoes').value,  // ✅ Adicionar observações
+        gestor: document.getElementById('os-gestor').value,
+        fiscal: document.getElementById('os-fiscal').value,
+        fiscalTipo: document.getElementById('os-fiscal-tipo').value,  // ✅ Adicionar tipo de fiscal
+        responsavel: document.getElementById('os-responsavel').value,
+        itens: itensOS,
+        dataEmissao: new Date().toLocaleDateString('pt-BR'),
+        numeroOS: `${proximoIdOS}/2025`
+    };
+}
+
+function gerarPreviewOS(dados) {
+    // Garantir que valorUnit seja número para todos os itens
+    const valorTotal = dados.itens.reduce((sum, item) => {
+        const valor = parseFloat(item.valorUnit) || 0;
+        const qtd = parseFloat(item.qtdTotal) || 0;
+        return sum + (valor * qtd);
+    }, 0);
+
+    console.log('💰 gerarPreviewOS - Cálculo do valor total:');
+    console.log('   - Itens:', dados.itens.length);
+    dados.itens.forEach((item, idx) => {
+        const valor = parseFloat(item.valorUnit) || 0;
+        const qtd = parseFloat(item.qtdTotal) || 0;
+        const subTotal = valor * qtd;
+        console.log(`   Item ${idx + 1}: R$ ${valor.toFixed(2)} × ${qtd} = R$ ${subTotal.toFixed(2)}`);
+    });
+    console.log('   - TOTAL FINAL: R$', valorTotal.toFixed(2));
+
+    return `
+        <div class="os-document">
+            <div class="os-header">
+                <img src="/static/timbrado.png" alt="Logo" class="os-logo-img">
+                <div class="os-title">
+                    <h2>GOVERNO DO ESTADO DE SÃO PAULO</h2>
+                    <h3>SECRETARIA DE ESTADO DA EDUCAÇÃO</h3>
+                    <h3>COORDENADORIA GERAL DE SUPORTE ADMINISTRATIVO</h3>
+                    <h2 style="margin-top: 10px;">ORDEM DE SERVIÇO</h2>
+                </div>
+                <div class="os-info-box">
+                    <div>DATA DE EMISSÃO:</div>
+                    <div><strong>${dados.dataEmissao}</strong></div>
+                    <div style="margin-top: 5px;">NÚMERO:</div>
+                    <div><strong>${dados.numeroOS}</strong></div>
+                </div>
+            </div>
+
+            <div class="os-section">
+                <table class="os-table">
+                    <tr>
+                        <td style="width: 30%;"><strong>CONTRATO Nº:</strong></td>
+                        <td>${dados.contratoNum || ''}</td>
+                        <td style="width: 30%;"><strong>DATA ASSINATURA:</strong></td>
+                        <td>${dados.dataAssinatura || ''}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>DETENTORA:</strong></td>
+                        <td colspan="3">${dados.detentora}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SERVIÇO:</strong></td>
+                        <td>${dados.servico || ({'transporte':'TRANSPORTE','organizacao':'ORGANIZAÇÃO DE EVENTOS','hospedagem':'HOSPEDAGEM'}[localStorage.getItem('modulo_atual')] || 'COFFEE BREAK')}</td>
+                        <td><strong>PRAZO VIGÊNCIA:</strong></td>
+                        <td>${dados.prazoVigencia || ''}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CNPJ:</strong></td>
+                        <td>${dados.cnpj}</td>
+                        <td><strong>GRUPO:</strong></td>
+                        <td>${dados.grupo || ''}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="os-section">
+                <table class="os-table">
+                    <tr>
+                        <td style="width: 30%;"><strong>EVENTO:</strong></td>
+                        <td colspan="3">${dados.evento}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>DATA:</strong></td>
+                        <td colspan="3">${dados.dataEvento}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>HORÁRIO DO EVENTO:</strong></td>
+                        <td colspan="3">${dados.horario || ''}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>LOCAL DO EVENTO:</strong></td>
+                        <td colspan="3">${dados.local}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>RESPONSÁVEL:</strong></td>
+                        <td colspan="3">${dados.responsavel || ''}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="os-section">
+                <table class="os-items-table">
+                    <thead>
+                        <tr style="background-color: #c6e0b4;">
+                            <th style="width: 5%;">Nº</th>
+                            <th style="width: 25%;">DESCRIÇÃO</th>
+                            <th style="width: 10%;">ITEM BEC</th>
+                            <th style="width: 8%;">DIÁRIAS</th>
+                            <th style="width: 10%;">QTDE<br/>SOLICITADA</th>
+                            <th style="width: 12%;">QTDE<br/>SOLICITADA<br/>TOTAL</th>
+                            <th style="width: 15%;">VALOR UNIT.</th>
+                            <th style="width: 15%;">VALOR<br/>TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${dados.itens.map(item => {
+                            const diarias = parseInt(item.diarias) || 1;
+                            const qtdTotal = parseFloat(item.qtdTotal) || 0;
+                            const qtdSolicitada = parseFloat(item.qtdSolicitada) || (qtdTotal / diarias);
+                            const valorUnit = parseFloat(item.valorUnit) || 0;
+                            const valorTotalItem = valorUnit * qtdTotal;
+
+                            // Formatar números com separador de milhares
+                            const qtdSolFmt = qtdSolicitada.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                            const qtdTotalFmt = qtdTotal.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                            const valorUnitFmt = valorUnit.toFixed(2).replace('.', ',');
+                            const valorTotalFmt = valorTotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                            return `
+                            <tr style="background-color: #e2efd9;">
+                                <td style="text-align: center;">${item.num}</td>
+                                <td style="text-align: left; padding-left: 8px;">${item.descricao}</td>
+                                <td style="text-align: center;">${item.itemBec || ''}</td>
+                                <td style="text-align: center;">${diarias}</td>
+                                <td style="text-align: right; padding-right: 8px;">${qtdSolFmt}</td>
+                                <td style="text-align: right; padding-right: 8px;">${qtdTotalFmt}</td>
+                                <td style="text-align: right; padding-right: 8px;">R$ ${valorUnitFmt}</td>
+                                <td style="text-align: right; padding-right: 8px;">R$ ${valorTotalFmt}</td>
+                            </tr>
+                        `}).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background-color: #c6e0b4;">
+                            <td colspan="7" style="text-align: right; padding-right: 8px;"><strong>VALOR TOTAL:</strong></td>
+                            <td style="text-align: right; padding-right: 8px;"><strong>R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="os-section">
+                <p style="margin: 5px 0;"><strong>JUSTIFICATIVA:</strong></p>
+                <div class="os-justificativa">${(dados.justificativa || '').replace(/\n/g, '<br>')}</div>
+            </div>
+
+            ${dados.observacoes ? `
+            <div class="os-section">
+                <p style="margin: 5px 0;"><strong>OBSERVAÇÕES:</strong></p>
+                <div class="os-justificativa">${dados.observacoes.replace(/\n/g, '<br>')}</div>
+            </div>
+            ` : ''}
+
+            <div class="os-footer">
+                <p style="text-align: center; margin-bottom: 20px;">São Paulo, ${formatarDataExtenso(dados.dataEmissao)}.</p>
+                <div class="os-signatures">
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <p><strong>${dados.gestor}</strong></p>
+                        <p>Gestor do Contrato</p>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <p><strong>${dados.fiscal}</strong></p>
+                        <p>${dados.fiscalTipo || 'Fiscal do Contrato'}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Formulário de Emissão de O.S.
+document.getElementById('form-emitir-os').addEventListener('submit', function(e) {
+    e.preventDefault();
+    visualizarOS();
+});
+
+async function confirmarEmissaoOS() {
+    const dadosOS = coletarDadosOS();
+    if (!dadosOS) return;
+
+    console.log('🔍 confirmarEmissaoOS - Modo:', osEditandoId ? 'EDIÇÃO' : 'CRIAÇÃO');
+    console.log('📋 osEditandoId:', osEditandoId);
+
+    // 🔍 DEBUG: Verificar dados ANTES do mapeamento
+    console.log('\n' + '='.repeat(60));
+    console.log('🔍 DEBUG confirmarEmissaoOS() - ANTES do mapeamento:');
+    console.log('='.repeat(60));
+    dadosOS.itens.forEach((item, idx) => {
+        console.log(`\nItem ${idx + 1}:`);
+        console.log('  Descrição:', item.descricao);
+        console.log('  Diárias:', item.diarias, typeof item.diarias);
+        console.log('  Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
+        console.log('  Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
+    });
+    console.log('='.repeat(60) + '\n');
+
+    try {
+        // Mapear dados para o formato esperado pela API
+        const dadosAPI = {
+            numeroOS: dadosOS.numeroOS,
+            contrato: dadosOS.contratoNum,
+            dataAssinatura: dadosOS.dataAssinatura,
+            prazoVigencia: dadosOS.prazoVigencia,
+            detentora: dadosOS.detentora,
+            cnpj: dadosOS.cnpj,
+            servico: dadosOS.servico,
+            grupo: dadosOS.grupo,
+            evento: dadosOS.evento,
+            data: dadosOS.dataEvento,
+            horario: dadosOS.horario,
+            local: dadosOS.local,
+            justificativa: dadosOS.justificativa,
+            observacoes: dadosOS.observacoes,  // ✅ Adicionar observações
+            gestorContrato: dadosOS.gestor,
+            fiscalContrato: dadosOS.fiscal,
+            fiscalTipo: dadosOS.fiscalTipo,  // ✅ Adicionar tipo de fiscal
+            responsavel: dadosOS.responsavel,
+            modulo: localStorage.getItem('modulo_atual') || 'coffee',
+            itens: dadosOS.itens.map(item => ({
+                categoria: item.categoria,
+                itemId: item.itemId,
+                itemBec: item.itemBec,
+                descricao: item.descricao,
+                unidade: item.unidade,
+                diarias: item.diarias,  // ✅ Adicionar diárias
+                qtdSolicitada: item.qtdSolicitada,  // ✅ Adicionar quantidade solicitada
+                qtdTotal: item.qtdTotal,
+                valorUnit: item.valorUnit  // ✅ NOVO: Incluir preço unitário no envio à API
+            }))
+        };
+
+        // 🔍 DEBUG: Verificar dados DEPOIS do mapeamento
+        console.log('\n' + '='.repeat(60));
+        console.log('🔍 DEBUG confirmarEmissaoOS() - DEPOIS do mapeamento (dadosAPI):');
+        console.log('='.repeat(60));
+        dadosAPI.itens.forEach((item, idx) => {
+            console.log(`\nItem ${idx + 1}:`);
+            console.log('  Descrição:', item.descricao);
+            console.log('  Diárias:', item.diarias, typeof item.diarias);
+            console.log('  Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
+            console.log('  Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
+        });
+        console.log('='.repeat(60) + '\n');
+
+        console.log('🚀 Dados para enviar à API:', dadosAPI);
+
+        // Verificar se é criação ou atualização
+        const eraEdicao = !!osEditandoId; // Guardar estado antes de zerar
+
+        if (osEditandoId) {
+            // Atualizar O.S. existente (chamado pelo modal de visualização)
+            console.log(`📡 Enviando PUT para /api/ordens-servico/${osEditandoId}`);
+            const osAtualizada = await APIClient.atualizarOrdemServico(osEditandoId, dadosAPI);
+            console.log('✅ Resposta da API:', osAtualizada);
+            alert('O.S. atualizada com sucesso! Estoque recalculado.');
+
+            // Limpar estado de edição
+            osEditandoId = null;
+
+            // Restaurar botões originais
+            const containerBotoes = document.getElementById('botoes-formulario-os');
+            containerBotoes.innerHTML = `
+                <button type="button" class="btn-small btn-primary" onclick="visualizarOS()">👁️ Visualizar O.S.</button>
+                <button type="submit" class="btn-small btn-success">✅ Emitir O.S.</button>
+            `;
+        } else {
+            // Criar nova O.S.
+            const novaOS = await APIClient.criarOrdemServico(dadosAPI);
+            alert('O.S. emitida com sucesso! Estoque atualizado.');
+        }
+
+        // Limpar formulário e fechar modal
+        document.getElementById('form-emitir-os').reset();
+        itensOSSelecionados = [];
+        renderizarTabelaItensOS();
+        limparCamposDetentora(); // Limpar campos da Detentora também
+
+        // Recarregar dados ANTES de fechar modal
+        console.log('🔄 Recarregando alimentação...');
+        await renderizarAlimentacao();
+        console.log('🔄 Recarregando lista de O.S. do banco...');
+        await renderizarOrdensServico();
+        console.log('✅ Listas recarregadas com dados atualizados do banco!');
+
+        // Agora sim fechar modal
+        fecharModalVisualizarOS();
+        renderizarEmitirOS();
+
+        // Se criou nova O.S. (não edição), redirecionar para página de O.S.
+        if (!eraEdicao) {
+            console.log('📂 Nova O.S. criada - redirecionando para lista de Ordens de Serviço');
+            // Pequeno delay para garantir que o formulário foi limpo antes de redirecionar
+            setTimeout(() => {
+                window.location.href = '/ordens-servico';
+            }, 100);
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao emitir O.S.:', error);
+        alert('Erro ao emitir O.S.: ' + error.message);
+    }
+}

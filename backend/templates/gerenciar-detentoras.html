@@ -1,23 +1,12 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">Gerenciar Detentoras - Sistema</title>
-    <link id="favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>☕</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Detentoras - Sistema{% endblock %}
+
+{% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/detentoras.css') }}">
-</head>
-<body>
-    {% from "layout_parts.html" import sidebar, topbar, script_layout %}
-    
-    {{ sidebar(usuario_nome, usuario_perfil, request.path) }}
+{% endblock %}
 
-    <div class="main-wrapper">
-        {{ topbar(usuario_nome) }}
-
-        <div class="main-content">
+{% block content %}
             <div class="content-header">
                 <div>
                     <h1>🏢 Empresas Detentoras</h1>
@@ -38,8 +27,6 @@
                     <div id="lista-detentoras" class="cards-grid"></div>
                 </div>
             </div>
-        </div>
-    </div>
 
     <!-- Modal: Adicionar/Editar Detentora -->
     <div id="modal-detentora" class="modal">
@@ -47,10 +34,10 @@
             <span class="close" onclick="fecharModal()">&times;</span>
             <h2 id="modal-titulo">Nova Detentora</h2>
             <div id="alerta-modal" style="margin-bottom: 15px;"></div>
-            
+
             <form id="form-detentora" onsubmit="salvarDetentora(event)">
                 <input type="hidden" id="detentora-id">
-                
+
                 <div class="form-group">
                     <label for="grupo">Grupo/Região *</label>
                     <select id="grupo" required>
@@ -74,7 +61,7 @@
 
                 <div class="form-group">
                     <label for="cnpj">CNPJ *</label>
-                    <input type="text" id="cnpj" required placeholder="00.000.000/0000-00" maxlength="18" 
+                    <input type="text" id="cnpj" required placeholder="00.000.000/0000-00" maxlength="18"
                            oninput="mascaraCNPJ(this)">
                 </div>
 
@@ -113,8 +100,9 @@
             </form>
         </div>
     </div>
+{% endblock %}
 
-    {{ script_layout() }}
+{% block scripts %}
     <script>
         const usuarioPerfil = '{{ usuario_perfil }}';
         let detentoras = [];
@@ -122,7 +110,7 @@
         // Máscara para CNPJ
         function mascaraCNPJ(input) {
             let valor = input.value.replace(/\D/g, ''); // Remove tudo que não é dígito
-            
+
             if (valor.length <= 14) {
                 // Aplica a máscara: 00.000.000/0000-00
                 valor = valor.replace(/^(\d{2})(\d)/, '$1.$2');
@@ -130,7 +118,7 @@
                 valor = valor.replace(/\.(\d{3})(\d)/, '.$1/$2');
                 valor = valor.replace(/(\d{4})(\d)/, '$1-$2');
             }
-            
+
             input.value = valor;
         }
 
@@ -140,22 +128,16 @@
         document.addEventListener('DOMContentLoaded', function() {
             configurarModulo();
             carregarDetentoras();
-            
-            // Atualizar título do módulo na topbar
-            const titleElement = document.getElementById('page-module-title');
-            if (titleElement) {
-                titleElement.textContent = `Módulo: ${moduloAtual === 'coffee' ? 'Coffee Break' : 'Transporte'}`;
-            }
         });
 
         function configurarModulo() {
             const isTransporte = moduloAtual === 'transporte';
             const titulo = isTransporte ? 'Transportes' : 'Coffee Break';
             const emoji = isTransporte ? '🚗' : '☕';
-            
+
             document.getElementById('page-title').textContent = `Gerenciar Detentoras - ${titulo}`;
             document.getElementById('favicon').href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>${emoji}</text></svg>`;
-            
+
             // Ajustar o campo "Serviço" padrão no modal
             const servicoInput = document.getElementById('servico');
             if (servicoInput) {
@@ -180,22 +162,22 @@
 
         function formatarData(dataString) {
             if (!dataString) return '';
-            
+
             // Se já está no formato DD/MM/YYYY
             if (dataString.includes('/')) return dataString;
-            
+
             // Se está no formato YYYY-MM-DD
             const partes = dataString.split('-');
             if (partes.length === 3) {
                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
             }
-            
+
             return dataString;
         }
 
         function renderizarDetentoras() {
             const container = document.getElementById('lista-detentoras');
-            
+
             if (detentoras.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state" style="grid-column: 1 / -1;">
@@ -215,7 +197,7 @@
                             ${d.ativo ? '✓ Ativo' : '✗ Inativo'}
                         </span>
                     </div>
-                    
+
                     <div class="detentora-info">
                         <strong>Empresa:</strong> <span>${d.nome}</span>
                     </div>
@@ -234,7 +216,7 @@
                     <div class="detentora-info">
                         <strong>Serviço:</strong> <span>${d.servico}</span>
                     </div>
-                    
+
                     <div class="detentora-actions">
                         <button class="btn btn-small btn-warning" onclick="editarDetentora(${d.id})">
                             ✏️ Editar
@@ -251,11 +233,11 @@
             document.getElementById('modal-titulo').textContent = 'Nova Detentora';
             document.getElementById('form-detentora').reset();
             document.getElementById('detentora-id').value = '';
-            
+
             // Definir serviço padrão baseado no módulo
             const isTransporte = moduloAtual === 'transporte';
             document.getElementById('servico').value = isTransporte ? 'SERVIÇOS DE TRANSPORTE' : 'COFFEE BREAK';
-            
+
             document.getElementById('modal-detentora').style.display = 'block';
         }
 
@@ -273,7 +255,7 @@
             document.getElementById('prazo-vigencia').value = detentora.prazoVigencia || '';
             document.getElementById('servico').value = detentora.servico;
             document.getElementById('ativo').value = detentora.ativo.toString();
-            
+
             document.getElementById('modal-detentora').style.display = 'block';
         }
 
@@ -290,7 +272,7 @@
                 prazoVigencia: document.getElementById('prazo-vigencia').value,
                 servico: document.getElementById('servico').value,
                 ativo: document.getElementById('ativo').value === 'true',
-                modulo: moduloAtual // ✅ Incluindo o módulo atual
+                modulo: moduloAtual
             };
 
             try {
@@ -347,21 +329,21 @@
         }
 
         function mostrarAlerta(mensagem, tipo, noModal = false) {
-            const container = noModal 
+            const container = noModal
                 ? document.getElementById('alerta-modal')
                 : document.getElementById('alertas');
-            
+
             const alerta = document.createElement('div');
             alerta.className = `alert alert-${tipo}`;
             alerta.textContent = mensagem;
-            
+
             // Limpar alertas anteriores se estiver no modal
             if (noModal) {
                 container.innerHTML = '';
             }
-            
+
             container.appendChild(alerta);
-            
+
             setTimeout(() => {
                 alerta.remove();
             }, 5000);
@@ -375,6 +357,4 @@
             }
         }
     </script>
-    {{ script_layout() }}
-</body>
-</html>
+{% endblock %}

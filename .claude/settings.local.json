@@ -12,7 +12,12 @@
       "Bash(dir:*)",
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(move:*)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(du:*)"
     ]
   }
 }

@@ -189,9 +189,12 @@ class Detentora(db.Model):
 class OrdemServico(db.Model):
     """Ordens de Serviço emitidas"""
     __tablename__ = 'ordens_servico'
-    
+    __table_args__ = (
+        db.UniqueConstraint('numero_os', 'modulo', name='_numero_os_modulo_uc'),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
-    numero_os = db.Column(db.String(50), unique=True, nullable=False)
+    numero_os = db.Column(db.String(50), nullable=False)
     
     # Referência à Detentora (opcional - mantém compatibilidade)
     detentora_id = db.Column(db.Integer, db.ForeignKey('detentoras.id'), nullable=True)

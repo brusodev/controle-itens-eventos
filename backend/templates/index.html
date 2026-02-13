@@ -1,12 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Itens</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>☕</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+{% extends "base.html" %}
+
+{% block title %}Controle de Itens{% endblock %}
+
+{% block extra_css %}
     <style>
         /* Estilos específicos da Dashboard */
         .dashboard-grid {
@@ -23,16 +19,9 @@
             }
         }
     </style>
-</head>
-<body>
-    {% from "layout_parts.html" import sidebar, topbar, script_layout %}
-    
-    {{ sidebar(usuario_nome, usuario_perfil, request.path) }}
+{% endblock %}
 
-    <div class="main-wrapper" id="main-content">
-        {{ topbar(usuario_nome) }}
-
-        <div class="main-content">
+{% block content %}
             <div class="page-container">
             <!-- Aba: Estoque -->
             <section id="tab-estoque" class="tab-content {{ 'active' if not secao_ativa or secao_ativa == 'estoque' }}" style="display: {{ 'block' if not secao_ativa or secao_ativa == 'estoque' else 'none' }};">
@@ -194,7 +183,7 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="os-fiscal">Nome do(a) Fiscal *</label>
                         <input type="text" id="os-fiscal" required placeholder="Julia Nascimento Tomas" style="width: 380px;" list="lista-fiscais">
@@ -202,13 +191,37 @@
                     </div>
 
                     <h3>Itens da Ordem de Serviço</h3>
-                    <div id="itens-os" class="itens-lista">
-                        <!-- Itens serão adicionados dinamicamente -->
+
+                    <!-- Tabela compacta de itens selecionados -->
+                    <div id="itens-os-container" style="overflow-x: auto;">
+                        <table id="tabela-itens-os" class="tabela-itens-os">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35px;">#</th>
+                                    <th>Descrição</th>
+                                    <th style="width: 130px;">Categoria</th>
+                                    <th style="width: 80px;">Diárias</th>
+                                    <th style="width: 90px;">Qtd</th>
+                                    <th style="width: 80px;">Total</th>
+                                    <th style="width: 45px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="itens-os">
+                                <!-- Itens selecionados aparecem aqui -->
+                            </tbody>
+                        </table>
+                        <p id="itens-os-vazio" class="text-muted" style="text-align: center; padding: 20px; display: block;">
+                            Nenhum item adicionado. Clique em "Selecionar Itens" para começar.
+                        </p>
                     </div>
 
-                    <button type="button" class="btn-small btn-secondary" onclick="adicionarItemOS()">➕ Adicionar Item</button>
-                    <br><br>
-                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                        <button type="button" class="btn-small btn-primary" onclick="abrirSeletorItens()">📋 Selecionar Itens</button>
+                        <button type="button" class="btn-small btn-secondary" onclick="adicionarItemOS()">➕ Adicionar Avulso</button>
+                        <button type="button" class="btn-small btn-danger" onclick="limparTodosItensOS()" id="btn-limpar-itens" style="display: none;">🗑️ Limpar Todos</button>
+                    </div>
+                    <br>
+
                     <!-- Botões de ação do formulário -->
                     <div id="botoes-formulario-os" class="form-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button type="button" class="btn btn-primary" onclick="visualizarOS()">👁️ Visualizar O.S.</button>
@@ -257,7 +270,7 @@
                             <h3>📋 Ordens de Serviço</h3>
                             <p>Relatório completo de O.S. emitidas com filtros por período, região e contratada</p>
                         </div>
-                        
+
                         <div class="relatorio-filtros">
                             <div class="form-group">
                                 <label>Data Início:</label>
@@ -288,7 +301,7 @@
                                 <input type="text" id="rel-os-servico" class="form-control" placeholder="Tipo de serviço">
                             </div>
                         </div>
-                        
+
                         <div class="relatorio-acoes">
                             <button class="btn-small btn-primary" onclick="gerarRelatorioOS()">
                                 📊 Gerar Relatório
@@ -312,7 +325,7 @@
                             <h3>📦 Posição de Estoque</h3>
                             <p>Visualize o estoque atual, consumo e disponibilidade por região</p>
                         </div>
-                        
+
                         <div class="relatorio-filtros">
                             <div class="form-group">
                                 <label>Categoria:</label>
@@ -333,7 +346,7 @@
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="relatorio-acoes">
                             <button class="btn-small btn-primary" onclick="gerarRelatorioEstoque()">
                                 📊 Gerar Relatório
@@ -356,7 +369,7 @@
                             <h3>🔄 Movimentações de Estoque</h3>
                             <p>Histórico detalhado de entradas e saídas</p>
                         </div>
-                        
+
                         <div class="relatorio-filtros">
                             <div class="form-group">
                                 <label>Data Início:</label>
@@ -387,7 +400,7 @@
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="relatorio-acoes">
                             <button class="btn-small btn-primary" onclick="gerarRelatorioMovimentacoes()">
                                 📊 Gerar Relatório
@@ -407,7 +420,7 @@
                             <h3>📈 Consumo por Categoria</h3>
                             <p>Análise consolidada do consumo agrupado por categoria</p>
                         </div>
-                        
+
                         <div class="relatorio-filtros">
                             <div class="form-group">
                                 <label>Data Início:</label>
@@ -418,7 +431,7 @@
                                 <input type="date" id="rel-cat-data-fim" class="form-control">
                             </div>
                         </div>
-                        
+
                         <div class="relatorio-acoes">
                             <button class="btn-small btn-primary" onclick="gerarRelatorioCategoria()">
                                 📊 Gerar Relatório
@@ -437,7 +450,7 @@
                             <h3>🏆 Itens Mais Utilizados</h3>
                             <p>Ranking dos itens com maior consumo</p>
                         </div>
-                        
+
                         <div class="relatorio-filtros">
                             <div class="form-group">
                                 <label>Data Início:</label>
@@ -457,7 +470,7 @@
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="relatorio-acoes">
                             <button class="btn-small btn-primary" onclick="gerarRelatorioTopItens()">
                                 📊 Gerar Relatório
@@ -514,7 +527,7 @@
                     </div>
 
                     <h3>Itens Solicitados</h3>
-                    
+
                     <div class="kit-selector">
                         <label>Ou adicione um kit completo:</label>
                         <div class="form-row">
@@ -634,7 +647,7 @@
 
                     <div class="form-group">
                         <label for="categoria-id">Identificador Interno (Slug) *</label>
-                        <input type="text" id="categoria-id" required placeholder="ex: veiculos_leves" 
+                        <input type="text" id="categoria-id" required placeholder="ex: veiculos_leves"
                                pattern="[a-z0-9_]+" title="Apenas letras minúsculas, números e underscore">
                         <small style="color: #666;">Usado para referências no banco de dados.</small>
                     </div>
@@ -678,7 +691,7 @@
             <div class="modal-content modal-large">
                 <span class="close" onclick="fecharModalKit()">&times;</span>
                 <h2 id="modal-kit-titulo">Criar Novo Kit</h2>
-                
+
                 <form id="form-kit">
                     <div class="form-group">
                         <label for="kit-nome">Nome do Kit *</label>
@@ -738,24 +751,66 @@
             </div>
         </div>
 
-        </div> <!-- main-content -->
-    </div> <!-- main-wrapper -->
+        <!-- Modal: Seletor de Itens em Lote -->
+        <div id="modal-seletor-itens" class="modal">
+            <div class="modal-content modal-large" style="max-width: 900px;">
+                <span class="close" onclick="fecharSeletorItens()">&times;</span>
+                <h2 style="margin-bottom: 5px;">📋 Selecionar Itens</h2>
+                <p class="text-muted" style="margin-bottom: 15px; font-size: 0.9rem;">Marque os itens desejados, defina as quantidades e clique em "Adicionar Selecionados".</p>
 
-    <!-- Loading Overlay -->
-        <div id="loading-overlay" class="loading-overlay">
-            <div class="spinner"></div>
-            <p>Carregando...</p>
+                <!-- Busca -->
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="seletor-busca" placeholder="🔍 Buscar item por nome..." oninput="filtrarItensSeletor()" style="width: 100%; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 8px; font-size: 1rem;">
+                </div>
+
+                <!-- Ações rápidas -->
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn-small btn-secondary" onclick="expandirTodasCategorias()">▼ Expandir Todas</button>
+                    <button type="button" class="btn-small btn-secondary" onclick="recolherTodasCategorias()">▶ Recolher Todas</button>
+                    <span id="seletor-contador" style="margin-left: auto; font-weight: 600; color: #495057;">0 itens selecionados</span>
+                </div>
+
+                <!-- Lista de categorias/itens -->
+                <div id="seletor-categorias" style="max-height: 55vh; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px;">
+                    <!-- Preenchido via JS -->
+                </div>
+
+                <!-- Rodapé do modal -->
+                <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharSeletorItens()">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="confirmarSelecaoItens()">✅ Adicionar Selecionados</button>
+                </div>
+            </div>
         </div>
+{% endblock %}
 
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <script>
-            // Variáveis globais para o app.js
-            window.usuarioPerfil = "{{ usuario_perfil }}";
-            window.usuarioNome = "{{ usuario_nome }}";
-        </script>
-        <script src="{{ url_for('static', filename='js/api-client.js') }}?v=1.4"></script>
-        <script src="{{ url_for('static', filename='js/app.js') }}?v=1.9"></script>
-    {{ script_layout() }}
-    </body>
-</html>
+{% block before_scripts %}
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Carregando...</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        // Variáveis globais para o app.js
+        window.usuarioPerfil = "{{ usuario_perfil }}";
+        window.usuarioNome = "{{ usuario_nome }}";
+    </script>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/api-client.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/init.js') }}?v=2.2"></script>
+{% endblock %}
