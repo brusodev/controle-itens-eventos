@@ -7,6 +7,7 @@ from routes.auth_routes import login_requerido, admin_requerido  # ✅ Importar 
 from utils.auditoria import registrar_auditoria
 import sys
 import os
+import json
 
 # Adicionar o diretório utils ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'utils'))
@@ -157,7 +158,8 @@ def criar_ordem():
             fiscal_contrato=dados.get('fiscalContrato'),
             fiscal_tipo=dados.get('fiscalTipo', 'Fiscal do Contrato'),
             responsavel=dados.get('responsavel'),
-            data_emissao_completa=datetime.now().isoformat()
+            data_emissao_completa=datetime.now().isoformat(),
+            signatarios_json=json.dumps(dados['signatarios'], ensure_ascii=False) if dados.get('signatarios') else None
         )
         db.session.add(os)
         db.session.flush()  # Para obter o ID
@@ -296,7 +298,9 @@ def atualizar_ordem(os_id):
         os.fiscal_contrato = dados.get('fiscalContrato', os.fiscal_contrato)
         os.fiscal_tipo = dados.get('fiscalTipo', os.fiscal_tipo)
         os.responsavel = dados.get('responsavel', os.responsavel)
-        
+        if dados.get('signatarios'):
+            os.signatarios_json = json.dumps(dados['signatarios'], ensure_ascii=False)
+
         # Adicionar novos itens
         itens_os = []
         for item_os_data in dados.get('itens', []):

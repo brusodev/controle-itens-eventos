@@ -498,9 +498,9 @@ class PDFOrdemServico:
         return elements
     
     def _criar_secao_assinaturas(self, dados):
-        """Cria seção de assinaturas"""
+        """Cria seção de assinaturas dinâmicas (N signatários em linhas de 2)"""
         elements = []
-        
+
         # Texto de local e data (centralizado) - formato extenso
         data_emissao = self._formatar_data(self._get_safe(dados, 'dataEmissao'), formato='extenso')
         data_paragraph = Paragraph(
@@ -509,42 +509,68 @@ class PDFOrdemServico:
                 'DataAssinatura',
                 parent=self.styles['CustomNormal'],
                 alignment=TA_CENTER,
-                fontSize=7,  # Reduzir fonte
-                spaceAfter=4*mm  # Reduzido de 8mm para 4mm
+                fontSize=7,
+                spaceAfter=4*mm
             )
         )
         elements.append(data_paragraph)
-        
-        # Linhas de assinatura
-        gestor = self._get_safe(dados, 'gestorContrato')
-        fiscal = self._get_safe(dados, 'fiscalContrato')
-        fiscal_tipo = self._get_safe(dados, 'fiscalTipo', 'Fiscal do Contrato')  # ✅ Adicionar tipo de fiscal
-        
+
+        # Obter lista de signatários (novo campo JSON ou fallback legado)
+        signatarios = dados.get('signatarios', [])
+        if not signatarios:
+            # Fallback para campos legados
+            gestor = self._get_safe(dados, 'gestorContrato')
+            fiscal = self._get_safe(dados, 'fiscalContrato')
+            fiscal_tipo = self._get_safe(dados, 'fiscalTipo', 'Fiscal do Contrato')
+            if gestor:
+                signatarios.append({'cargo': 'Gestor do Contrato', 'nome': gestor})
+            if fiscal:
+                signatarios.append({'cargo': fiscal_tipo, 'nome': fiscal})
+
+        if not signatarios:
+            return elements
+
         # Criar estilo centralizado para assinaturas
         sig_style = ParagraphStyle(
             'Assinatura',
             parent=self.styles['CustomNormal'],
             alignment=TA_CENTER,
-            fontSize=8  # Fonte reduzida
+            fontSize=8
         )
-        
-        sig_data = [
-            ['_' * 25, '_' * 25],
-            [Paragraph(f'<b>{gestor}</b>', sig_style),
-             Paragraph(f'<b>{fiscal}</b>', sig_style)],
-            [Paragraph('Gestor do Contrato', sig_style),
-             Paragraph(fiscal_tipo, sig_style)]  # ✅ Usar tipo dinâmico
-        ]
-        
-        sig_table = Table(sig_data, colWidths=[85*mm, 85*mm])
-        sig_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('TOPPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
-        ]))
-        
-        elements.append(sig_table)
-        
+
+        # Renderizar em linhas de 2
+        for i in range(0, len(signatarios), 2):
+            par = signatarios[i:i+2]
+
+            if len(par) == 2:
+                sig_data = [
+                    ['_' * 25, '_' * 25],
+                    [Paragraph(f'<b>{par[0]["nome"]}</b>', sig_style),
+                     Paragraph(f'<b>{par[1]["nome"]}</b>', sig_style)],
+                    [Paragraph(par[0]['cargo'], sig_style),
+                     Paragraph(par[1]['cargo'], sig_style)]
+                ]
+                sig_table = Table(sig_data, colWidths=[85*mm, 85*mm])
+            else:
+                # Ímpar: centralizar o último
+                sig_data = [
+                    ['_' * 25],
+                    [Paragraph(f'<b>{par[0]["nome"]}</b>', sig_style)],
+                    [Paragraph(par[0]['cargo'], sig_style)]
+                ]
+                sig_table = Table(sig_data, colWidths=[85*mm])
+
+            sig_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('TOPPADDING', (0, 1), (-1, -1), 2),
+            ]))
+
+            elements.append(sig_table)
+            # Espaço entre linhas de assinaturas
+            if i + 2 < len(signatarios):
+                elements.append(Spacer(1, 3*mm))
+
         return elements
 
 

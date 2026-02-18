@@ -12,6 +12,9 @@ async function renderizarEmitirOS() {
     itensOSSelecionados = [];
     renderizarTabelaItensOS();
 
+    // Inicializar signatários dinâmicos
+    inicializarSignatarios();
+
     // ✅ CORRIGIR: Restaurar botões do formulário
     const containerBotoes = document.getElementById('botoes-formulario-os');
     if (containerBotoes) {
@@ -598,9 +601,10 @@ function coletarDadosOS() {
         local: document.getElementById('os-local').value,
         justificativa: document.getElementById('os-justificativa').value,
         observacoes: document.getElementById('os-observacoes').value,  // ✅ Adicionar observações
-        gestor: document.getElementById('os-gestor').value,
-        fiscal: document.getElementById('os-fiscal').value,
-        fiscalTipo: document.getElementById('os-fiscal-tipo').value,  // ✅ Adicionar tipo de fiscal
+        signatarios: signatariosOS.filter(s => s.nome.trim() !== ''),
+        gestor: signatariosOS[0]?.nome || '',
+        fiscal: signatariosOS[1]?.nome || '',
+        fiscalTipo: signatariosOS[1]?.cargo || 'Fiscal do Contrato',
         responsavel: document.getElementById('os-responsavel').value,
         itens: itensOS,
         dataEmissao: new Date().toLocaleDateString('pt-BR'),
@@ -760,18 +764,7 @@ function gerarPreviewOS(dados) {
 
             <div class="os-footer">
                 <p style="text-align: center; margin-bottom: 20px;">São Paulo, ${formatarDataExtenso(dados.dataEmissao)}.</p>
-                <div class="os-signatures">
-                    <div class="signature-box">
-                        <div class="signature-line"></div>
-                        <p><strong>${dados.gestor}</strong></p>
-                        <p>Gestor do Contrato</p>
-                    </div>
-                    <div class="signature-box">
-                        <div class="signature-line"></div>
-                        <p><strong>${dados.fiscal}</strong></p>
-                        <p>${dados.fiscalTipo || 'Fiscal do Contrato'}</p>
-                    </div>
-                </div>
+                ${gerarSignatariosPreview(dados)}
             </div>
         </div>
     `;
@@ -819,10 +812,11 @@ async function confirmarEmissaoOS() {
             horario: dadosOS.horario,
             local: dadosOS.local,
             justificativa: dadosOS.justificativa,
-            observacoes: dadosOS.observacoes,  // ✅ Adicionar observações
+            observacoes: dadosOS.observacoes,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
-            fiscalTipo: dadosOS.fiscalTipo,  // ✅ Adicionar tipo de fiscal
+            fiscalTipo: dadosOS.fiscalTipo,
+            signatarios: dadosOS.signatarios,
             responsavel: dadosOS.responsavel,
             modulo: localStorage.getItem('modulo_atual') || 'coffee',
             itens: dadosOS.itens.map(item => ({
@@ -908,4 +902,83 @@ async function confirmarEmissaoOS() {
         console.error('❌ Erro ao emitir O.S.:', error);
         alert('Erro ao emitir O.S.: ' + error.message);
     }
+}
+
+// ========================================
+// SIGNATÁRIOS DINÂMICOS
+// ========================================
+
+function inicializarSignatarios() {
+    // Se já tem signatários (modo edição), apenas renderizar
+    if (signatariosOS.length > 0) {
+        renderizarSignatarios();
+        return;
+    }
+    // Default: 2 linhas (Gestor + Fiscal)
+    signatariosOS = [
+        { cargo: 'Gestor do Contrato', nome: '' },
+        { cargo: 'Fiscal do Contrato', nome: '' }
+    ];
+    renderizarSignatarios();
+}
+
+function renderizarSignatarios() {
+    const container = document.getElementById('signatarios-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+    signatariosOS.forEach((sig, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 6px;';
+
+        const removivel = signatariosOS.length > 2;
+
+        row.innerHTML = `
+            <input type="text" list="lista-cargos-signatario" value="${sig.cargo}"
+                   placeholder="Cargo" style="flex: 1; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px;"
+                   onchange="atualizarSignatario(${idx}, 'cargo', this.value)">
+            <input type="text" list="lista-nomes-signatario" value="${sig.nome}"
+                   placeholder="Nome completo" style="flex: 1.5; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px;"
+                   onchange="atualizarSignatario(${idx}, 'nome', this.value)"
+                   oninput="atualizarSignatario(${idx}, 'nome', this.value)">
+            ${removivel ? `<button type="button" onclick="removerSignatario(${idx})" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer;" title="Remover">✕</button>` : '<div style="width: 34px;"></div>'}
+        `;
+        container.appendChild(row);
+    });
+}
+
+function adicionarSignatario() {
+    signatariosOS.push({ cargo: '', nome: '' });
+    renderizarSignatarios();
+}
+
+function removerSignatario(index) {
+    if (signatariosOS.length <= 2) return;
+    signatariosOS.splice(index, 1);
+    renderizarSignatarios();
+}
+
+function atualizarSignatario(index, campo, valor) {
+    if (signatariosOS[index]) {
+        signatariosOS[index][campo] = valor;
+    }
+}
+
+function gerarSignatariosPreview(dados) {
+    const sigs = dados.signatarios || [];
+    if (sigs.length === 0) return '';
+
+    // Montar linhas de 2 em 2
+    let html = '<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 30px; margin-top: 10px;">';
+    sigs.forEach(sig => {
+        html += `
+            <div style="text-align: center; min-width: 200px; flex: 1; max-width: 45%;">
+                <div style="border-bottom: 1px solid #000; width: 100%; margin-bottom: 4px;">&nbsp;</div>
+                <div style="font-weight: bold; font-size: 11px;">${sig.nome}</div>
+                <div style="font-size: 10px;">${sig.cargo}</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
 }

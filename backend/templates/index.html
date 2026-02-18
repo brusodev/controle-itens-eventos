@@ -168,27 +168,23 @@
                         <datalist id="lista-observacoes"></datalist>
                     </div>
 
-                    <h3>Responsáveis</h3>
-                    <div class="form-row">
-                        <div class="form-group flex-1">
-                            <label for="os-gestor">Gestor do Contrato *</label>
-                            <input type="text" id="os-gestor" required placeholder="Marcia Cristina Gallo" list="lista-gestores">
-                            <datalist id="lista-gestores"></datalist>
-                        </div>
-                        <div class="form-group flex-1">
-                            <label for="os-fiscal-tipo">Tipo de Fiscal *</label>
-                            <select id="os-fiscal-tipo" required>
-                                <option value="Fiscal do Contrato">Fiscal do Contrato</option>
-                                <option value="Fiscal Técnico(a)">Fiscal Técnico(a)</option>
-                            </select>
-                        </div>
+                    <h3>Signatários da O.S.</h3>
+                    <div id="signatarios-container">
+                        <!-- Linhas dinâmicas de signatários (preenchidas via JS) -->
                     </div>
-
-                    <div class="form-group">
-                        <label for="os-fiscal">Nome do(a) Fiscal *</label>
-                        <input type="text" id="os-fiscal" required placeholder="Julia Nascimento Tomas" style="width: 380px;" list="lista-fiscais">
-                        <datalist id="lista-fiscais"></datalist>
+                    <div style="margin-top: 8px;">
+                        <button type="button" class="btn-small btn-secondary" onclick="adicionarSignatario()">➕ Adicionar Signatário</button>
                     </div>
+                    <datalist id="lista-cargos-signatario">
+                        <option value="Gestor do Contrato">
+                        <option value="Gestora do Contrato">
+                        <option value="Co-Gestor(a) do Contrato">
+                        <option value="Fiscal do Contrato">
+                        <option value="Fiscal Técnico(a)">
+                        <option value="Fiscal Técnica">
+                        <option value="Representante Legal do Contratado">
+                    </datalist>
+                    <datalist id="lista-nomes-signatario"></datalist>
 
                     <h3>Itens da Ordem de Serviço</h3>
 

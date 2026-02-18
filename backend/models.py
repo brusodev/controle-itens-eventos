@@ -223,7 +223,8 @@ class OrdemServico(db.Model):
     fiscal_contrato = db.Column(db.String(200))
     fiscal_tipo = db.Column(db.String(50), default='Fiscal do Contrato')  # ✅ Tipo de fiscal
     responsavel = db.Column(db.String(200))  # Responsável pela O.S.
-    
+    signatarios_json = db.Column(db.Text)  # JSON: [{"cargo": "...", "nome": "..."}, ...]
+
     # Controle
     data_emissao = db.Column(db.DateTime, default=datetime.utcnow)
     data_emissao_completa = db.Column(db.String(50))
@@ -234,6 +235,21 @@ class OrdemServico(db.Model):
     itens = db.relationship('ItemOrdemServico', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
     movimentacoes = db.relationship('MovimentacaoEstoque', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
     
+    def _get_signatarios(self):
+        """Retorna lista de signatários do JSON ou fallback para colunas legadas"""
+        import json as _json
+        if self.signatarios_json:
+            try:
+                return _json.loads(self.signatarios_json)
+            except (ValueError, TypeError):
+                pass
+        signatarios = []
+        if self.gestor_contrato:
+            signatarios.append({'cargo': 'Gestor do Contrato', 'nome': self.gestor_contrato})
+        if self.fiscal_contrato:
+            signatarios.append({'cargo': self.fiscal_tipo or 'Fiscal do Contrato', 'nome': self.fiscal_contrato})
+        return signatarios
+
     def to_dict(self, incluir_itens=True):
         data = {
             'id': self.id,
@@ -256,6 +272,7 @@ class OrdemServico(db.Model):
             'fiscalContrato': self.fiscal_contrato,
             'fiscalTipo': self.fiscal_tipo,  # ✅ Adicionar tipo de fiscal
             'responsavel': self.responsavel,
+            'signatarios': self._get_signatarios(),
             'regiaoEstoque': self.regiao_estoque,  # Região do estoque vinculada
             'dataEmissao': self.data_emissao.isoformat() if self.data_emissao else None,
             'dataEmissaoCompleta': self.data_emissao_completa,

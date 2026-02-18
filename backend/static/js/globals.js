@@ -19,6 +19,7 @@ let proximoIdRequisicao = 1;
 let proximoIdOS = 1;
 let osEditandoId = null; // ID da O.S. sendo editada
 let itensOSSelecionados = []; // Itens selecionados para a O.S. atual
+let signatariosOS = []; // Signatários dinâmicos da O.S.
 
 // Categorias disponíveis
 let categorias = {

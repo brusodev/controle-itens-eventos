@@ -107,6 +107,7 @@ async function carregarSugestoesOS() {
         const observacoes = new Set();
         const gestores = new Set();
         const fiscais = new Set();
+        const nomesSignatarios = new Set();
 
         ordensServico.forEach(os => {
             if (os.evento) eventos.add(os.evento);
@@ -118,6 +119,12 @@ async function carregarSugestoesOS() {
             if (os.observacoes) observacoes.add(os.observacoes);
             if (os.gestorContrato) gestores.add(os.gestorContrato);
             if (os.fiscalContrato) fiscais.add(os.fiscalContrato);
+            // Coletar nomes de signatários para autocomplete
+            if (os.signatarios && Array.isArray(os.signatarios)) {
+                os.signatarios.forEach(sig => {
+                    if (sig.nome) nomesSignatarios.add(sig.nome);
+                });
+            }
         });
 
         // Armazenar como arrays
@@ -141,6 +148,7 @@ async function carregarSugestoesOS() {
         preencherDatalist('lista-observacoes', sugestoesOS.observacoes);
         preencherDatalist('lista-gestores', sugestoesOS.gestores);
         preencherDatalist('lista-fiscais', sugestoesOS.fiscais);
+        preencherDatalist('lista-nomes-signatario', Array.from(nomesSignatarios).sort());
 
         console.log('✅ Sugestões carregadas com sucesso');
         console.log('📊 Resumo:');
@@ -203,10 +211,11 @@ function normalizarDadosOS(os) {
         local: os.local || '',
         responsavel: os.responsavel || '',
         justificativa: os.justificativa || '',
-        observacoes: os.observacoes || '',  // ✅ Adicionar observações
+        observacoes: os.observacoes || '',
         gestor: os.gestorContrato || os.gestor || '',
         fiscal: os.fiscalContrato || os.fiscal || '',
-        fiscalTipo: os.fiscalTipo || 'Fiscal do Contrato',  // ✅ Adicionar tipo de fiscal
+        fiscalTipo: os.fiscalTipo || 'Fiscal do Contrato',
+        signatarios: os.signatarios || [],
         // Formatar data de emissão corretamente
         dataEmissao: os.dataEmissaoCompleta ? formatarDataLocal(os.dataEmissaoCompleta) : (os.dataEmissao ? formatarDataLocal(os.dataEmissao) : new Date().toLocaleDateString('pt-BR')),
         itens: (os.itens || []).map((item, index) => ({
@@ -612,11 +621,20 @@ async function editarOS(osId) {
         document.getElementById('os-horario').value = os.horario || '';
         document.getElementById('os-local').value = os.local || '';
         document.getElementById('os-justificativa').value = os.justificativa || '';
-        document.getElementById('os-observacoes').value = os.observacoes || '';  // ✅ Adicionar observações
-        document.getElementById('os-gestor').value = os.gestorContrato || '';
-        document.getElementById('os-fiscal').value = os.fiscalContrato || '';
-        document.getElementById('os-fiscal-tipo').value = os.fiscalTipo || 'Fiscal do Contrato';  // ✅ Adicionar tipo de fiscal
+        document.getElementById('os-observacoes').value = os.observacoes || '';
         document.getElementById('os-responsavel').value = os.responsavel || '';
+
+        // Carregar signatários dinâmicos
+        if (os.signatarios && os.signatarios.length > 0) {
+            signatariosOS = os.signatarios.map(s => ({ cargo: s.cargo || '', nome: s.nome || '' }));
+        } else {
+            // Fallback para campos legados
+            signatariosOS = [
+                { cargo: 'Gestor do Contrato', nome: os.gestorContrato || '' },
+                { cargo: os.fiscalTipo || 'Fiscal do Contrato', nome: os.fiscalContrato || '' }
+            ];
+        }
+        renderizarSignatarios();
 
         // Limpar itens existentes e popular com os itens da O.S.
         itensOSSelecionados = [];
@@ -739,10 +757,18 @@ async function restaurarOSParaEdicao() {
         document.getElementById('os-local').value = os.local || '';
         document.getElementById('os-justificativa').value = os.justificativa || '';
         document.getElementById('os-observacoes').value = os.observacoes || '';
-        document.getElementById('os-gestor').value = os.gestorContrato || '';
-        document.getElementById('os-fiscal').value = os.fiscalContrato || '';
-        document.getElementById('os-fiscal-tipo').value = os.fiscalTipo || 'Fiscal do Contrato';
         document.getElementById('os-responsavel').value = os.responsavel || '';
+
+        // Carregar signatários dinâmicos
+        if (os.signatarios && os.signatarios.length > 0) {
+            signatariosOS = os.signatarios.map(s => ({ cargo: s.cargo || '', nome: s.nome || '' }));
+        } else {
+            signatariosOS = [
+                { cargo: 'Gestor do Contrato', nome: os.gestorContrato || '' },
+                { cargo: os.fiscalTipo || 'Fiscal do Contrato', nome: os.fiscalContrato || '' }
+            ];
+        }
+        renderizarSignatarios();
 
         // Limpar itens existentes e popular com os itens da O.S.
         itensOSSelecionados = [];
@@ -887,6 +913,8 @@ async function salvarEFecharOS() {
             justificativa: dadosOS.justificativa,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
+            fiscalTipo: dadosOS.fiscalTipo,
+            signatarios: dadosOS.signatarios,
             itens: dadosOS.itens.map(item => ({
                 categoria: item.categoria,
                 itemId: item.itemId,
@@ -903,6 +931,7 @@ async function salvarEFecharOS() {
 
         // Limpar estado de edição
         osEditandoId = null;
+        signatariosOS = [];
 
         // Restaurar botões originais
         const containerBotoes = document.getElementById('botoes-formulario-os');
@@ -914,7 +943,7 @@ async function salvarEFecharOS() {
         // Limpar formulário
         document.getElementById('form-emitir-os').reset();
         document.getElementById('itens-os').innerHTML = '';
-        limparCamposDetentora(); // Limpar campos da Detentora também
+        limparCamposDetentora();
 
         // Recarregar dados
         await renderizarAlimentacao();
@@ -966,6 +995,8 @@ async function salvarEContinuarOS() {
             justificativa: dadosOS.justificativa,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
+            fiscalTipo: dadosOS.fiscalTipo,
+            signatarios: dadosOS.signatarios,
             itens: dadosOS.itens.map(item => ({
                 categoria: item.categoria,
                 itemId: item.itemId,
@@ -996,11 +1027,12 @@ function cancelarEdicaoOS() {
     }
 
     osEditandoId = null;
+    signatariosOS = [];
 
     // Limpar formulário
     document.getElementById('form-emitir-os').reset();
     document.getElementById('itens-os').innerHTML = '';
-    limparCamposDetentora(); // Limpar campos da Detentora também
+    limparCamposDetentora();
 
     // Restaurar botões originais
     const containerBotoes = document.getElementById('botoes-formulario-os');
