@@ -2,6 +2,59 @@
 // SISTEMA DE CONTROLE DE ITENS - VARIÁVEIS GLOBAIS
 // ========================================
 
+// ========================================
+// CONFIGURAÇÃO POR MÓDULO
+// ========================================
+// Labels e terminologia específica de cada módulo.
+// Hospedagem usa "Lote" (em vez de "Grupo") e "CATSERV" (em vez de "ITEM BEC").
+const MODULE_CONFIG = {
+    coffee: {
+        grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
+        itemCodeLabel: 'ITEM BEC', itemCodeLabelUpper: 'ITEM BEC',
+        descLabel: 'DESCRIÇÃO',
+        usaDiarias: true,
+        colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
+        colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
+        colunaValorUnit: 'VALOR UNIT.',
+    },
+    organizacao: {
+        grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
+        itemCodeLabel: 'ITEM BEC', itemCodeLabelUpper: 'ITEM BEC',
+        descLabel: 'DESCRIÇÃO',
+        usaDiarias: true,
+        colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
+        colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
+        colunaValorUnit: 'VALOR UNIT.',
+    },
+    hospedagem: {
+        grupoLabel: 'Lote',   grupoLabelUpper: 'LOTE',
+        itemCodeLabel: 'CATSERV',  itemCodeLabelUpper: 'CATSERV',
+        descLabel: 'DESCRIÇÃO',
+        usaDiarias: true,
+        colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
+        colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
+        colunaValorUnit: 'VALOR UNIT.',
+    },
+    transporte: {
+        grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
+        itemCodeLabel: 'CATSER',   itemCodeLabelUpper: 'CATSER',
+        descLabel: 'ESPECIFICAÇÃO',
+        usaDiarias: false,
+        colunaQtd: 'QTDE KM',                 colunaQtdCompacta: 'Qtd KM',
+        colunaQtdTotal: null,   // sem coluna separada de total
+        colunaValorUnit: 'VALOR UNIT.<br/>DO KM',
+    }
+};
+
+/**
+ * Retorna a configuração de labels para o módulo atual.
+ * @returns {Object} { grupoLabel, grupoLabelUpper, itemCodeLabel, itemCodeLabelUpper }
+ */
+function getModuleConfig() {
+    const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+    return MODULE_CONFIG[modulo] || MODULE_CONFIG.coffee;
+}
+
 // Variáveis de Controle e Perfil (Fallback se não vierem do Template)
 let usuarioPerfil = window.usuarioPerfil || 'comum';
 let usuarioNome = window.usuarioNome || 'Usuário';

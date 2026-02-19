@@ -30,6 +30,19 @@ class PDFOrdemServico:
         value = dados.get(key, default)
         return value if value is not None else default
     
+    # Configuração de labels por módulo (espelha MODULE_CONFIG do frontend)
+    MODULE_LABELS = {
+        'coffee':      {'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': True,  'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.'},
+        'organizacao': {'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': True,  'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.'},
+        'hospedagem':  {'grupo': 'LOTE',   'item_code': 'CATSERV',   'desc': 'DESCRIÇÃO',     'usa_diarias': True,  'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.'},
+        'transporte':  {'grupo': 'GRUPO',  'item_code': 'CATSER',    'desc': 'ESPECIFICAÇÃO', 'usa_diarias': False, 'qtd_label': 'QTDE KM',             'qtd_total_label': None,                           'valor_unit_label': 'VALOR UNIT.<br/>DO KM'},
+    }
+    
+    def _get_labels(self, dados):
+        """Retorna labels de acordo com o módulo da O.S."""
+        modulo = self._get_safe(dados, 'modulo', 'coffee')
+        return self.MODULE_LABELS.get(modulo, self.MODULE_LABELS['coffee'])
+    
     def _formatar_data(self, data_str, formato='curto'):
         """
         Formata data de timestamp ISO para dd/mm/yyyy ou formato extenso
@@ -259,6 +272,7 @@ class PDFOrdemServico:
     def _criar_secao_contrato(self, dados):
         """Cria seção de dados do contrato"""
         elements = []
+        labels = self._get_labels(dados)
         
         # Formatar data de assinatura
         data_assinatura = self._formatar_data(self._get_safe(dados, 'dataAssinatura'))
@@ -279,7 +293,7 @@ class PDFOrdemServico:
             
             [Paragraph('<b>CNPJ:</b>', self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'cnpj'), self.styles['CustomNormal']),
-             Paragraph('<b>GRUPO:</b>', self.styles['CustomLabel']), 
+             Paragraph(f'<b>{labels["grupo"]}:</b>', self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'grupo'), self.styles['CustomNormal'])]
         ]
         
@@ -341,18 +355,34 @@ class PDFOrdemServico:
     def _criar_tabela_itens(self, dados):
         """Cria tabela de itens da O.S."""
         elements = []
+        labels = self._get_labels(dados)
+        usa_diarias = labels.get('usa_diarias', True)
         
-        # Cabeçalho da tabela
-        header = [
-            Paragraph('<b>Nº</b>', self.styles['CustomLabel']),
-            Paragraph('<b>DESCRIÇÃO</b>', self.styles['CustomLabel']),
-            Paragraph('<b>ITEM BEC</b>', self.styles['CustomLabel']),
-            Paragraph('<b>DIÁRIAS</b>', self.styles['CustomLabel']),
-            Paragraph('<b>QTDE<br/>SOLICITADA</b>', self.styles['CustomLabel']),
-            Paragraph('<b>QTDE<br/>SOLICITADA<br/>TOTAL</b>', self.styles['CustomLabel']),
-            Paragraph('<b>VALOR UNIT.</b>', self.styles['CustomLabel']),
-            Paragraph('<b>VALOR<br/>TOTAL</b>', self.styles['CustomLabel'])
-        ]
+        # Cabeçalho da tabela — estrutura varia por módulo
+        if usa_diarias:
+            # Padrão: 8 colunas (Nº, Desc, ItemCode, Diárias, QtdSol, QtdTotal, ValUnit, ValTotal)
+            header = [
+                Paragraph('<b>Nº</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["desc"]}</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["item_code"]}</b>', self.styles['CustomLabel']),
+                Paragraph('<b>DIÁRIAS</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["qtd_label"]}</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["qtd_total_label"]}</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["valor_unit_label"]}</b>', self.styles['CustomLabel']),
+                Paragraph('<b>VALOR<br/>TOTAL</b>', self.styles['CustomLabel'])
+            ]
+            col_widths = [10*mm, 50*mm, 18*mm, 15*mm, 20*mm, 20*mm, 22*mm, 28*mm]
+        else:
+            # Transporte: 6 colunas (Nº, Especificação, CATSER, Qtd KM, Val Unit KM, Val Total)
+            header = [
+                Paragraph('<b>Nº</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["desc"]}</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["item_code"]}</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["qtd_label"]}</b>', self.styles['CustomLabel']),
+                Paragraph(f'<b>{labels["valor_unit_label"]}</b>', self.styles['CustomLabel']),
+                Paragraph('<b>VALOR<br/>TOTAL</b>', self.styles['CustomLabel'])
+            ]
+            col_widths = [10*mm, 68*mm, 18*mm, 22*mm, 28*mm, 37*mm]
         
         data = [header]
         
@@ -391,62 +421,88 @@ class PDFOrdemServico:
             qtd_sol_fmt = f"{qtd_solicitada:,.0f}".replace(',', '.')
             qtd_total_fmt = f"{qtd_total:,.0f}".replace(',', '.')
             
-            row = [
-                Paragraph(str(idx), self.styles['CustomNormal']),
-                Paragraph(item.get('descricao', ''), self.styles['CustomNormal']),
-                Paragraph(str(item.get('itemBec', '')), self.styles['CustomNormal']),
-                Paragraph(str(diarias), self.styles['CustomNormal']),
-                Paragraph(qtd_sol_fmt, self.styles['CustomNormal']),
-                Paragraph(qtd_total_fmt, self.styles['CustomNormal']),
-                Paragraph(f'R$ {valor_unit:.2f}', self.styles['CustomNormal']),
-                Paragraph(f'R$ {total_item:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal'])
-            ]
+            if usa_diarias:
+                row = [
+                    Paragraph(str(idx), self.styles['CustomNormal']),
+                    Paragraph(item.get('descricao', ''), self.styles['CustomNormal']),
+                    Paragraph(str(item.get('itemBec', '')), self.styles['CustomNormal']),
+                    Paragraph(str(diarias), self.styles['CustomNormal']),
+                    Paragraph(qtd_sol_fmt, self.styles['CustomNormal']),
+                    Paragraph(qtd_total_fmt, self.styles['CustomNormal']),
+                    Paragraph(f'R$ {valor_unit:.2f}', self.styles['CustomNormal']),
+                    Paragraph(f'R$ {total_item:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal'])
+                ]
+            else:
+                row = [
+                    Paragraph(str(idx), self.styles['CustomNormal']),
+                    Paragraph(item.get('descricao', ''), self.styles['CustomNormal']),
+                    Paragraph(str(item.get('itemBec', '')), self.styles['CustomNormal']),
+                    Paragraph(qtd_total_fmt, self.styles['CustomNormal']),
+                    Paragraph(f'R$ {valor_unit:.2f}', self.styles['CustomNormal']),
+                    Paragraph(f'R$ {total_item:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal'])
+                ]
             data.append(row)
         
         # Total
-        total_row = [
-            '', '', '', '', '', '',
+        num_cols = len(header)
+        total_empty = [''] * (num_cols - 2)
+        total_row = total_empty + [
             Paragraph('<b>VALOR TOTAL:</b>', self.styles['CustomLabel']),
             Paragraph(f'<b>R$ {valor_total:,.2f}</b>'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomLabel'])
         ]
         data.append(total_row)
         
-        # Larguras: Nº, Descrição, Item BEC, Diárias, Qtde Sol, Qtde Total, Valor Unit, Valor Total
-        table = Table(data, colWidths=[10*mm, 50*mm, 18*mm, 15*mm, 20*mm, 20*mm, 22*mm, 28*mm], repeatRows=1)
-        table.setStyle(TableStyle([
+        table = Table(data, colWidths=col_widths, repeatRows=1)
+        
+        # Estilo base (comum a ambos layouts)
+        style_cmds = [
             # Cabeçalho
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c6e0b4')),  # Verde claro como no print
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c6e0b4')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 6.5),  # Reduzido de 7 para 6.5
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 2),  # Reduzido de 4 para 2
-            ('TOPPADDING', (0, 0), (-1, 0), 2),  # Reduzido de 4 para 2
+            ('FONTSIZE', (0, 0), (-1, 0), 6.5),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 2),
+            ('TOPPADDING', (0, 0), (-1, 0), 2),
             
             # Corpo
             ('GRID', (0, 0), (-1, -2), 0.5, colors.grey),
-            ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#e2efd9')),  # Verde muito claro como no print
-            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Nº centralizado
-            ('ALIGN', (1, 1), (1, -1), 'LEFT'),    # Descrição à esquerda
-            ('ALIGN', (2, 1), (2, -1), 'CENTER'),  # Item BEC centralizado
-            ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # Diárias centralizado
-            ('ALIGN', (4, 1), (4, -1), 'RIGHT'),   # Qtde Solicitada à direita
-            ('ALIGN', (5, 1), (5, -1), 'RIGHT'),   # Qtde Total à direita
-            ('ALIGN', (6, 1), (6, -1), 'RIGHT'),   # Valor Unit à direita
-            ('ALIGN', (7, 1), (7, -1), 'RIGHT'),   # Valor Total à direita
+            ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#e2efd9')),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),   # Nº centralizado
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),      # Descrição à esquerda
+            ('ALIGN', (2, 1), (2, -1), 'CENTER'),    # Item code centralizado
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 1), (-1, -1), 1),  # Reduzido de 2 para 1
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 1),  # Reduzido de 2 para 1
-            ('LEFTPADDING', (0, 0), (-1, -1), 1.5),  # Reduzido de 2 para 1.5
-            ('RIGHTPADDING', (0, 0), (-1, -1), 1.5),  # Reduzido de 2 para 1.5
+            ('TOPPADDING', (0, 1), (-1, -1), 1),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 1),
+            ('LEFTPADDING', (0, 0), (-1, -1), 1.5),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 1.5),
             
             # Linha de total
-            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#c6e0b4')),  # Verde claro
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#c6e0b4')),
             ('LINEABOVE', (0, -1), (-1, -1), 1.5, colors.black),
-            ('ALIGN', (6, -1), (6, -1), 'RIGHT'),
-            ('ALIGN', (7, -1), (7, -1), 'RIGHT'),
-            ('SPAN', (0, -1), (5, -1)),  # Merge primeiras 6 colunas
-        ]))
+            ('ALIGN', (-2, -1), (-2, -1), 'RIGHT'),
+            ('ALIGN', (-1, -1), (-1, -1), 'RIGHT'),
+            ('SPAN', (0, -1), (-3, -1)),
+        ]
+        
+        if usa_diarias:
+            # Alinhamentos específicos para layout com diárias (8 colunas)
+            style_cmds += [
+                ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # Diárias centralizado
+                ('ALIGN', (4, 1), (4, -1), 'RIGHT'),   # Qtde Solicitada
+                ('ALIGN', (5, 1), (5, -1), 'RIGHT'),   # Qtde Total
+                ('ALIGN', (6, 1), (6, -1), 'RIGHT'),   # Valor Unit
+                ('ALIGN', (7, 1), (7, -1), 'RIGHT'),   # Valor Total
+            ]
+        else:
+            # Alinhamentos para layout transporte (6 colunas)
+            style_cmds += [
+                ('ALIGN', (3, 1), (3, -1), 'RIGHT'),   # Qtde KM
+                ('ALIGN', (4, 1), (4, -1), 'RIGHT'),   # Valor Unit do KM
+                ('ALIGN', (5, 1), (5, -1), 'RIGHT'),   # Valor Total
+            ]
+        
+        table.setStyle(TableStyle(style_cmds))
         
         elements.append(table)
         return elements

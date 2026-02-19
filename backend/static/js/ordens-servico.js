@@ -197,6 +197,7 @@ function normalizarDadosOS(os) {
 
     // Normaliza os dados da O.S. para o formato esperado pelo preview
     return {
+        modulo: os.modulo || localStorage.getItem('modulo_atual') || 'coffee',
         numeroOS: os.numeroOS,
         contratoNum: os.contrato || os.contratoNum || '',
         dataAssinatura: os.dataAssinatura ? formatarDataSimples(os.dataAssinatura) : '',

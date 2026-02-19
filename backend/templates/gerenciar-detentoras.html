@@ -103,8 +103,10 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.3"></script>
     <script>
-        const usuarioPerfil = '{{ usuario_perfil }}';
+        // usuarioPerfil já declarado em globals.js — apenas atualizar o valor
+        usuarioPerfil = '{{ usuario_perfil }}';
         let detentoras = [];
 
         // Máscara para CNPJ
@@ -131,9 +133,21 @@
         });
 
         function configurarModulo() {
-            const isTransporte = moduloAtual === 'transporte';
-            const titulo = isTransporte ? 'Transportes' : 'Coffee Break';
-            const emoji = isTransporte ? '🚗' : '☕';
+            const cfg = (typeof MODULE_CONFIG !== 'undefined') ? (MODULE_CONFIG[moduloAtual] || MODULE_CONFIG.coffee) : { grupoLabel: 'Grupo' };
+            const titulosModulo = {
+                'coffee': 'Coffee Break',
+                'transporte': 'Transportes',
+                'organizacao': 'Organização de Eventos',
+                'hospedagem': 'Hospedagem'
+            };
+            const emojisModulo = {
+                'coffee': '☕',
+                'transporte': '🚗',
+                'organizacao': '🎪',
+                'hospedagem': '🏨'
+            };
+            const titulo = titulosModulo[moduloAtual] || 'Coffee Break';
+            const emoji = emojisModulo[moduloAtual] || '☕';
 
             document.getElementById('page-title').textContent = `Gerenciar Detentoras - ${titulo}`;
             document.getElementById('favicon').href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>${emoji}</text></svg>`;
@@ -141,8 +155,30 @@
             // Ajustar o campo "Serviço" padrão no modal
             const servicoInput = document.getElementById('servico');
             if (servicoInput) {
-                servicoInput.value = isTransporte ? 'SERVIÇOS DE TRANSPORTE' : 'COFFEE BREAK';
+                const servicosPadrao = {
+                    'coffee': 'COFFEE BREAK',
+                    'transporte': 'SERVIÇOS DE TRANSPORTE',
+                    'organizacao': 'ORGANIZAÇÃO DE EVENTOS',
+                    'hospedagem': 'HOSPEDAGEM'
+                };
+                servicoInput.value = servicosPadrao[moduloAtual] || 'COFFEE BREAK';
             }
+
+            // Atualizar labels de Grupo/Lote no formulário
+            const labelGrupo = document.querySelector('label[for="grupo"]');
+            if (labelGrupo) labelGrupo.textContent = `${cfg.grupoLabel}/Região *`;
+
+            const selectGrupo = document.getElementById('grupo');
+            if (selectGrupo) {
+                const defaultOption = selectGrupo.querySelector('option[value=""]');
+                if (defaultOption) defaultOption.textContent = `Selecione o ${cfg.grupoLabel}`;
+                selectGrupo.querySelectorAll('option:not([value=""])').forEach(opt => {
+                    opt.textContent = `${cfg.grupoLabel} ${opt.value}`;
+                });
+            }
+
+            const helpText = selectGrupo?.parentElement?.querySelector('small');
+            if (helpText) helpText.textContent = `${cfg.grupoLabel} corresponde à Região do estoque (1-6)`;
         }
 
         async function carregarDetentoras() {
@@ -177,6 +213,7 @@
 
         function renderizarDetentoras() {
             const container = document.getElementById('lista-detentoras');
+            const grupoLabel = (typeof MODULE_CONFIG !== 'undefined') ? (MODULE_CONFIG[moduloAtual] || MODULE_CONFIG.coffee).grupoLabel : 'Grupo';
 
             if (detentoras.length === 0) {
                 container.innerHTML = `
@@ -192,7 +229,7 @@
             container.innerHTML = detentoras.map(d => `
                 <div class="detentora-card">
                     <div class="detentora-card-header">
-                        <div class="detentora-grupo">Grupo ${d.grupo}</div>
+                        <div class="detentora-grupo">${grupoLabel} ${d.grupo}</div>
                         <span class="detentora-badge ${d.ativo ? 'badge-ativo' : 'badge-inativo'}">
                             ${d.ativo ? '✓ Ativo' : '✗ Inativo'}
                         </span>

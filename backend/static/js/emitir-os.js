@@ -30,15 +30,19 @@ async function carregarGruposDropdown() {
     if (!grupoSelect) return;
 
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const cfg = getModuleConfig();
+
+    // Atualizar labels estáticos do formulário conforme o módulo
+    _atualizarLabelsFormulario(cfg);
 
     if (moduloAtual === 'organizacao') {
         // Para organização: 3 grupos fixos com nomes + dropdown de detentora
         const nomeGrupos = { 1: 'Capital/RMSP', 2: 'Interior', 3: 'Litoral' };
-        grupoSelect.innerHTML = '<option value="">-- Selecione o Grupo --</option>';
+        grupoSelect.innerHTML = `<option value="">-- Selecione o ${cfg.grupoLabel} --</option>`;
         for (let g = 1; g <= 3; g++) {
             const option = document.createElement('option');
             option.value = g;
-            option.textContent = `Grupo ${g} - ${nomeGrupos[g]}`;
+            option.textContent = `${cfg.grupoLabel} ${g} - ${nomeGrupos[g]}`;
             grupoSelect.appendChild(option);
         }
         // Mudar handler para carregar detentoras do grupo
@@ -50,13 +54,13 @@ async function carregarGruposDropdown() {
             console.log('📡 [Emitir OS] Carregando grupos disponíveis...');
             const grupos = await APIClient.obterGruposDetentoras();
 
-            grupoSelect.innerHTML = '<option value="">-- Selecione o Grupo --</option>';
+            grupoSelect.innerHTML = `<option value="">-- Selecione o ${cfg.grupoLabel} --</option>`;
 
             if (grupos && grupos.length > 0) {
                 grupos.forEach(grupo => {
                     const option = document.createElement('option');
                     option.value = grupo;
-                    option.textContent = `Grupo ${grupo}`;
+                    option.textContent = `${cfg.grupoLabel} ${grupo}`;
                     grupoSelect.appendChild(option);
                 });
             } else {
@@ -70,6 +74,29 @@ async function carregarGruposDropdown() {
         } catch (error) {
             console.error('❌ Erro ao carregar grupos:', error);
         }
+    }
+}
+
+/**
+ * Atualiza labels estáticos do formulário HTML conforme o módulo atual.
+ * Chamado ao renderizar a aba "Emitir O.S." para refletir a terminologia correta.
+ */
+function _atualizarLabelsFormulario(cfg) {
+    // Label do select de grupo/região
+    const labelGrupoSelect = document.querySelector('label[for="os-grupo-select"]');
+    if (labelGrupoSelect) {
+        labelGrupoSelect.innerHTML = `
+            🏢 Selecione o ${cfg.grupoLabel}/Região *
+            <small style="display: block; color: #6c757d; font-weight: 400; margin-top: 5px;">
+                Os dados do contrato serão preenchidos automaticamente
+            </small>
+        `;
+    }
+
+    // Label do campo Grupo (readonly, nos dados do contrato)
+    const labelGrupo = document.querySelector('label[for="os-grupo"]');
+    if (labelGrupo) {
+        labelGrupo.innerHTML = `${cfg.grupoLabel} <small style="color: #6c757d;">(região do estoque)</small>`;
     }
 }
 
@@ -200,17 +227,19 @@ function abrirSeletorItens() {
             const jaSelecionado = itensOSSelecionados.some(i => i.itemId === item.id && i.categoria === cat);
             const itemExistente = jaSelecionado ? itensOSSelecionados.find(i => i.itemId === item.id && i.categoria === cat) : null;
 
+            const cfgSeletor = getModuleConfig();
             itensHtml += `
                 <div class="seletor-item-row ${jaSelecionado ? 'selecionado' : ''}" data-item-id="${item.id}" data-cat="${cat}" data-nome="${item.descricao.toLowerCase()}">
                     <input type="checkbox" ${jaSelecionado ? 'checked' : ''} onchange="toggleItemSeletor(this)">
                     <span class="item-nome" onclick="this.previousElementSibling.click()">${item.descricao}</span>
                     <span class="item-unidade">${item.unidade || ''}</span>
+                    ${cfgSeletor.usaDiarias ? `
                     <div class="seletor-campo">
                         <label>Diárias:</label>
                         <input type="number" class="seletor-diarias" min="1" value="${itemExistente ? itemExistente.diarias : 1}" placeholder="1">
-                    </div>
+                    </div>` : '<input type="hidden" class="seletor-diarias" value="1">'}
                     <div class="seletor-campo">
-                        <label>Qtd:</label>
+                        <label>${cfgSeletor.colunaQtdCompacta}:</label>
                         <input type="number" class="seletor-qtd" min="0" value="${itemExistente ? itemExistente.qtdSolicitada : ''}" placeholder="0">
                     </div>
                 </div>
@@ -404,6 +433,31 @@ function renderizarTabelaItensOS() {
     const msgVazio = document.getElementById('itens-os-vazio');
     const btnLimpar = document.getElementById('btn-limpar-itens');
     const tabela = document.getElementById('tabela-itens-os');
+    const cfg = getModuleConfig();
+
+    // Atualizar cabeçalho da tabela dinamicamente
+    const thead = tabela.querySelector('thead tr');
+    if (thead) {
+        if (cfg.usaDiarias) {
+            thead.innerHTML = `
+                <th style="width: 35px;">#</th>
+                <th>${cfg.descLabel === 'ESPECIFICAÇÃO' ? 'Especificação' : 'Descrição'}</th>
+                <th style="width: 130px;">Categoria</th>
+                <th style="width: 80px;">Diárias</th>
+                <th style="width: 90px;">${cfg.colunaQtdCompacta}</th>
+                <th style="width: 80px;">Total</th>
+                <th style="width: 45px;"></th>
+            `;
+        } else {
+            thead.innerHTML = `
+                <th style="width: 35px;">#</th>
+                <th>${cfg.descLabel === 'ESPECIFICAÇÃO' ? 'Especificação' : 'Descrição'}</th>
+                <th style="width: 130px;">Categoria</th>
+                <th style="width: 100px;">${cfg.colunaQtdCompacta}</th>
+                <th style="width: 45px;"></th>
+            `;
+        }
+    }
 
     tbody.innerHTML = '';
 
@@ -425,15 +479,26 @@ function renderizarTabelaItensOS() {
         const total = (item.diarias || 1) * (item.qtdSolicitada || 0);
         item.qtdTotal = total;
 
-        tr.innerHTML = `
-            <td style="text-align: center; color: #888;">${idx + 1}</td>
-            <td class="item-descricao">${item.descricao}</td>
-            <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
-            <td><input type="number" value="${item.diarias}" min="1" onchange="atualizarItemTabela(${idx}, 'diarias', this.value)"></td>
-            <td><input type="number" value="${item.qtdSolicitada}" min="0" onchange="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
-            <td class="td-total">${total}</td>
-            <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
-        `;
+        if (cfg.usaDiarias) {
+            tr.innerHTML = `
+                <td style="text-align: center; color: #888;">${idx + 1}</td>
+                <td class="item-descricao">${item.descricao}</td>
+                <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
+                <td><input type="number" value="${item.diarias}" min="1" onchange="atualizarItemTabela(${idx}, 'diarias', this.value)"></td>
+                <td><input type="number" value="${item.qtdSolicitada}" min="0" onchange="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
+                <td class="td-total">${total}</td>
+                <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
+            `;
+        } else {
+            // Transporte: sem diárias, qtdTotal = qtdSolicitada
+            tr.innerHTML = `
+                <td style="text-align: center; color: #888;">${idx + 1}</td>
+                <td class="item-descricao">${item.descricao}</td>
+                <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
+                <td><input type="number" value="${item.qtdSolicitada}" min="0" onchange="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
+                <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
+            `;
+        }
 
         tbody.appendChild(tr);
     });
@@ -613,6 +678,10 @@ function coletarDadosOS() {
 }
 
 function gerarPreviewOS(dados) {
+    // Usa o módulo dos dados da OS (para visualização de OS salvas) ou o módulo atual
+    const modulo = dados.modulo || localStorage.getItem('modulo_atual') || 'coffee';
+    const cfg = MODULE_CONFIG[modulo] || MODULE_CONFIG.coffee;
+
     // Garantir que valorUnit seja número para todos os itens
     const valorTotal = dados.itens.reduce((sum, item) => {
         const valor = parseFloat(item.valorUnit) || 0;
@@ -669,7 +738,7 @@ function gerarPreviewOS(dados) {
                     <tr>
                         <td><strong>CNPJ:</strong></td>
                         <td>${dados.cnpj}</td>
-                        <td><strong>GRUPO:</strong></td>
+                        <td><strong>${cfg.grupoLabelUpper}:</strong></td>
                         <td>${dados.grupo || ''}</td>
                     </tr>
                 </table>
@@ -705,12 +774,12 @@ function gerarPreviewOS(dados) {
                     <thead>
                         <tr style="background-color: #c6e0b4;">
                             <th style="width: 5%;">Nº</th>
-                            <th style="width: 25%;">DESCRIÇÃO</th>
-                            <th style="width: 10%;">ITEM BEC</th>
-                            <th style="width: 8%;">DIÁRIAS</th>
-                            <th style="width: 10%;">QTDE<br/>SOLICITADA</th>
-                            <th style="width: 12%;">QTDE<br/>SOLICITADA<br/>TOTAL</th>
-                            <th style="width: 15%;">VALOR UNIT.</th>
+                            <th style="width: ${cfg.usaDiarias ? '25' : '35'}%;">${cfg.descLabel}</th>
+                            <th style="width: 10%;">${cfg.itemCodeLabelUpper}</th>
+                            ${cfg.usaDiarias ? '<th style="width: 8%;">DIÁRIAS</th>' : ''}
+                            <th style="width: ${cfg.usaDiarias ? '10' : '15'}%;">${cfg.colunaQtd}</th>
+                            ${cfg.colunaQtdTotal ? `<th style="width: 12%;">${cfg.colunaQtdTotal}</th>` : ''}
+                            <th style="width: 15%;">${cfg.colunaValorUnit}</th>
                             <th style="width: 15%;">VALOR<br/>TOTAL</th>
                         </tr>
                     </thead>
@@ -733,9 +802,9 @@ function gerarPreviewOS(dados) {
                                 <td style="text-align: center;">${item.num}</td>
                                 <td style="text-align: left; padding-left: 8px;">${item.descricao}</td>
                                 <td style="text-align: center;">${item.itemBec || ''}</td>
-                                <td style="text-align: center;">${diarias}</td>
-                                <td style="text-align: right; padding-right: 8px;">${qtdSolFmt}</td>
-                                <td style="text-align: right; padding-right: 8px;">${qtdTotalFmt}</td>
+                                ${cfg.usaDiarias ? `<td style="text-align: center;">${diarias}</td>` : ''}
+                                <td style="text-align: right; padding-right: 8px;">${cfg.usaDiarias ? qtdSolFmt : qtdTotalFmt}</td>
+                                ${cfg.colunaQtdTotal ? `<td style="text-align: right; padding-right: 8px;">${qtdTotalFmt}</td>` : ''}
                                 <td style="text-align: right; padding-right: 8px;">R$ ${valorUnitFmt}</td>
                                 <td style="text-align: right; padding-right: 8px;">R$ ${valorTotalFmt}</td>
                             </tr>
@@ -743,7 +812,7 @@ function gerarPreviewOS(dados) {
                     </tbody>
                     <tfoot>
                         <tr style="background-color: #c6e0b4;">
-                            <td colspan="7" style="text-align: right; padding-right: 8px;"><strong>VALOR TOTAL:</strong></td>
+                            <td colspan="${cfg.usaDiarias ? (cfg.colunaQtdTotal ? 7 : 6) : (cfg.colunaQtdTotal ? 6 : 5)}" style="text-align: right; padding-right: 8px;"><strong>VALOR TOTAL:</strong></td>
                             <td style="text-align: right; padding-right: 8px;"><strong>R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
                         </tr>
                     </tfoot>

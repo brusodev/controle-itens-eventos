@@ -27,6 +27,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     // ✅ INICIALIZAR MENU MOBILE
     inicializarMenuMobile();
 
+    // ✅ RENDERIZAR ABA ATIVA (quando a página carrega via navegação do sidebar)
+    const abaAtiva = document.querySelector('.tab-content.active');
+    if (abaAtiva) {
+        const tabId = abaAtiva.id.replace('tab-', '');
+        if (tabId === 'emitir-os') renderizarEmitirOS();
+    }
+
     // ✅ RESTAURAR O.S. PARA EDIÇÃO SE NECESSÁRIO
     await restaurarOSParaEdicao();
 });
