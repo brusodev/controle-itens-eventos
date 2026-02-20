@@ -32,10 +32,26 @@ class PDFOrdemServico:
     
     # Configuração de labels por módulo (espelha MODULE_CONFIG do frontend)
     MODULE_LABELS = {
-        'coffee':      {'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': True,  'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.'},
-        'organizacao': {'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': True,  'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.'},
-        'hospedagem':  {'grupo': 'LOTE',   'item_code': 'CATSERV',   'desc': 'DESCRIÇÃO',     'usa_diarias': True,  'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.'},
-        'transporte':  {'grupo': 'GRUPO',  'item_code': 'CATSER',    'desc': 'ESPECIFICAÇÃO', 'usa_diarias': False, 'qtd_label': 'QTDE KM',             'qtd_total_label': None,                           'valor_unit_label': 'VALOR UNIT.<br/>DO KM'},
+        'coffee':      {
+            'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': True,  
+            'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.',
+            'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
+        },
+        'organizacao': {
+            'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': True,  
+            'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.',
+            'os_data_label': 'DATA DE ENTREGA', 'os_horario_label': 'HORÁRIO DE ENTREGA', 'os_local_label': 'LOCAL DE ENTREGA'
+        },
+        'hospedagem':  {
+            'grupo': 'LOTE',   'item_code': 'CATSERV',   'desc': 'DESCRIÇÃO',     'usa_diarias': True,  
+            'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.',
+            'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
+        },
+        'transporte':  {
+            'grupo': 'GRUPO',  'item_code': 'CATSER',    'desc': 'ESPECIFICAÇÃO', 'usa_diarias': False, 
+            'qtd_label': 'QTDE KM',             'qtd_total_label': None,                           'valor_unit_label': 'VALOR UNIT.<br/>DO KM',
+            'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
+        },
     }
     
     def _get_labels(self, dados):
@@ -314,6 +330,9 @@ class PDFOrdemServico:
         """Cria seção de dados do evento"""
         elements = []
         
+        # Obter labels do módulo
+        labels = self._get_labels(dados)
+        
         # Converter quebras de linha no horário para HTML
         horario = self._get_safe(dados, 'horario')
         horario_html = horario.replace('\n', '<br/>') if horario else ''
@@ -322,13 +341,13 @@ class PDFOrdemServico:
             [Paragraph('<b>EVENTO:</b>', self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'evento'), self.styles['CustomNormal']), '', ''],
             
-            [Paragraph('<b>DATA:</b>', self.styles['CustomLabel']), 
+            [Paragraph(f"<b>{labels.get('os_data_label', 'DATA')}:</b>", self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'data'), self.styles['CustomNormal']), '', ''],
             
-            [Paragraph('<b>HORÁRIO:</b>', self.styles['CustomLabel']), 
+            [Paragraph(f"<b>{labels.get('os_horario_label', 'HORÁRIO')}:</b>", self.styles['CustomLabel']), 
              Paragraph(horario_html, self.styles['CustomNormal']), '', ''],
             
-            [Paragraph('<b>LOCAL DO EVENTO:</b>', self.styles['CustomLabel']), 
+            [Paragraph(f"<b>{labels.get('os_local_label', 'LOCAL DO EVENTO')}:</b>", self.styles['CustomLabel']), 
              Paragraph(self._get_safe(dados, 'local'), self.styles['CustomNormal']), '', ''],
             
             [Paragraph('<b>RESPONSÁVEL:</b>', self.styles['CustomLabel']), 

@@ -17,6 +17,7 @@ def listar_alimentacao():
         for cat in categorias:
             resultado[cat.nome] = {
                 'natureza': cat.natureza,
+                'categoria_db_id': cat.id,  # Adicionar ID da categoria para facilitar criação de itens
                 'itens': [item.to_dict() for item in cat.itens]
             }
         
@@ -102,7 +103,18 @@ def atualizar_estoque(item_id):
         # Salvar dados antes para auditoria
         dados_antes = item.to_dict(incluir_estoques=True)
         
-        for regiao_num, qtds in dados.items():
+        # Atualizar código BEC/CATSER se fornecido
+        if 'natureza' in dados:
+            item.natureza = dados['natureza']
+        
+        # Atualizar regiões (pode estar em 'regioes' ou direto no objeto para retrocompatibilidade)
+        regioes_dados = dados.get('regioes', dados)
+        
+        for regiao_num, qtds in regioes_dados.items():
+            # Pular campos que não são regiões (como 'natureza')
+            if not regiao_num.isdigit():
+                continue
+                
             estoque = EstoqueRegional.query.filter_by(
                 item_id=item.id,
                 regiao_numero=int(regiao_num)

@@ -149,10 +149,14 @@ class APIClient {
         return this.request(`/alimentacao/filtrar?${params}`);
     }
     
-    static async atualizarEstoqueItem(itemId, regioes) {
+    static async atualizarEstoqueItem(itemId, regioes, natureza = null) {
+        const payload = { regioes };
+        if (natureza !== null) {
+            payload.natureza = natureza;
+        }
         return this.request(`/alimentacao/item/${itemId}/estoque`, {
             method: 'PUT',
-            body: JSON.stringify(regioes)
+            body: JSON.stringify(payload)
         });
     }
     

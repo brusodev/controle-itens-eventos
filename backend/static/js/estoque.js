@@ -111,6 +111,11 @@ function filtrarAlimentacao() {
     const busca = document.getElementById('filtro-alimentacao').value.toLowerCase();
     const categoria = document.getElementById('filtro-categoria-alimentacao').value;
 
+    // Obter configuração do módulo atual
+    const cfg = getModuleConfig();
+    const cfgRegioes = cfg.regioes;
+    const maxRegioes = cfgRegioes.quantidade;
+
     container.innerHTML = '';
 
     Object.keys(dadosAlimentacao).forEach(cat => {
@@ -157,18 +162,20 @@ function filtrarAlimentacao() {
                 </div>
                 <div class="item-body">
                     <h3>${item.descricao}</h3>
+                    ${(item.natureza && item.natureza !== '') ? `<div style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">Código: ${item.natureza}</div>` : ''}
                     <div class="quantities-summary">
                         <span class="qty-inicial">Inicial: ${totalInicial.toLocaleString()}</span>
                         <span class="qty-gasto">Gasto: ${totalGasto.toLocaleString()}</span>
                     </div>
                     <div class="regioes-summary">
                         <div class="regioes-header">
-                            <div class="regiao-col-header">Reg.</div>
+                            <div class="regiao-col-header">${cfgRegioes.tipoLabel}</div>
                             <div class="regiao-col-header">Inicial</div>
                             <div class="regiao-col-header">Usado</div>
                             <div class="regiao-col-header">Rest.</div>
                         </div>
-                        ${Object.entries(item.regioes).map(([reg, r]) => {
+                        ${Array.from({length: maxRegioes}, (_, i) => i + 1).map(reg => {
+                            const r = item.regioes[reg.toString()] || { inicial: 0, gasto: 0 };
                             let inicial = 0;
                             let gasto = 0;
                             let disp = 0;
@@ -185,10 +192,11 @@ function filtrarAlimentacao() {
                             disp = inicial - gasto;
 
                             const statusClass = disp === 0 ? 'danger' : disp < 100 ? 'warning' : 'success';
+                            const labelRegiao = cfgRegioes.nomes[reg] || `${cfgRegioes.tipoLabel} ${reg}`;
 
                             return `
                                 <div class="regiao-row ${statusClass}">
-                                    <div class="regiao-col regiao-nome">${reg}</div>
+                                    <div class="regiao-col regiao-nome">${labelRegiao}</div>
                                     <div class="regiao-col regiao-inicial">${inicial.toLocaleString()}</div>
                                     <div class="regiao-col regiao-gasto">${gasto.toLocaleString()}</div>
                                     <div class="regiao-col regiao-restante">${disp.toLocaleString()}</div>
@@ -220,17 +228,38 @@ function editarItemAlimentacao(categoria, itemId) {
 
     alimentacaoEditando = { categoria, itemId: itemId.toString() };
 
-    document.getElementById('modal-alimentacao-titulo').textContent = 'Editar Item de Alimentação';
+    // Atualizar título do modal de acordo com o módulo
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const titulosModal = {
+        'coffee': 'Editar Item de Alimentação',
+        'transporte': 'Editar Item de Transporte',
+        'hospedagem': 'Editar Item de Hospedagem',
+        'organizacao': 'Editar Item de Organização'
+    };
+    document.getElementById('modal-alimentacao-titulo').textContent = titulosModal[moduloAtual] || 'Editar Item';
+    
     document.getElementById('alimentacao-descricao').value = item.descricao;
     document.getElementById('alimentacao-unidade').value = item.unidade;
+    
+    // Carregar código BEC/CATSER
+    const codigoBecInput = document.getElementById('alimentacao-codigo-bec');
+    if (codigoBecInput) {
+        codigoBecInput.value = item.natureza || '';
+    }
+    
+    // Atualizar label do código BEC/CATSER baseado no módulo
+    const cfg = getModuleConfig();
+    const labelCodigoBec = document.getElementById('label-alimentacao-codigo-bec');
+    if (labelCodigoBec) {
+        labelCodigoBec.textContent = `Código ${cfg.itemCodeLabel}:`;
+    }
 
     const regioesDiv = document.getElementById('regioes-quantidades');
     regioesDiv.innerHTML = '';
 
-    // Determinar quantidade de regiões conforme módulo
-    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
-    const maxRegioes = moduloAtual === 'organizacao' ? 3 : 6;
-    const nomeGruposOrg = { 1: 'Capital/RMSP', 2: 'Interior', 3: 'Litoral' };
+    // Configuração de regiões do módulo
+    const cfgRegioes = cfg.regioes;
+    const maxRegioes = cfgRegioes.quantidade;
 
     for (let reg = 1; reg <= maxRegioes; reg++) {
         const r = item.regioes[reg.toString()] || { inicial: '', gasto: '0', preco: '0' };
@@ -258,11 +287,12 @@ function editarItemAlimentacao(categoria, itemId) {
         const readonlyAttr = isAdmin ? '' : 'readonly';
         const readonlyStyle = isAdmin ? '' : ' style="background: #f0f0f0;"';
 
-        const labelGrupo = moduloAtual === 'organizacao' ? `Grupo ${reg} - ${nomeGruposOrg[reg]}` : `Região ${reg}`;
+        // Usar nome da região do config
+        const labelRegiao = cfgRegioes.nomes[reg] || `${cfgRegioes.tipoLabel} ${reg}`;
         const regDiv = document.createElement('div');
         regDiv.className = 'form-group';
         regDiv.innerHTML = `
-            <label style="font-weight: 600; margin-bottom: 8px; display: block;">${labelGrupo}:</label>
+            <label style="font-weight: 600; margin-bottom: 8px; display: block;">${labelRegiao}:</label>
             <div class="regiao-inputs">
                 <div style="flex: 1;">
                     <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; display: block; margin-bottom: 4px;">Inicial</label>
@@ -307,6 +337,9 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
     const { categoria, itemId } = alimentacaoEditando;
     const item = dadosAlimentacao[categoria].itens.find(i => i.item === itemId);
 
+    // Coletar código BEC/CATSER
+    const codigoBec = document.getElementById('alimentacao-codigo-bec')?.value || null;
+
     // Coletar dados das regiões
     const regioes = {};
     const regioesInicialInputs = document.querySelectorAll('.regiao-inicial-input');
@@ -334,8 +367,8 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
     });
 
     try {
-        // Atualizar via API
-        await APIClient.atualizarEstoqueItem(item.id, regioes);
+        // Atualizar via API (incluindo código BEC/CATSER)
+        await APIClient.atualizarEstoqueItem(item.id, regioes, codigoBec);
 
         // Atualizar localmente (merge para preservar campos existentes)
         Object.keys(regioes).forEach(reg => {
@@ -346,6 +379,11 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
                 ...regioes[reg]
             };
         });
+        
+        // Atualizar código BEC/CATSER localmente
+        if (codigoBec !== null) {
+            item.natureza = codigoBec;
+        }
 
         alert('Estoque atualizado com sucesso!');
         fecharModalAlimentacao();

@@ -751,15 +751,15 @@ function gerarPreviewOS(dados) {
                         <td colspan="3">${dados.evento}</td>
                     </tr>
                     <tr>
-                        <td><strong>DATA:</strong></td>
+                        <td><strong>${cfg.osDataLabel}:</strong></td>
                         <td colspan="3">${dados.dataEvento}</td>
                     </tr>
                     <tr>
-                        <td><strong>HORÁRIO DO EVENTO:</strong></td>
+                        <td><strong>${cfg.osHorarioLabel}:</strong></td>
                         <td colspan="3">${dados.horario || ''}</td>
                     </tr>
                     <tr>
-                        <td><strong>LOCAL DO EVENTO:</strong></td>
+                        <td><strong>${cfg.osLocalLabel}:</strong></td>
                         <td colspan="3">${dados.local}</td>
                     </tr>
                     <tr>

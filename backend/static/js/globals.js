@@ -16,6 +16,21 @@ const MODULE_CONFIG = {
         colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
         colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
         colunaValorUnit: 'VALOR UNIT.',
+        // Labels de Ordem de Serviço
+        osDataLabel: 'DATA',
+        osHorarioLabel: 'HORÁRIO DO EVENTO',
+        osLocalLabel: 'LOCAL DO EVENTO',
+        // Configuração de Regiões/Grupos
+        regioes: {
+            tipo: 'regiao',
+            tipoLabel: 'Região',
+            tipoLabelPlural: 'Regiões',
+            quantidade: 6,
+            nomes: {
+                1: 'Região 1', 2: 'Região 2', 3: 'Região 3',
+                4: 'Região 4', 5: 'Região 5', 6: 'Região 6'
+            }
+        }
     },
     organizacao: {
         grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
@@ -25,6 +40,22 @@ const MODULE_CONFIG = {
         colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
         colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
         colunaValorUnit: 'VALOR UNIT.',
+        // Labels de Ordem de Serviço
+        osDataLabel: 'DATA DE ENTREGA',
+        osHorarioLabel: 'HORÁRIO DE ENTREGA',
+        osLocalLabel: 'LOCAL DE ENTREGA',
+        // Configuração de Regiões/Grupos
+        regioes: {
+            tipo: 'grupo',
+            tipoLabel: 'Grupo',
+            tipoLabelPlural: 'Grupos',
+            quantidade: 3,
+            nomes: {
+                1: 'Capital/RMSP',
+                2: 'Interior',
+                3: 'Litoral'
+            }
+        }
     },
     hospedagem: {
         grupoLabel: 'Lote',   grupoLabelUpper: 'LOTE',
@@ -34,6 +65,21 @@ const MODULE_CONFIG = {
         colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
         colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
         colunaValorUnit: 'VALOR UNIT.',
+        // Labels de Ordem de Serviço
+        osDataLabel: 'DATA',
+        osHorarioLabel: 'HORÁRIO DO EVENTO',
+        osLocalLabel: 'LOCAL DO EVENTO',
+        // Configuração de Regiões/Grupos
+        regioes: {
+            tipo: 'lote',
+            tipoLabel: 'Lote',
+            tipoLabelPlural: 'Lotes',
+            quantidade: 6,
+            nomes: {
+                1: 'Lote 1', 2: 'Lote 2', 3: 'Lote 3',
+                4: 'Lote 4', 5: 'Lote 5', 6: 'Lote 6'
+            }
+        }
     },
     transporte: {
         grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
@@ -43,6 +89,22 @@ const MODULE_CONFIG = {
         colunaQtd: 'QTDE KM',                 colunaQtdCompacta: 'Qtd KM',
         colunaQtdTotal: null,   // sem coluna separada de total
         colunaValorUnit: 'VALOR UNIT.<br/>DO KM',
+        // Labels de Ordem de Serviço
+        osDataLabel: 'DATA',
+        osHorarioLabel: 'HORÁRIO DO EVENTO',
+        osLocalLabel: 'LOCAL DO EVENTO',
+        // Configuração de Regiões/Grupos
+        regioes: {
+            tipo: 'ambito',
+            tipoLabel: 'Âmbito',
+            tipoLabelPlural: 'Âmbitos',
+            quantidade: 3,
+            nomes: {
+                1: 'Municipal',
+                2: 'Intermunicipal',
+                3: 'Interestadual'
+            }
+        }
     }
 };
 
@@ -124,3 +186,49 @@ let sugestoesOS = {
     gestores: [],
     fiscais: []
 };
+
+// ========================================
+// FUNÇÕES UTILITÁRIAS
+// ========================================
+
+/**
+ * Função debounce para performance em eventos de resize/scroll
+ * @param {Function} func - Função a ser executada
+ * @param {number} wait - Tempo de espera em ms
+ * @returns {Function}
+ */
+function debounce(func, wait = 250) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * Atualiza labels dinâmicos baseados no módulo atual
+ */
+function atualizarLabelsModulo() {
+    const cfg = getModuleConfig();
+    
+    // Atualizar labels de código do item (BEC/CATSER)
+    document.querySelectorAll('[data-label="item-code"]').forEach(el => {
+        el.textContent = cfg.itemCodeLabel;
+    });
+    
+    // Atualizar labels de descrição
+    document.querySelectorAll('[data-label="desc"]').forEach(el => {
+        el.textContent = cfg.descLabel;
+    });
+    
+    // Atualizar labels de grupo/lote
+    document.querySelectorAll('[data-label="grupo"]').forEach(el => {
+        el.textContent = cfg.grupoLabel;
+    });
+    
+    console.log('✅ Labels do módulo atualizados:', cfg);
+}

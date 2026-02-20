@@ -72,19 +72,23 @@ function atualizarEstoqueDisponivel(select) {
 
 function configurarFormularios() {
     // Form: Adicionar/Editar Item
-    document.getElementById('form-item').addEventListener('submit', function(e) {
+    document.getElementById('form-item').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const categoriaSelecionada = document.getElementById('item-categoria').value;
-        const categoria = Object.keys(categorias).find(cat =>
-            categorias[cat].find(nome => nome === document.getElementById('item-nome').value)
-        );
+        const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+        
+        if (!categoriaSelecionada) {
+            alert('Por favor, selecione uma categoria.');
+            return;
+        }
 
         const dados = {
             categoria: categoriaSelecionada,
             nome: document.getElementById('item-nome').value,
             quantidade: parseInt(document.getElementById('item-quantidade').value),
-            unidade: document.getElementById('item-unidade').value
+            unidade: document.getElementById('item-unidade').value,
+            natureza: document.getElementById('item-codigo-bec')?.value || null  // Código BEC/CATSER
         };
 
         if (itemEditandoId) {
@@ -92,52 +96,64 @@ function configurarFormularios() {
             const item = estoque.find(i => i.id === itemEditandoId);
             Object.assign(item, dados);
             salvarDados();
+            alert('✅ Item atualizado!');
         } else {
-            // Adicionar - ENVIAR PARA BACKEND
-            fetch('/api/itens', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    item: '1',  // Código do item
-                    descricao: dados.nome,
-                    categoria_id: 1,  // Ajustar conforme necessário
-                    unidade: dados.unidade,
-                    regioes: {
-                        '1': { inicial: dados.quantidade, gasto: '0' },
-                        '2': { inicial: dados.quantidade, gasto: '0' },
-                        '3': { inicial: dados.quantidade, gasto: '0' },
-                        '4': { inicial: dados.quantidade, gasto: '0' },
-                        '5': { inicial: dados.quantidade, gasto: '0' },
-                        '6': { inicial: dados.quantidade, gasto: '0' }
-                    }
-                })
-            })
-            .then(response => {
+            try {
+                // Buscar categoria_id dinâmico
+                const categoriaNome = categoriaSelecionada;
+                const categoriaObj = dadosAlimentacao[categoriaNome];
+                
+                if (!categoriaObj || !categoriaObj.categoria_db_id) {
+                    alert('❌ Erro: Categoria inválida');
+                    return;
+                }
+                
+                // Determinar quantidade de regiões conforme config do módulo
+                const cfg = getModuleConfig();
+                const maxRegioes = cfg.regioes.quantidade;
+                const regioes = {};
+                for (let i = 1; i <= maxRegioes; i++) {
+                    regioes[i.toString()] = { inicial: dados.quantidade.toString(), gasto: '0' };
+                }
+                
+                // Gerar próximo item_codigo (número sequencial)
+                const itemsCat = categoriaObj.itens || [];
+                const maxCodigo = itemsCat.length > 0 ? Math.max(...itemsCat.map(it => parseInt(it.item) || 0)) : 0;
+                const novoItemCodigo = (maxCodigo + 1).toString();
+                
+                // Adicionar - ENVIAR PARA BACKEND
+                const response = await fetch('/api/itens', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        item: novoItemCodigo,
+                        descricao: dados.nome,
+                        categoria_id: categoriaObj.categoria_db_id,
+                        unidade: dados.unidade,
+                        natureza: dados.natureza,
+                        regioes: regioes
+                    })
+                });
+                
                 if (!response.ok) {
                     throw new Error(`Erro ${response.status}: ${response.statusText}`);
                 }
-                return response.json();
-            })
-            .then(novoItem => {
-                // Adicionar também localmente para visualização imediata
-                estoque.push({
-                    id: proximoIdEstoque++,
-                    ...dados,
-                    dataCadastro: new Date().toISOString()
-                });
-                salvarDados();
-                alert('✅ Item adicionado com sucesso e salvo no banco de dados!');
-            })
-            .catch(erro => {
+                
+                await response.json();
+                alert('✅ Item adicionado com sucesso!');
+                
+                // Recarregar dados do módulo
+                await renderizarAlimentacao();
+                
+            } catch (erro) {
                 console.error('Erro ao salvar item no banco:', erro);
-                alert('❌ Erro ao salvar item no banco de dados: ' + erro.message);
-            });
+                alert('❌ Erro ao salvar item: ' + erro.message);
+            }
         }
 
         fecharModalItem();
-        renderizarEstoque();
     });
 
     // Form: Adicionar/Editar Categoria

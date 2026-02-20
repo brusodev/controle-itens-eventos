@@ -56,7 +56,8 @@ def criar_item():
             categoria_id=dados['categoria_id'],
             item_codigo=dados['item'],
             descricao=dados['descricao'],
-            unidade=dados['unidade']
+            unidade=dados['unidade'],
+            natureza=dados.get('natureza')  # Código BEC/CATSER individual
         )
         db.session.add(item)
         db.session.flush()  # Para obter o ID
@@ -108,6 +109,8 @@ def atualizar_item(item_id):
             item.descricao = dados['descricao']
         if 'unidade' in dados:
             item.unidade = dados['unidade']
+        if 'natureza' in dados:
+            item.natureza = dados['natureza']  # Código BEC/CATSER
         
         # Atualizar estoques regionais
         if 'regioes' in dados:

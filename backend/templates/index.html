@@ -589,17 +589,18 @@
                     <div class="form-group">
                         <label for="item-categoria">Categoria *</label>
                         <select id="item-categoria" required>
-                            <option value="estrutura_e_espaco">Estrutura e
-                                Espaço</option>
-                            <option value="equipamentos">Equipamentos</option>
-                            <option value="materiais_de_apoio">Materiais de
-                                Apoio</option>
+                            <option value="">Selecione a categoria</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label for="item-nome">Nome do Item *</label>
                         <input type="text" id="item-nome" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="item-codigo-bec" id="label-item-codigo-bec">Código BEC/CATSER</label>
+                        <input type="text" id="item-codigo-bec" placeholder="Ex: 339039">
                     </div>
 
                     <div class="form-group">
@@ -737,6 +738,11 @@
                         <input type="text" id="alimentacao-unidade" readonly>
                     </div>
 
+                    <div class="form-group">
+                        <label id="label-alimentacao-codigo-bec">Código BEC/CATSER:</label>
+                        <input type="text" id="alimentacao-codigo-bec" placeholder="Ex: 339039">
+                    </div>
+
                     <div id="regioes-quantidades">
                         <!-- Campos dinâmicos para regiões -->
                     </div>
@@ -797,14 +803,14 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="{{ url_for('static', filename='js/api-client.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/api-client.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.12"></script>
+    <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.9"></script>
+    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.3"></script>
-    <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.2"></script>
+    <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.5"></script>
+    <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.8"></script>
     <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.2"></script>
     <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.2"></script>
     <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.2"></script>

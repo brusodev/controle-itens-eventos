@@ -7,9 +7,43 @@ let itemEditandoId = null;
 
 function mostrarModalNovoItem() {
     itemEditandoId = null;
-    document.getElementById('modal-titulo').textContent = 'Adicionar Item ao Estoque';
+    
+    // Atualizar título do modal de acordo com o módulo
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const titulosModal = {
+        'coffee': 'Adicionar Item de Alimentação',
+        'transporte': 'Adicionar Item de Transporte',
+        'hospedagem': 'Adicionar Item de Hospedagem',
+        'organizacao': 'Adicionar Item de Organização'
+    };
+    document.getElementById('modal-titulo').textContent = titulosModal[moduloAtual] || 'Adicionar Item ao Estoque';
+    
     document.getElementById('form-item').reset();
     document.getElementById('item-unidade').value = 'unidade';
+    
+    // Carregar categorias do módulo atual
+    const selectCategoria = document.getElementById('item-categoria');
+    selectCategoria.innerHTML = '<option value="">Selecione a categoria</option>';
+    
+    if (dadosAlimentacao && Object.keys(dadosAlimentacao).length > 0) {
+        Object.keys(dadosAlimentacao).forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = formatarCategoriaAlimentacao(cat);
+            if (dadosAlimentacao[cat].natureza) {
+                option.textContent += ` (${dadosAlimentacao[cat].natureza})`;
+            }
+            selectCategoria.appendChild(option);
+        });
+    }
+    
+    // Atualizar label do código BEC/CATSER baseado no módulo
+    const cfg = getModuleConfig();
+    const labelCodigoBec = document.getElementById('label-item-codigo-bec');
+    if (labelCodigoBec) {
+        labelCodigoBec.textContent = `Código ${cfg.itemCodeLabel}`;
+    }
+    
     document.getElementById('modal-item').style.display = 'flex';
 }
 
@@ -23,6 +57,20 @@ function editarItem(id) {
     document.getElementById('item-nome').value = item.nome;
     document.getElementById('item-quantidade').value = item.quantidade;
     document.getElementById('item-unidade').value = item.unidade;
+    
+    // Preencher código BEC/CATSER se existir
+    const codigoBecInput = document.getElementById('item-codigo-bec');
+    if (codigoBecInput) {
+        codigoBecInput.value = item.natureza || '';
+    }
+    
+    // Atualizar label do código BEC/CATSER baseado no módulo
+    const cfg = getModuleConfig();
+    const labelCodigoBec = document.getElementById('label-item-codigo-bec');
+    if (labelCodigoBec) {
+        labelCodigoBec.textContent = `Código ${cfg.itemCodeLabel}`;
+    }
+    
     document.getElementById('modal-item').style.display = 'flex';
 }
 
