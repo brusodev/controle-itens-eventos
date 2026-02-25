@@ -155,11 +155,14 @@ def listar_usuarios():
 @login_requerido
 def obter_usuario(usuario_id):
     """Obtém dados de um usuário específico"""
+    if session['usuario_id'] != usuario_id and session.get('usuario_perfil') != 'admin':
+        return jsonify({'erro': 'Acesso negado'}), 403
+
     usuario = Usuario.query.get(usuario_id)
-    
+
     if not usuario:
         return jsonify({'erro': 'Usuário não encontrado'}), 404
-    
+
     return jsonify(usuario.to_dict())
 
 
@@ -224,9 +227,9 @@ def atualizar_usuario(usuario_id):
             'usuario': usuario.to_dict()
         })
         
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({'erro': f'Erro ao atualizar usuário: {str(e)}'}), 500
+        return jsonify({'erro': 'Erro ao atualizar usuário'}), 500
 
 
 @auth_bp.route('/api/usuarios/<int:usuario_id>', methods=['DELETE'])
@@ -295,9 +298,9 @@ def alterar_senha_api():
             'sucesso': True,
             'mensagem': 'Senha alterada com sucesso'
         })
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({'erro': f'Erro ao alterar senha: {str(e)}'}), 500
+        return jsonify({'erro': 'Erro ao alterar senha'}), 500
 
 
 # ========================================

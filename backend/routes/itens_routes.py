@@ -6,6 +6,7 @@ from utils.auditoria import registrar_auditoria
 itens_bp = Blueprint('itens', __name__)
 
 @itens_bp.route('/', methods=['GET'])
+@login_requerido
 def listar_itens():
     """Lista todos os itens com seus estoques"""
     try:
@@ -28,6 +29,7 @@ def listar_itens():
 
 
 @itens_bp.route('/<int:item_id>', methods=['GET'])
+@login_requerido
 def obter_item(item_id):
     """Obtém um item específico"""
     try:

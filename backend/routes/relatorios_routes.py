@@ -14,10 +14,13 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from sqlalchemy import func
 
+from routes.auth_routes import login_requerido
+
 relatorios_bp = Blueprint('relatorios', __name__)
 
 
 @relatorios_bp.route('/api/relatorios/ordens-servico', methods=['GET'])
+@login_requerido
 def relatorio_ordens_servico():
     """
     Relatório de Ordens de Serviço com filtros opcionais:
@@ -83,6 +86,7 @@ def relatorio_ordens_servico():
 
 
 @relatorios_bp.route('/api/relatorios/estoque-posicao', methods=['GET'])
+@login_requerido
 def relatorio_estoque_posicao():
     """
     Relatório de posição atual do estoque
@@ -178,6 +182,7 @@ def relatorio_estoque_posicao():
 
 
 @relatorios_bp.route('/api/relatorios/movimentacoes', methods=['GET'])
+@login_requerido
 def relatorio_movimentacoes():
     """
     Relatório de movimentações de estoque
@@ -253,6 +258,7 @@ def relatorio_movimentacoes():
 
 
 @relatorios_bp.route('/api/relatorios/consumo-por-categoria', methods=['GET'])
+@login_requerido
 def relatorio_consumo_categoria():
     """
     Relatório consolidado de consumo por categoria
@@ -319,6 +325,7 @@ def relatorio_consumo_categoria():
 
 
 @relatorios_bp.route('/api/relatorios/itens-mais-utilizados', methods=['GET'])
+@login_requerido
 def relatorio_itens_mais_utilizados():
     """
     Top 10 (ou N) itens mais utilizados
@@ -372,6 +379,7 @@ def relatorio_itens_mais_utilizados():
 
 
 @relatorios_bp.route('/api/relatorios/pdf/estoque', methods=['GET'])
+@login_requerido
 def gerar_pdf_estoque():
     """
     Gera PDF do relatório de posição de estoque
@@ -513,6 +521,7 @@ def gerar_pdf_estoque():
 
 
 @relatorios_bp.route('/api/relatorios/pdf/ordens-servico', methods=['GET'])
+@login_requerido
 def gerar_pdf_ordens_servico():
     """
     Gera PDF do relatório de Ordens de Serviço

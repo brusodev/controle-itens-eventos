@@ -50,6 +50,7 @@ def gerar_proximo_numero_os(modulo=None):
 
 
 @os_bp.route('/proximo-numero', methods=['GET'])
+@login_requerido
 def obter_proximo_numero():
     """Retorna o próximo número de O.S. disponível para o módulo"""
     try:
@@ -61,6 +62,7 @@ def obter_proximo_numero():
 
 
 @os_bp.route('/', methods=['GET'])
+@login_requerido
 def listar_ordens():
     """Lista todas as ordens de serviço"""
     try:
@@ -86,6 +88,7 @@ def listar_ordens():
 
 
 @os_bp.route('/<int:os_id>', methods=['GET'])
+@login_requerido
 def obter_ordem(os_id):
     """Obtém uma ordem de serviço específica"""
     try:
@@ -97,6 +100,7 @@ def obter_ordem(os_id):
 
 
 @os_bp.route('/', methods=['POST'])
+@login_requerido
 def criar_ordem():
     """Cria uma nova ordem de serviço e atualiza estoque COM VALIDAÇÃO"""
     try:
@@ -239,6 +243,7 @@ def criar_ordem():
 
 
 @os_bp.route('/<int:os_id>', methods=['PUT'])
+@login_requerido
 def atualizar_ordem(os_id):
     """Atualiza uma ordem de serviço existente COM CONTROLE DE ESTOQUE"""
     try:
@@ -434,6 +439,7 @@ def deletar_ordem(os_id):
 
 
 @os_bp.route('/estoque/regiao/<int:regiao>', methods=['GET'])
+@login_requerido
 def relatorio_estoque_regiao(regiao):
     """Retorna relatório de estoque de uma região específica"""
     try:
@@ -450,6 +456,7 @@ def relatorio_estoque_regiao(regiao):
 
 
 @os_bp.route('/estatisticas', methods=['GET'])
+@login_requerido
 def estatisticas():
     """Retorna estatísticas sobre ordens de serviço"""
     try:
@@ -476,6 +483,7 @@ def estatisticas():
 
 
 @os_bp.route('/<int:os_id>/pdf', methods=['GET'])
+@login_requerido
 def gerar_pdf_ordem(os_id):
     """
     Gera PDF da Ordem de Serviço com texto selecionável (não imagem)

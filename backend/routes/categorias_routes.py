@@ -6,6 +6,7 @@ from utils.auditoria import registrar_auditoria
 categorias_bp = Blueprint('categorias', __name__)
 
 @categorias_bp.route('/', methods=['GET'])
+@login_requerido
 def listar_categorias():
     """Lista todas as categorias filtrando por módulo"""
     try:
@@ -17,6 +18,7 @@ def listar_categorias():
 
 
 @categorias_bp.route('/<int:cat_id>', methods=['GET'])
+@login_requerido
 def obter_categoria(cat_id):
     """Obtém uma categoria específica"""
     try:

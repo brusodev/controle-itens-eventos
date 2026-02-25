@@ -6,6 +6,7 @@ from utils.auditoria import registrar_auditoria
 alimentacao_bp = Blueprint('alimentacao', __name__)
 
 @alimentacao_bp.route('/', methods=['GET'])
+@login_requerido
 def listar_alimentacao():
     """Lista todos os itens organizados por categoria, filtrando por módulo"""
     try:
@@ -28,6 +29,7 @@ def listar_alimentacao():
 
 
 @alimentacao_bp.route('/categorias', methods=['GET'])
+@login_requerido
 def listar_categorias():
     """Lista todas as categorias do módulo atual"""
     try:
@@ -69,6 +71,7 @@ def criar_categoria():
 
 
 @alimentacao_bp.route('/filtrar', methods=['GET'])
+@login_requerido
 def filtrar_alimentacao():
     """Filtra itens de alimentação por categoria e busca"""
     try:
@@ -149,6 +152,7 @@ def atualizar_estoque(item_id):
 
 
 @alimentacao_bp.route('/resumo', methods=['GET'])
+@login_requerido
 def resumo_estoque():
     """Retorna resumo de estoque por região"""
     try:

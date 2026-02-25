@@ -35,7 +35,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // ✅ RESTAURAR O.S. PARA EDIÇÃO SE NECESSÁRIO
-    await restaurarOSParaEdicao();
+    try {
+        await restaurarOSParaEdicao();
+    } catch (error) {
+        console.error('Erro ao restaurar O.S. para edicao:', error);
+    }
 });
 
 function carregarDados() {

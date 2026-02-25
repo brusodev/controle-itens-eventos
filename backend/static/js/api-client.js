@@ -37,14 +37,21 @@ class APIClient {
             const response = await fetch(url, config);
             
             if (!response.ok) {
-                // Se for 404, retornar null ao invés de erro (detentora não encontrada)
+                // Sessao expirada ou nao autenticado: redirecionar para login
+                if (response.status === 401) {
+                    console.warn('[API] Sessao invalida ou expirada. Redirecionando para login...');
+                    window.location.href = '/auth/login';
+                    return;
+                }
+
+                // Se for 404, retornar null ao inves de erro (detentora nao encontrada)
                 if (response.status === 404 && endpoint.includes('/grupo/')) {
-                    console.warn('⚠️ [API] Detentora não encontrada para o grupo');
+                    console.warn('[API] Detentora nao encontrada para o grupo');
                     return null;
                 }
-                
+
                 const error = await response.json();
-                throw new Error(error.erro || 'Erro na requisição');
+                throw new Error(error.erro || 'Erro na requisicao');
             }
             
             return await response.json();
