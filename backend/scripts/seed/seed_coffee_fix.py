@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 # Adicionar o diretório pai ao pipe para importar app e models
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app import create_app
 from models import db, Categoria, Item, EstoqueRegional
@@ -18,8 +18,12 @@ from models import db, Categoria, Item, EstoqueRegional
 def recover_coffee():
     app = create_app()
     
-    # Caminho do JSON na VPS (ajustado para a raiz do projeto)
-    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scripts', 'itens.json')
+    # Caminho do JSON na raiz do projeto
+    # De: backend/scripts/seed/ -> raiz/scripts/itens.json
+    seed_dir = Path(__file__).parent  # backend/scripts/seed/
+    backend_dir = seed_dir.parent.parent  # backend/
+    projeto_dir = backend_dir.parent  # raiz do projeto
+    json_path = projeto_dir / 'scripts' / 'itens.json'
     
     if not os.path.exists(json_path):
         print(f"❌ Arquivo não encontrado: {json_path}")

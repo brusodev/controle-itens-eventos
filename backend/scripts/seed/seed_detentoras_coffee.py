@@ -17,67 +17,46 @@ def seed_detentoras_coffee():
     with app.app_context():
         print("🚀 Populando detentoras do módulo de Coffee Break...")
         
-        # Dados das detentoras para Coffee Break (Grupos 1 a 6)
-        # Usando dados genéricos/placeholder baseados no padrão do projeto
+        # Dados REAIS das detentoras para Coffee Break (extraídos do banco local)
         detentoras_data = [
             {
-                'nome': 'DETENTORA GRUPO 1 - COFFEE',
-                'cnpj': '00.000.000/0001-01',
+                'nome': 'AMBP PROMOÇÕES E EVENTOS EMPRESARIAIS LTDA-EPP',
+                'cnpj': '08.472.572/0001-8',
                 'contrato_num': '014/DA/2024',
-                'data_assinatura': '2024-01-01',
+                'data_assinatura': '2024-11-04',
                 'prazo_vigencia': '12 MESES',
                 'servico': 'COFFEE BREAK',
-                'grupo': '1',
+                'grupo': 1,
                 'modulo': 'coffee'
             },
             {
-                'nome': 'DETENTORA GRUPO 2 - COFFEE',
-                'cnpj': '00.000.000/0002-02',
-                'contrato_num': '015/DA/2024',
-                'data_assinatura': '2024-01-01',
+                'nome': 'XPTO LTDA',
+                'cnpj': '12.456.987/0001-57',
+                'contrato_num': '015/COGESPA/2025',
+                'data_assinatura': '2025-11-03',
                 'prazo_vigencia': '12 MESES',
                 'servico': 'COFFEE BREAK',
-                'grupo': '2',
+                'grupo': 2,
                 'modulo': 'coffee'
             },
             {
-                'nome': 'DETENTORA GRUPO 3 - COFFEE',
-                'cnpj': '00.000.000/0003-03',
-                'contrato_num': '016/DA/2024',
-                'data_assinatura': '2024-01-01',
+                'nome': 'ALPHA LTDA',
+                'cnpj': '32.456.987/0001-36',
+                'contrato_num': '016/COGESPA/2025',
+                'data_assinatura': '2025-11-03',
                 'prazo_vigencia': '12 MESES',
                 'servico': 'COFFEE BREAK',
-                'grupo': '3',
+                'grupo': 3,
                 'modulo': 'coffee'
             },
             {
-                'nome': 'DETENTORA GRUPO 4 - COFFEE',
-                'cnpj': '00.000.000/0004-04',
-                'contrato_num': '017/DA/2024',
-                'data_assinatura': '2024-01-01',
+                'nome': 'FALCON LDTA',
+                'cnpj': '12.456.987/0001-57',
+                'contrato_num': '017/COGESPA/2025',
+                'data_assinatura': '2025-11-07',
                 'prazo_vigencia': '12 MESES',
                 'servico': 'COFFEE BREAK',
-                'grupo': '4',
-                'modulo': 'coffee'
-            },
-            {
-                'nome': 'DETENTORA GRUPO 5 - COFFEE',
-                'cnpj': '00.000.000/0005-05',
-                'contrato_num': '018/DA/2024',
-                'data_assinatura': '2024-01-01',
-                'prazo_vigencia': '12 MESES',
-                'servico': 'COFFEE BREAK',
-                'grupo': '5',
-                'modulo': 'coffee'
-            },
-            {
-                'nome': 'DETENTORA GRUPO 6 - COFFEE',
-                'cnpj': '00.000.000/0006-06',
-                'contrato_num': '019/DA/2024',
-                'data_assinatura': '2024-01-01',
-                'prazo_vigencia': '12 MESES',
-                'servico': 'COFFEE BREAK',
-                'grupo': '6',
+                'grupo': 4,
                 'modulo': 'coffee'
             }
         ]

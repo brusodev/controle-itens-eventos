@@ -17,66 +17,26 @@ def seed_detentoras():
     with app.app_context():
         print("🚀 Populando detentoras do módulo de Transportes...")
         
-        # Dados das detentoras para Transportes (exemplo)
+        # Dados REAIS das detentoras para Transportes (extraídos do banco local)
         detentoras_data = [
             {
-                'nome': 'TRANS-TURISMO LTDA',
-                'cnpj': '11.222.333/0001-44',
-                'contrato_num': '050/DA/2024',
-                'data_assinatura': '2024-01-15',
+                'nome': 'ENTRAN',
+                'cnpj': '27.263.325/0006-28',
+                'contrato_num': '017/COGESPA/2025',
+                'data_assinatura': '2026-12-20',
                 'prazo_vigencia': '12 MESES',
-                'servico': 'TRANSPORTE E FRETAMENTO',
+                'servico': 'SERVIÇOS DE TRANSPORTE',
                 'grupo': 1,
                 'modulo': 'transporte'
             },
             {
-                'nome': 'LOGISTICA & TRANSPORTES S.A.',
-                'cnpj': '22.333.444/0001-55',
-                'contrato_num': '051/DA/2024',
-                'data_assinatura': '2024-02-10',
+                'nome': 'Transporte Rapidão',
+                'cnpj': '89.787.979/7879-87',
+                'contrato_num': '015/COGESPA/2025',
+                'data_assinatura': '2025-12-05',
                 'prazo_vigencia': '12 MESES',
-                'servico': 'TRANSPORTE E FRETAMENTO',
-                'grupo': 2,
-                'modulo': 'transporte'
-            },
-            {
-                'nome': 'MOVE BRASIL TRANSPORTES',
-                'cnpj': '33.444.555/0001-66',
-                'contrato_num': '052/DA/2024',
-                'data_assinatura': '2024-03-05',
-                'prazo_vigencia': '12 MESES',
-                'servico': 'TRANSPORTE E FRETAMENTO',
-                'grupo': 3,
-                'modulo': 'transporte'
-            },
-            {
-                'nome': 'VIAÇÃO REGIONAL LTDA',
-                'cnpj': '44.555.666/0001-77',
-                'contrato_num': '053/DA/2024',
-                'data_assinatura': '2024-04-01',
-                'prazo_vigencia': '12 MESES',
-                'servico': 'TRANSPORTE E FRETAMENTO',
+                'servico': 'SERVIÇOS DE TRANSPORTE',
                 'grupo': 4,
-                'modulo': 'transporte'
-            },
-            {
-                'nome': 'EXPRESSO NORTE-SUL',
-                'cnpj': '55.666.777/0001-88',
-                'contrato_num': '054/DA/2024',
-                'data_assinatura': '2024-05-12',
-                'prazo_vigencia': '12 MESES',
-                'servico': 'TRANSPORTE E FRETAMENTO',
-                'grupo': 5,
-                'modulo': 'transporte'
-            },
-            {
-                'nome': 'TRANSPORTADORA CENTRAL',
-                'cnpj': '66.777.888/0001-99',
-                'contrato_num': '055/DA/2024',
-                'data_assinatura': '2024-06-20',
-                'prazo_vigencia': '12 MESES',
-                'servico': 'TRANSPORTE E FRETAMENTO',
-                'grupo': 6,
                 'modulo': 'transporte'
             }
         ]

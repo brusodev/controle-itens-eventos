@@ -22,6 +22,7 @@ def seed_transportes():
             {'nome': 'transporte_veiculos_leves', 'tipo': 'alimentacao', 'natureza': '339039', 'modulo': 'transporte'},
             {'nome': 'transporte_veiculos_pesados', 'tipo': 'alimentacao', 'natureza': '339039', 'modulo': 'transporte'},
             {'nome': 'transporte_fretamento', 'tipo': 'alimentacao', 'natureza': '339039', 'modulo': 'transporte'},
+            {'nome': 'Veículos Passageiros', 'tipo': 'veiculos_passageiros', 'natureza': '', 'modulo': 'transporte'},
         ]
         
         categorias_criadas = {}
@@ -75,6 +76,14 @@ def seed_transportes():
                 'descricao': 'Ônibus Executivo (até 44 pessoas) - Fretamento por KM',
                 'unidade': 'KM',
                 'precos': {'1': 7.50, '2': 7.60, '3': 7.40, '4': 7.55, '5': 7.50, '6': 7.70}
+            },
+            # Veículos Passageiros (categoria adicional do banco)
+            {
+                'categoria': 'Veículos Passageiros',
+                'codigo': '1',
+                'descricao': 'Veículo tipo ônibus com no min. 44 lugares, equipado com WC e ar-condicionado',
+                'unidade': 'KM',
+                'precos': {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0}
             }
         ]
         
@@ -87,10 +96,12 @@ def seed_transportes():
                     categoria_id=cat.id,
                     item_codigo=item_info['codigo'],
                     descricao=item_info['descricao'],
-                    unidade=item_info['unidade']
-                )
-                db.session.add(item)
-                db.session.flush()
+                    # Quantidade inicial alta para transportes (considerado "ilimitado")
+                    qtd_inicial = '39095' if item_info['categoria'] == 'Veículos Passageiros' else '999999'
+                    estoque = EstoqueRegional(
+                        item_id=item.id,
+                        regiao_numero=regiao,
+                        quantidade_inicial=qtd_inicial,
                 
                 # Criar estoques para as 6 regiões
                 for regiao in range(1, 7):
