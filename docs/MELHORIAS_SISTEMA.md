@@ -17,6 +17,27 @@
 
 ## 🔄 Pendente
 
+### [Portal Empresa] Confirmação de execução pela empresa — aguardando aprovação interna
+
+**Contexto**: O status `em_execucao` foi removido do fluxo visível no Portal da Empresa. Atualmente, após aceitar e assinar a O.S., não há nenhuma ação adicional da empresa — o painel exibe a mensagem "O.S. aceita. Aguardando execução do serviço."
+
+**Melhoria proposta**: Adicionar um botão **"Marcar como Executada"** no portal da empresa, permitindo que a detentora confirme formalmente a conclusão do serviço.
+
+**Fluxo proposto**:
+```
+aceita → executada  (empresa clica em "Marcar como Executada")
+```
+
+**Impacto técnico**:
+- Criar endpoint `POST /api/empresa/ordens/<id>/executar` em `detentora_portal_routes.py`
+- Transição `aceita → executada` (ou `em_execucao → executada` se o status intermediário for reativado)
+- Adicionar modal de confirmação dinâmico no `portal-empresa.js` (padrão já estabelecido)
+- Registrar log de histórico com data/hora e usuário
+
+**Status**: Aguardando aprovação interna para implementação.
+
+---
+
 ### 3. Padronização dos Botões
 **Objetivo**: Deixar os botões das abas "Emitir O.S." e "Ordens de Serviço" no mesmo padrão visual
 

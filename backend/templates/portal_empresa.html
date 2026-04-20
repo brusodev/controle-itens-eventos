@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Portal Empresa — Caixa de Entrada{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/portal-empresa.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="portal-inbox">
+
+    <div class="portal-header">
+        <div class="portal-header-info">
+            <h1 class="portal-title">📬 Caixa de Entrada</h1>
+            <p class="portal-subtitle">Ordens de Serviço aguardando sua ação</p>
+        </div>
+        <div class="portal-header-actions">
+            <button class="btn-icon" onclick="carregarInbox()" title="Atualizar">
+                🔄
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros de status -->
+    <div class="status-tabs" id="status-tabs">
+        <button class="status-tab active" data-status="" onclick="filtrarStatus(this, '')">
+            Todas
+            <span class="tab-badge" id="badge-todas"></span>
+        </button>
+        <button class="status-tab" data-status="enviada_empresa" onclick="filtrarStatus(this, 'enviada_empresa')">
+            Aguardando
+            <span class="tab-badge badge-enviada" id="badge-enviada"></span>
+        </button>
+        <button class="status-tab" data-status="em_revisao" onclick="filtrarStatus(this, 'em_revisao')">
+            Em Revisão
+            <span class="tab-badge badge-revisao" id="badge-revisao"></span>
+        </button>
+        <button class="status-tab" data-status="aceita" onclick="filtrarStatus(this, 'aceita')">
+            Aceitas
+            <span class="tab-badge badge-aceita" id="badge-aceita"></span>
+        </button>
+        <button class="status-tab" data-status="em_execucao" onclick="filtrarStatus(this, 'em_execucao')">
+            Em Execução
+            <span class="tab-badge badge-execucao" id="badge-execucao"></span>
+        </button>
+        <button class="status-tab" data-status="recusada" onclick="filtrarStatus(this, 'recusada')">
+            Recusadas
+            <span class="tab-badge badge-recusada" id="badge-recusada"></span>
+        </button>
+    </div>
+
+    <!-- Busca rápida -->
+    <div class="inbox-search-bar">
+        <input
+            type="search"
+            id="busca-input"
+            class="inbox-search"
+            placeholder="Buscar por número, evento..."
+            oninput="debouncarBusca(this.value)"
+        >
+    </div>
+
+    <!-- Lista de OS -->
+    <div id="inbox-lista" class="inbox-lista">
+        <div class="inbox-loading">
+            <div class="spinner"></div>
+            <p>Carregando ordens...</p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/portal-empresa.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarInbox();
+    });
+</script>
+{% endblock %}

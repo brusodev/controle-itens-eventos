@@ -17,7 +17,8 @@
       "Bash(pip install:*)",
       "Bash(python3:*)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(grep -n \"PORTAL_DETENTORA_ATIVO\\\\|feature_flag\\\\|feature.flag\" c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/*.py c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/routes/*.py)"
     ]
   }
 }

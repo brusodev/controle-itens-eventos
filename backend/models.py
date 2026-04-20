@@ -225,15 +225,22 @@ class OrdemServico(db.Model):
     responsavel = db.Column(db.String(200))  # Responsável pela O.S.
     signatarios_json = db.Column(db.Text)  # JSON: [{"cargo": "...", "nome": "..."}, ...]
 
+    # Ciclo de vida / status do portal da detentora
+    # Estados: emitida, enviada_empresa, em_revisao, aceita, em_execucao, executada, recusada
+    status = db.Column(db.String(30), default='emitida', nullable=False, index=True)
+
     # Controle
     data_emissao = db.Column(db.DateTime, default=datetime.utcnow)
     data_emissao_completa = db.Column(db.String(50))
-    motivo_exclusao = db.Column(db.Text)  # ✅ Motivo da exclusão registrado pelo admin
-    data_exclusao = db.Column(db.DateTime)  # ✅ Data da exclusão
-    
+    motivo_exclusao = db.Column(db.Text)  # Motivo da exclusão registrado pelo admin
+    data_exclusao = db.Column(db.DateTime)  # Data da exclusão
+
     # Relacionamentos
     itens = db.relationship('ItemOrdemServico', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
     movimentacoes = db.relationship('MovimentacaoEstoque', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
+    aceites = db.relationship('AceiteEmpresa', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
+    revisoes = db.relationship('RevisaoEmpresa', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
+    comentarios = db.relationship('ComentarioEmpresa', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
     
     def _get_signatarios(self):
         """Retorna lista de signatários do JSON ou fallback para colunas legadas"""
@@ -254,6 +261,7 @@ class OrdemServico(db.Model):
         data = {
             'id': self.id,
             'numeroOS': self.numero_os,
+            'status': self.status or 'emitida',
             'contrato': self.contrato,
             'dataAssinatura': self.data_assinatura,
             'prazoVigencia': self.prazo_vigencia,
@@ -354,32 +362,40 @@ class MovimentacaoEstoque(db.Model):
 class Usuario(db.Model):
     """Modelo de Usuário do sistema"""
     __tablename__ = 'usuarios'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     senha_hash = db.Column(db.String(255), nullable=False)
     cargo = db.Column(db.String(100), nullable=True)  # Gestor, Operador, Fiscal, etc
-    perfil = db.Column(db.String(20), default='comum', nullable=False)  # 'admin' ou 'comum'
+    perfil = db.Column(db.String(20), default='comum', nullable=False)  # 'admin', 'comum' ou 'empresa'
     ativo = db.Column(db.Boolean, default=True)
-    
+
+    # Vínculo com detentora (obrigatório para perfil 'empresa', nulo para admin/comum)
+    detentora_id = db.Column(db.Integer, db.ForeignKey('detentoras.id'), nullable=True, index=True)
+
     # Auditoria
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     ultimo_acesso = db.Column(db.DateTime, nullable=True)
-    
+
+    # Relacionamento
+    detentora_vinculada = db.relationship('Detentora', backref='usuarios', foreign_keys=[detentora_id])
+
     def set_senha(self, senha):
         """Define a senha (com hash)"""
         self.senha_hash = generate_password_hash(senha, method='pbkdf2:sha256')
-    
+
     def verificar_senha(self, senha):
         """Verifica se a senha está correta"""
         return check_password_hash(self.senha_hash, senha)
-    
+
     def is_admin(self):
-        """Verifica se o usuário é administrador"""
         return self.perfil == 'admin'
-    
+
+    def is_empresa(self):
+        return self.perfil == 'empresa'
+
     def to_dict(self):
         """Converte usuário para dicionário (sem dados sensíveis)"""
         return {
@@ -388,12 +404,13 @@ class Usuario(db.Model):
             'email': self.email,
             'cargo': self.cargo,
             'perfil': self.perfil,
+            'detentora_id': self.detentora_id,
             'ativo': self.ativo,
             'criado_em': self.criado_em.isoformat() if self.criado_em else None,
             'atualizado_em': self.atualizado_em.isoformat() if self.atualizado_em else None,
             'ultimo_acesso': self.ultimo_acesso.isoformat() if self.ultimo_acesso else None
         }
-    
+
     def __repr__(self):
         return f'<Usuario {self.email}>'
 
@@ -444,4 +461,188 @@ class Auditoria(db.Model):
     
     def __repr__(self):
         return f'<Auditoria {self.id} - {self.acao} {self.modulo} por {self.usuario_email}>'
+
+
+# ============================================================
+# PORTAL DA DETENTORA — Modelos de colaboração por O.S.
+# ============================================================
+
+# Transições de status válidas (máquina de estados)
+STATUS_TRANSICOES_VALIDAS = {
+    'emitida':         ['enviada_empresa'],
+    'enviada_empresa': ['aceita', 'em_revisao', 'recusada'],
+    'em_revisao':      ['enviada_empresa', 'recusada'],
+    'aceita':          ['em_execucao', 'cancelada'],   # admin pode cancelar após aceite
+    'em_execucao':     ['executada', 'cancelada'],     # admin pode cancelar em execução
+    'executada':       [],
+    'recusada':        [],
+    'cancelada':       [],                             # terminal — não pode ser reativada
+}
+
+STATUS_LABELS = {
+    'emitida':         'Emitida',
+    'enviada_empresa': 'Enviada à Empresa',
+    'em_revisao':      'Em Revisão',
+    'aceita':          'Aceita',
+    'em_execucao':     'Em Execução',
+    'executada':       'Executada',
+    'recusada':        'Recusada',
+    'cancelada':       'Cancelada',
+}
+
+# Status que bloqueiam edição estrutural da O.S. (após assinatura da detentora)
+STATUS_BLOQUEADOS_EDICAO = {'aceita', 'em_execucao', 'executada', 'cancelada'}
+
+
+def status_transicao_valida(status_atual, status_novo):
+    """Retorna True se a transição de status é permitida."""
+    return status_novo in STATUS_TRANSICOES_VALIDAS.get(status_atual, [])
+
+
+class AceiteEmpresa(db.Model):
+    """Registro de aceite (com assinatura) de uma O.S. pela detentora"""
+    __tablename__ = 'aceites_empresa'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id', ondelete='CASCADE'), nullable=False, index=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    detentora_id = db.Column(db.Integer, db.ForeignKey('detentoras.id'), nullable=False, index=True)
+
+    # Responsável pelo aceite (nome digitado no modal)
+    nome_responsavel = db.Column(db.String(200), nullable=False)
+
+    # Evidência de assinatura
+    assinatura_path = db.Column(db.String(500))   # Caminho do arquivo salvo no servidor
+    hash_payload = db.Column(db.String(64))        # SHA-256 do payload de aceite
+
+    # Metadados de integridade
+    data_hora = db.Column(db.DateTime, nullable=False, default=get_datetime_br)
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(200))
+
+    observacoes = db.Column(db.Text)
+
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref='aceites_realizados', foreign_keys=[usuario_id])
+    detentora = db.relationship('Detentora', backref='aceites', foreign_keys=[detentora_id])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ordemServicoId': self.ordem_servico_id,
+            'usuarioId': self.usuario_id,
+            'detentoraId': self.detentora_id,
+            'nomeResponsavel': self.nome_responsavel,
+            'assinaturaPath': self.assinatura_path,
+            'hashPayload': self.hash_payload,
+            'dataHora': self.data_hora.isoformat() if self.data_hora else None,
+            'ipAddress': self.ip_address,
+            'observacoes': self.observacoes,
+        }
+
+    def __repr__(self):
+        return f'<AceiteEmpresa OS#{self.ordem_servico_id} det#{self.detentora_id}>'
+
+
+class RevisaoEmpresa(db.Model):
+    """Solicitação de revisão/ajuste de uma O.S. pela detentora (não bloqueia execução)"""
+    __tablename__ = 'revisoes_empresa'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id', ondelete='CASCADE'), nullable=False, index=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    detentora_id = db.Column(db.Integer, db.ForeignKey('detentoras.id'), nullable=False, index=True)
+
+    descricao = db.Column(db.Text, nullable=False)
+    criado_em = db.Column(db.DateTime, nullable=False, default=get_datetime_br)
+
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref='revisoes_realizadas', foreign_keys=[usuario_id])
+    detentora = db.relationship('Detentora', backref='revisoes', foreign_keys=[detentora_id])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ordemServicoId': self.ordem_servico_id,
+            'usuarioId': self.usuario_id,
+            'detentoraId': self.detentora_id,
+            'descricao': self.descricao,
+            'criadoEm': self.criado_em.isoformat() if self.criado_em else None,
+        }
+
+    def __repr__(self):
+        return f'<RevisaoEmpresa OS#{self.ordem_servico_id}>'
+
+
+class ComentarioEmpresa(db.Model):
+    """Comentários/perguntas da detentora sobre uma O.S. (thread cronológica, sem SLA)"""
+    __tablename__ = 'comentarios_empresa'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id', ondelete='CASCADE'), nullable=False, index=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    detentora_id = db.Column(db.Integer, db.ForeignKey('detentoras.id'), nullable=False, index=True)
+
+    texto = db.Column(db.Text, nullable=False)
+    criado_em = db.Column(db.DateTime, nullable=False, default=get_datetime_br)
+
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref='comentarios_realizados', foreign_keys=[usuario_id])
+    detentora = db.relationship('Detentora', backref='comentarios', foreign_keys=[detentora_id])
+
+    def to_dict(self):
+        # Inclui perfil do autor para diferenciar empresa x operador no front
+        autor_perfil = None
+        autor_nome = None
+        if self.usuario:
+            autor_perfil = self.usuario.perfil
+            autor_nome = self.usuario.nome
+        return {
+            'id': self.id,
+            'ordemServicoId': self.ordem_servico_id,
+            'usuarioId': self.usuario_id,
+            'detentoraId': self.detentora_id,
+            'texto': self.texto,
+            'criadoEm': self.criado_em.isoformat() if self.criado_em else None,
+            'autorPerfil': autor_perfil,
+            'autorNome': autor_nome,
+        }
+
+    def __repr__(self):
+        return f'<ComentarioEmpresa OS#{self.ordem_servico_id}>'
+
+
+class AssinaturaInterna(db.Model):
+    """Assinatura digital de operador/admin em uma O.S. (modelo SEI)"""
+    __tablename__ = 'assinaturas_internas'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id', ondelete='CASCADE'), nullable=False, index=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+
+    nome_responsavel = db.Column(db.String(120), nullable=False)
+    cargo = db.Column(db.String(100))
+    assinatura_path = db.Column(db.String(255))
+    hash_payload = db.Column(db.String(64))
+    data_hora = db.Column(db.DateTime, nullable=False, default=get_datetime_br)
+    ip_address = db.Column(db.String(45))
+
+    usuario = db.relationship('Usuario', backref='assinaturas_internas', foreign_keys=[usuario_id])
+    ordem_servico = db.relationship('OrdemServico', backref='assinaturas_internas', foreign_keys=[ordem_servico_id])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ordemServicoId': self.ordem_servico_id,
+            'usuarioId': self.usuario_id,
+            'nomeResponsavel': self.nome_responsavel,
+            'cargo': self.cargo,
+            'assinaturaPath': self.assinatura_path,
+            'hashPayload': self.hash_payload,
+            'dataHora': self.data_hora.isoformat() if self.data_hora else None,
+            'ipAddress': self.ip_address,
+        }
+
+    def __repr__(self):
+        return f'<AssinaturaInterna OS#{self.ordem_servico_id} by {self.nome_responsavel}>'
 

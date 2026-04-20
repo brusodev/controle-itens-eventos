@@ -1,0 +1,719 @@
+/* ============================================================
+   Portal da Detentora — Estilos
+   ============================================================ */
+
+/* ---------- INBOX ---------- */
+
+.portal-inbox {
+    padding: 1.5rem;
+    max-width: 900px;
+}
+
+.portal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.portal-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1a237e;
+    margin: 0 0 0.25rem;
+}
+
+.portal-subtitle {
+    color: #666;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.btn-icon {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-icon:hover { background: #f0f0f0; }
+
+/* Status tabs */
+.status-tabs {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.status-tab {
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.status-tab:hover { background: #e8eaf6; border-color: #9fa8da; }
+.status-tab.active { background: #1a237e; color: #fff; border-color: #1a237e; }
+
+.tab-badge {
+    background: rgba(0,0,0,0.15);
+    border-radius: 10px;
+    padding: 0 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 18px;
+    text-align: center;
+}
+
+.status-tab.active .tab-badge { background: rgba(255,255,255,0.3); }
+
+/* Search bar */
+.inbox-search-bar {
+    margin-bottom: 1rem;
+}
+
+.inbox-search {
+    width: 100%;
+    padding: 0.55rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+}
+
+.inbox-search:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 0 2px rgba(63,81,181,0.15);
+}
+
+/* OS Cards */
+.inbox-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.os-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.os-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    cursor: pointer;
+}
+
+.os-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: #9fa8da;
+}
+
+.os-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 200px;
+}
+
+.os-numero {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1a237e;
+}
+
+.os-card-body {
+    flex: 1;
+}
+
+.os-evento {
+    font-size: 0.95rem;
+    color: #333;
+    margin-bottom: 0.2rem;
+}
+
+.os-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.os-card-arrow {
+    color: #bbb;
+    font-size: 1.3rem;
+    font-weight: 300;
+}
+
+/* Loading / Empty */
+.inbox-loading, .inbox-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #888;
+}
+
+.inbox-empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.inbox-error { color: #c62828; }
+
+/* ---------- STATUS BADGES ---------- */
+
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.badge-emitida    { background: #e3f2fd; color: #1565c0; }
+.badge-enviada    { background: #fff3e0; color: #e65100; }
+.badge-revisao    { background: #fce4ec; color: #c62828; }
+.badge-aceita     { background: #e8f5e9; color: #2e7d32; }
+.badge-execucao   { background: #e8eaf6; color: #283593; }
+.badge-executada  { background: #f3e5f5; color: #6a1b9a; }
+.badge-recusada   { background: #ffebee; color: #b71c1c; }
+.badge-cancelada  { background: #424242; color: #fff; }
+
+/* ---------- DETALHE ---------- */
+
+.portal-detalhe {
+    padding: 1.5rem;
+    max-width: 1100px;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    color: #666;
+    margin-bottom: 1.25rem;
+}
+
+.breadcrumb-link {
+    color: #3f51b5;
+    text-decoration: none;
+}
+
+.breadcrumb-link:hover { text-decoration: underline; }
+.breadcrumb-sep { color: #bbb; }
+
+.os-detalhe-loading {
+    text-align: center;
+    padding: 3rem;
+    color: #888;
+}
+
+.os-detalhe-header {
+    margin-bottom: 1.5rem;
+}
+
+.os-detalhe-titulo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.os-detalhe-titulo h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #1a237e;
+}
+
+.os-detalhe-evento {
+    color: #555;
+    margin: 0.25rem 0 0;
+}
+
+.os-detalhe-body {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .os-detalhe-body {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sections */
+.os-section {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.os-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+/* Info grid */
+.os-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.info-item-full {
+    grid-column: 1 / -1;
+}
+
+.info-label {
+    font-size: 0.75rem;
+    color: #888;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.info-value {
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.info-value-pre {
+    font-size: 0.95rem;
+    color: #333;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Itens tabela */
+.os-itens-tabela {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.os-itens-tabela th {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 2px solid #eee;
+    color: #555;
+    font-weight: 600;
+}
+
+.os-itens-tabela td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Revisões */
+.revisao-item {
+    padding: 0.6rem 0.75rem;
+    border-left: 3px solid #9fa8da;
+    background: #f5f5f5;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 0.5rem;
+}
+
+.revisao-recusa {
+    border-left-color: #e53935;
+    background: #ffebee;
+}
+
+.revisao-descricao {
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.revisao-meta {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.25rem;
+}
+
+/* Mensagens — chat thread */
+.msg-bubble {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+    margin-bottom: 0.75rem;
+}
+
+.msg-empresa {
+    align-items: flex-start;
+}
+
+.msg-operador {
+    align-items: flex-end;
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.os-comentarios-lista {
+    display: flex;
+    flex-direction: column;
+}
+
+.msg-autor {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+    color: #555;
+}
+
+.msg-operador .msg-autor { color: #0d47a1; }
+
+.msg-texto {
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #333;
+    line-height: 1.45;
+}
+
+.msg-empresa .msg-texto {
+    background: #f5f5f5;
+    border-left: 3px solid #9e9e9e;
+}
+
+.msg-operador .msg-texto {
+    background: #e3f2fd;
+    border-left: 3px solid #1565c0;
+}
+
+.msg-data {
+    font-size: 0.72rem;
+    color: #aaa;
+    margin-top: 0.15rem;
+}
+
+.comentario-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.comentario-input {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.comentario-input:focus {
+    outline: none;
+    border-color: #3f51b5;
+}
+
+/* Sidebar ações */
+.acoes-card, .aceite-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.acoes-titulo {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    color: #333;
+}
+
+.btn-acao {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    padding: 0.65rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+    font-weight: 600;
+    transition: opacity 0.15s, filter 0.15s;
+}
+
+.btn-acao:hover { filter: brightness(0.95); }
+.btn-acao:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.acoes-sem-acao { color: #888; font-size: 0.9rem; }
+.acoes-info { color: #e65100; font-size: 0.85rem; background: #fff3e0; border: 1px solid #ffb74d; border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; }
+
+.aceite-card h4 { margin: 0 0 0.75rem; font-size: 0.95rem; color: #2e7d32; }
+.aceite-nome, .aceite-data { font-size: 0.85rem; color: #444; margin-bottom: 0.25rem; }
+.aceite-assinatura { max-width: 100%; border: 1px solid #ddd; border-radius: 6px; margin-top: 0.5rem; }
+
+/* ---------- BOTÕES ---------- */
+
+.btn-primary   { background: #1565c0; color: #fff; }
+.btn-secondary { background: #e0e0e0; color: #333; }
+.btn-success   { background: #2e7d32; color: #fff; }
+.btn-warning   { background: #e65100; color: #fff; }
+.btn-danger    { background: #c62828; color: #fff; }
+.btn-sm { padding: 0.35rem 0.75rem; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+.btn-link { background: none; border: none; color: #3f51b5; cursor: pointer; font-size: 0.85rem; text-decoration: underline; padding: 0; }
+
+/* ---------- MODAIS ---------- */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.modal-assinatura {
+    max-width: 560px;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #1a237e;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: #888;
+    padding: 0.2rem;
+    line-height: 1;
+}
+
+.modal-close:hover { color: #333; }
+
+.modal-body {
+    padding: 1.25rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid #eee;
+}
+
+.modal-footer button {
+    padding: 0.55rem 1.2rem;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+/* Assinatura digital — modelo SEI/GovBR */
+.assinatura-digital-info {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.85rem;
+    color: #2e7d32;
+    line-height: 1.45;
+}
+
+.assinatura-digital-info strong { display: block; margin-bottom: 0.2rem; }
+.assinatura-digital-info p { margin: 0; color: #555; }
+.assinatura-digital-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: 0.1rem; }
+
+.assinatura-preview {
+    border: 1.5px solid #c5cae9;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    background: #fafafa;
+    margin-bottom: 1rem;
+    min-height: 90px;
+}
+
+.assinatura-preview-label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9e9e9e;
+    margin-bottom: 0.5rem;
+}
+
+.assinatura-preview-nome {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 1.6rem;
+    color: #1a237e;
+    border-bottom: 1px solid #c5cae9;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.35rem;
+    min-height: 2.2rem;
+}
+
+.assinatura-preview-meta {
+    font-size: 0.72rem;
+    color: #aaa;
+}
+
+.assinatura-declaracao {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    font-size: 0.85rem;
+    color: #444;
+    line-height: 1.5;
+    cursor: pointer;
+    padding: 0.75rem;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+}
+
+.assinatura-declaracao input[type="checkbox"] {
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #1a237e;
+}
+
+/* Form controls */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 0.35rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 0 2px rgba(63,81,181,0.15);
+}
+
+.alert-warning-box {
+    background: #fff3e0;
+    border-left: 3px solid #e65100;
+    color: #bf360c;
+    padding: 0.6rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.87rem;
+    margin-bottom: 1rem;
+}
+
+/* Lista vazia */
+.lista-vazia {
+    color: #aaa;
+    font-size: 0.88rem;
+    font-style: italic;
+    margin: 0;
+}
+
+/* ---------- TOAST ---------- */
+
+.toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    z-index: 2000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    max-width: 340px;
+}
+
+.toast-sucesso { background: #2e7d32; color: #fff; }
+.toast-erro    { background: #c62828; color: #fff; }
+.toast-info    { background: #1565c0; color: #fff; }
+
+/* ---------- SPINNER ---------- */
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e8eaf6;
+    border-top-color: #3f51b5;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 0.75rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

@@ -457,16 +457,25 @@
 
                 <div class="form-group">
                     <label for="perfil">Perfil de Acesso *</label>
-                    <select id="perfil" required>
+                    <select id="perfil" required onchange="onPerfilChange()">
                         <option value="comum">👤 Usuário Comum</option>
                         <option value="admin" {% if usuario_perfil != 'admin' %}disabled{% endif %}>👑 Administrador</option>
+                        <option value="empresa">🏢 Empresa (Portal Detentora)</option>
                     </select>
                     <small style="color: #666; font-size: 0.85rem; margin-top: 5px; display: block;">
                         <strong>Comum:</strong> Acesso básico ao sistema<br>
-                        <strong>Admin:</strong> Acesso total + gerenciar usuários + editar estoque direto
-                        {% if usuario_perfil != 'admin' %}
-                        <br><span style="color: #e74c3c;">⚠️ Apenas administradores podem criar outros administradores</span>
-                        {% endif %}
+                        <strong>Admin:</strong> Acesso total + gerenciar usuários<br>
+                        <strong>Empresa:</strong> Acesso ao portal da detentora (aceitar/recusar O.S.)
+                    </small>
+                </div>
+
+                <div class="form-group" id="detentoraGroup" style="display:none;">
+                    <label for="detentora_id">Detentora Vinculada *</label>
+                    <select id="detentora_id">
+                        <option value="">Selecione a detentora...</option>
+                    </select>
+                    <small style="color: #666; font-size: 0.85rem; margin-top: 4px; display: block;">
+                        Obrigatório para perfil Empresa. O usuário só verá O.S. desta detentora.
                     </small>
                 </div>
 
@@ -498,13 +507,53 @@
 {% block scripts %}
     <script>
         let usuarios = [];
+        let detentoras = [];
         let editandoId = null;
         const usuarioPerfil = '{{ usuario_perfil }}';
 
-        // Carregar usuários ao carregar a página
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarUsuarios();
+        // Carregar detentoras primeiro, depois usuários (evita timing race)
+        document.addEventListener('DOMContentLoaded', async function() {
+            await carregarDetentoras();
+            await carregarUsuarios();
         });
+
+        async function carregarDetentoras() {
+            try {
+                const resp = await fetch('/api/detentoras/');
+                if (resp.ok) {
+                    detentoras = await resp.json();
+                    popularSelectDetentoras();
+                }
+            } catch (e) {
+                console.error('Erro ao carregar detentoras:', e);
+            }
+        }
+
+        function popularSelectDetentoras(selecionadoId = null) {
+            const sel = document.getElementById('detentora_id');
+            sel.innerHTML = '<option value="">Selecione a detentora...</option>';
+            detentoras.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = d.contratoNum ? `${d.nome} — ${d.contratoNum}` : d.nome;
+                if (selecionadoId && d.id == selecionadoId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        function onPerfilChange() {
+            const perfil = document.getElementById('perfil').value;
+            const grupo = document.getElementById('detentoraGroup');
+            const sel = document.getElementById('detentora_id');
+            if (perfil === 'empresa') {
+                grupo.style.display = 'block';
+                sel.required = true;
+            } else {
+                grupo.style.display = 'none';
+                sel.required = false;
+                sel.value = '';
+            }
+        }
 
         async function carregarUsuarios() {
             try {
@@ -548,6 +597,7 @@
                                 ${usuario.ativo ? '✓ Ativo' : '○ Inativo'}
                             </span>
                             ${usuario.perfil === 'admin' ? '<span class="user-badge" style="background: #fff3cd; color: #856404; margin-left: 5px;">👑 Admin</span>' : ''}
+                            ${usuario.perfil === 'empresa' ? '<span class="user-badge" style="background: #e8eaf6; color: #283593; margin-left: 5px;">🏢 Empresa</span>' : ''}
                         </div>
                     </div>
                     <div class="user-details">
@@ -559,6 +609,12 @@
                         <div class="user-detail-item">
                             <span>💼</span>
                             <span>${usuario.cargo}</span>
+                        </div>
+                        ` : ''}
+                        ${usuario.perfil === 'empresa' ? `
+                        <div class="user-detail-item">
+                            <span>🏢</span>
+                            <span>${(() => { const d = detentoras.find(x => x.id == usuario.detentora_id); return d ? d.nome : 'Detentora não vinculada'; })()}</span>
                         </div>
                         ` : ''}
                         <div class="user-detail-item">
@@ -601,6 +657,11 @@
             document.getElementById('senha').required = true;
             document.getElementById('senhaHelp').style.display = 'none';
 
+            // Resetar campo detentora
+            document.getElementById('detentoraGroup').style.display = 'none';
+            document.getElementById('detentora_id').required = false;
+            popularSelectDetentoras();
+
             document.getElementById('modalUsuario').classList.add('show');
         }
 
@@ -615,6 +676,16 @@
             document.getElementById('cargo').value = usuario.cargo || '';
             document.getElementById('perfil').value = usuario.perfil || 'comum';
             document.getElementById('ativo').value = usuario.ativo.toString();
+
+            // Detentora
+            popularSelectDetentoras(usuario.detentora_id);
+            if (usuario.perfil === 'empresa') {
+                document.getElementById('detentoraGroup').style.display = 'block';
+                document.getElementById('detentora_id').required = true;
+            } else {
+                document.getElementById('detentoraGroup').style.display = 'none';
+                document.getElementById('detentora_id').required = false;
+            }
 
             // Mostrar campo de senha mas como opcional
             document.getElementById('senhaGroup').style.display = 'block';
@@ -644,12 +715,20 @@
                 return;
             }
 
+            // Validar detentora para perfil empresa
+            const detentoraId = document.getElementById('detentora_id').value;
+            if (perfilSelecionado === 'empresa' && !detentoraId) {
+                mostrarAlertaModal('Selecione a detentora vinculada ao usuário empresa.', 'error');
+                return;
+            }
+
             const dados = {
                 nome: document.getElementById('nome').value,
                 email: document.getElementById('email').value,
                 cargo: document.getElementById('cargo').value,
                 perfil: perfilSelecionado,
-                ativo: document.getElementById('ativo').value === 'true'
+                ativo: document.getElementById('ativo').value === 'true',
+                detentora_id: detentoraId ? parseInt(detentoraId) : null,
             };
 
             // Incluir senha se for novo usuário OU se foi preenchida ao editar
