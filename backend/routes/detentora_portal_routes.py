@@ -27,8 +27,18 @@ from models import (
 )
 from routes.auth_routes import empresa_requerido, login_requerido, csrf_protegido
 from utils.auditoria import registrar_auditoria
+from extensions import limiter
 
 detentora_portal_bp = Blueprint('detentora_portal', __name__)
+
+# ---------------------------------------------------------------------------
+# Limites de tamanho de campos de texto livre (server-side)
+# ---------------------------------------------------------------------------
+_MAX_NOME = 120
+_MAX_CARGO = 100
+_MAX_TEXTO = 2000
+_MAX_MOTIVO = 1000
+_MAX_DESCRICAO = 1000
 
 # Pasta onde as assinaturas são salvas
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -48,28 +58,78 @@ def _get_os_da_detentora(os_id):
     """
     Busca a O.S. pelo ID e garante que pertence à detentora autenticada.
     Retorna (os, erro_response) — um deles será None.
+
+    Segurança: revalida o detentora_id buscando o usuário atual no banco,
+    não confiando apenas na sessão (que pode estar desatualizada ou ter sido
+    manipulada entre requisições).
     """
-    detentora_id = _get_detentora_id()
+    usuario_id = session.get('usuario_id')
+    if not usuario_id:
+        return None, (jsonify({'erro': 'Sessão inválida'}), 403)
+
+    # Refetch do banco — ignora o que está na sessão para decisões de autorização
+    from models import Usuario
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario or usuario.perfil != 'empresa' or not usuario.detentora_id:
+        return None, (jsonify({'erro': 'Acesso negado'}), 403)
+
     os_obj = OrdemServico.query.get(os_id)
     if not os_obj:
         return None, (jsonify({'erro': 'Ordem de Serviço não encontrada'}), 404)
-    if os_obj.detentora_id != detentora_id:
+    if os_obj.detentora_id != usuario.detentora_id:
         return None, (jsonify({'erro': 'Acesso negado a esta Ordem de Serviço'}), 403)
     return os_obj, None
 
 
-def _salvar_assinatura(os_id, base64_data):
-    """
-    Salva o PNG de assinatura em arquivo e retorna (path_relativo, hash_sha256).
-    base64_data pode vir com ou sem o prefixo 'data:image/png;base64,'.
-    """
-    os.makedirs(ASSINATURAS_DIR, exist_ok=True)
+_PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
+_MAX_ASSINATURA_BYTES = 2 * 1024 * 1024  # 2 MB após decode
 
-    # Remover prefixo data URI se presente
+
+def _validar_e_decodificar_png(base64_data: str) -> bytes:
+    """
+    Valida e decodifica uma string base64 de imagem PNG.
+    Lança ValueError com mensagem descritiva em caso de falha.
+    Proteções:
+      - Tamanho máximo da string base64 (evita alocação excessiva antes do decode)
+      - Base64 inválido
+      - Tamanho máximo dos bytes decodificados (2 MB)
+      - Magic bytes PNG (89 50 4E 47 0D 0A 1A 0A)
+    """
+    # 1. Remover prefixo data URI se presente
     if ',' in base64_data:
         base64_data = base64_data.split(',', 1)[1]
 
-    img_bytes = base64.b64decode(base64_data)
+    # 2. Limite de tamanho da string base64 (base64 ≈ 33% maior que binário)
+    max_b64_len = int(_MAX_ASSINATURA_BYTES * 1.37)
+    if len(base64_data) > max_b64_len:
+        raise ValueError('Assinatura excede o tamanho máximo permitido (2 MB)')
+
+    # 3. Decodificar (com validação estrita)
+    try:
+        img_bytes = base64.b64decode(base64_data, validate=True)
+    except Exception:
+        raise ValueError('Dados de assinatura inválidos (base64 malformado)')
+
+    # 4. Tamanho do binário decodificado
+    if len(img_bytes) > _MAX_ASSINATURA_BYTES:
+        raise ValueError('Assinatura excede o tamanho máximo permitido (2 MB)')
+
+    # 5. Validar magic bytes PNG
+    if not img_bytes.startswith(_PNG_MAGIC):
+        raise ValueError('Arquivo de assinatura inválido (não é PNG)')
+
+    return img_bytes
+
+
+def _salvar_assinatura(os_id, base64_data):
+    """
+    Valida, salva o PNG de assinatura em arquivo e retorna (path_relativo, hash_sha256).
+    base64_data pode vir com ou sem o prefixo 'data:image/png;base64,'.
+    Lança ValueError se os dados forem inválidos.
+    """
+    os.makedirs(ASSINATURAS_DIR, exist_ok=True)
+
+    img_bytes = _validar_e_decodificar_png(base64_data)
     hash_sha256 = hashlib.sha256(img_bytes).hexdigest()
 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -136,19 +196,23 @@ def inbox():
 
     query = OrdemServico.query.filter_by(detentora_id=detentora_id)
 
+    # Status visíveis para a empresa (nunca expor 'emitida' — ainda não enviada)
+    _STATUS_VALIDOS_EMPRESA = frozenset([
+        'enviada_empresa', 'em_revisao', 'aceita',
+        'em_execucao', 'executada', 'recusada', 'cancelada',
+    ])
+
     # Filtrar por status (aceita múltiplos separados por vírgula)
     if status_filtro:
         statuses = [s.strip() for s in status_filtro.split(',') if s.strip()]
+        invalidos = [s for s in statuses if s not in _STATUS_VALIDOS_EMPRESA]
+        if invalidos:
+            return jsonify({'erro': f'Status inválido: {invalidos}'}), 400
         if statuses:
             query = query.filter(OrdemServico.status.in_(statuses))
     else:
-        # Por padrão, não exibir 'emitida' (ainda não enviadas para empresa)
-        query = query.filter(
-            OrdemServico.status.in_([
-                'enviada_empresa', 'em_revisao', 'aceita',
-                'em_execucao', 'executada', 'recusada'
-            ])
-        )
+        # Por padrão, exibir apenas status visíveis para a empresa
+        query = query.filter(OrdemServico.status.in_(list(_STATUS_VALIDOS_EMPRESA)))
 
     if busca:
         query = query.filter(
@@ -243,6 +307,7 @@ def pdf_ordem_empresa(os_id):
 @detentora_portal_bp.route('/ordens/<int:os_id>/aceitar', methods=['POST'])
 @empresa_requerido
 @csrf_protegido
+@limiter.limit('5 per minute')
 def aceitar_ordem(os_id):
     """
     Registra o aceite da O.S. com assinatura digital (canvas base64).
@@ -259,10 +324,15 @@ def aceitar_ordem(os_id):
 
     dados = request.get_json() or {}
     nome_responsavel = (dados.get('nome_responsavel') or '').strip()
+    cargo = (dados.get('cargo') or '').strip()
     assinatura_b64 = (dados.get('assinatura_base64') or '').strip()
 
     if not nome_responsavel:
         return jsonify({'erro': 'nome_responsavel é obrigatório'}), 400
+    if len(nome_responsavel) > _MAX_NOME:
+        return jsonify({'erro': f'nome_responsavel deve ter no máximo {_MAX_NOME} caracteres'}), 400
+    if cargo and len(cargo) > _MAX_CARGO:
+        return jsonify({'erro': f'cargo deve ter no máximo {_MAX_CARGO} caracteres'}), 400
     if not assinatura_b64:
         return jsonify({'erro': 'assinatura_base64 é obrigatório'}), 400
 
@@ -335,6 +405,8 @@ def revisar_ordem(os_id):
 
     if not descricao:
         return jsonify({'erro': 'descricao é obrigatória'}), 400
+    if len(descricao) > _MAX_DESCRICAO:
+        return jsonify({'erro': f'descricao deve ter no máximo {_MAX_DESCRICAO} caracteres'}), 400
 
     ok, err_resp = _mudar_status(
         os_obj, 'em_revisao',
@@ -387,6 +459,7 @@ def listar_comentarios(os_id):
 @detentora_portal_bp.route('/ordens/<int:os_id>/comentarios', methods=['POST'])
 @empresa_requerido
 @csrf_protegido
+@limiter.limit('20 per minute')
 def adicionar_comentario(os_id):
     """
     Adiciona um comentário/pergunta à O.S. (sem SLA).
@@ -403,6 +476,8 @@ def adicionar_comentario(os_id):
 
     if not texto:
         return jsonify({'erro': 'texto é obrigatório'}), 400
+    if len(texto) > _MAX_TEXTO:
+        return jsonify({'erro': f'texto deve ter no máximo {_MAX_TEXTO} caracteres'}), 400
 
     comentario = ComentarioEmpresa(
         ordem_servico_id=os_id,
@@ -493,6 +568,7 @@ def concluir_execucao(os_id):
 @detentora_portal_bp.route('/ordens/<int:os_id>/recusar', methods=['POST'])
 @empresa_requerido
 @csrf_protegido
+@limiter.limit('5 per minute')
 def recusar_ordem(os_id):
     """
     Detentora recusa a O.S. Transição: enviada_empresa | em_revisao → recusada.
@@ -509,6 +585,8 @@ def recusar_ordem(os_id):
 
     if not motivo:
         return jsonify({'erro': 'motivo é obrigatório para recusar a O.S.'}), 400
+    if len(motivo) > _MAX_MOTIVO:
+        return jsonify({'erro': f'motivo deve ter no máximo {_MAX_MOTIVO} caracteres'}), 400
 
     ok, err_resp = _mudar_status(
         os_obj, 'recusada',

@@ -3,6 +3,7 @@ Rotas de autenticação e gerenciamento de usuários
 """
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from models import db, Usuario
+from extensions import limiter
 from datetime import datetime
 from functools import wraps
 import secrets
@@ -93,6 +94,7 @@ def csrf_protegido(f):
 # ========================================
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
 def login():
     """Página de login"""
     if request.method == 'GET':
@@ -179,8 +181,8 @@ def registro():
     if not all([email, nome, senha]):
         return jsonify({'erro': 'Email, nome e senha são obrigatórios'}), 400
 
-    if len(senha) < 6:
-        return jsonify({'erro': 'Senha deve ter no mínimo 6 caracteres'}), 400
+    if len(senha) < 12:
+        return jsonify({'erro': 'Senha deve ter no mínimo 12 caracteres'}), 400
 
     if perfil not in ['admin', 'comum', 'empresa']:
         return jsonify({'erro': 'Perfil inválido. Use "admin", "comum" ou "empresa"'}), 400
@@ -189,9 +191,13 @@ def registro():
     if session.get('usuario_perfil') != 'admin':
         return jsonify({'erro': 'Apenas administradores podem criar usuários'}), 403
 
-    # Perfil empresa exige vínculo com detentora
-    if perfil == 'empresa' and not detentora_id:
-        return jsonify({'erro': 'Perfil "empresa" exige um detentora_id válido'}), 400
+    # Perfil empresa exige vínculo com detentora existente
+    if perfil == 'empresa':
+        if not detentora_id:
+            return jsonify({'erro': 'Perfil "empresa" exige um detentora_id válido'}), 400
+        from models import Detentora
+        if not Detentora.query.get(int(detentora_id)):
+            return jsonify({'erro': 'Detentora não encontrada'}), 404
 
     if Usuario.query.filter_by(email=email).first():
         return jsonify({'erro': 'Email já cadastrado'}), 409
@@ -276,6 +282,9 @@ def atualizar_usuario(usuario_id):
             else:
                 return jsonify({'erro': 'Apenas administradores podem alterar o status'}), 403
         
+        perfil_alterado = False
+        detentora_alterada = False
+
         if 'perfil' in dados:
             # Apenas admin pode alterar perfil
             if session.get('usuario_perfil') != 'admin':
@@ -287,16 +296,26 @@ def atualizar_usuario(usuario_id):
             if dados['perfil'] == 'empresa' and not dados.get('detentora_id') and not usuario.detentora_id:
                 return jsonify({'erro': 'Perfil "empresa" exige um detentora_id válido'}), 400
 
-            usuario.perfil = dados['perfil']
+            if usuario.perfil != dados['perfil']:
+                usuario.perfil = dados['perfil']
+                perfil_alterado = True
 
         if 'detentora_id' in dados:
             if session.get('usuario_perfil') != 'admin':
                 return jsonify({'erro': 'Apenas administradores podem alterar o vínculo com detentora'}), 403
-            usuario.detentora_id = int(dados['detentora_id']) if dados['detentora_id'] else None
-        
+            novo_det_id = int(dados['detentora_id']) if dados['detentora_id'] else None
+            if novo_det_id != usuario.detentora_id:
+                # Validar que a detentora existe
+                if novo_det_id is not None:
+                    from models import Detentora
+                    if not Detentora.query.get(novo_det_id):
+                        return jsonify({'erro': 'Detentora não encontrada'}), 404
+                usuario.detentora_id = novo_det_id
+                detentora_alterada = True
+
         if 'senha' in dados and dados['senha']:
             usuario.set_senha(dados['senha'])
-        
+
         db.session.commit()
 
         # Se o admin alterou o próprio usuário logado, atualizar sessão
@@ -305,6 +324,9 @@ def atualizar_usuario(usuario_id):
             session['usuario_email'] = usuario.email
             session['usuario_perfil'] = usuario.perfil
             session['detentora_id'] = usuario.detentora_id
+            # Regenerar CSRF token se perfil ou detentora mudou — invalida tokens antigos
+            if perfil_alterado or detentora_alterada:
+                session['csrf_token'] = secrets.token_hex(32)
 
         return jsonify({
             'sucesso': True,
@@ -354,6 +376,7 @@ def obter_usuario_atual():
 
 @auth_bp.route('/api/alterar-senha', methods=['POST'])
 @login_requerido
+@limiter.limit('5 per minute')
 def alterar_senha_api():
     """Altera a senha do usuário logado"""
     try:
@@ -373,8 +396,8 @@ def alterar_senha_api():
         if not usuario.verificar_senha(senha_atual):
             return jsonify({'erro': 'Senha atual incorreta'}), 401
         
-        if len(senha_nova) < 6:
-            return jsonify({'erro': 'Senha deve ter no mínimo 6 caracteres'}), 400
+        if len(senha_nova) < 12:
+            return jsonify({'erro': 'Senha deve ter no mínimo 12 caracteres'}), 400
         
         usuario.set_senha(senha_nova)
         db.session.commit()

@@ -7,6 +7,20 @@
 // Utilitários
 // ============================================================
 
+/**
+ * Escapa caracteres especiais HTML para prevenir XSS.
+ * Use em QUALQUER dado vindo do servidor antes de inserir via innerHTML.
+ */
+function h(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 let _csrfToken = null;
 
 async function getCsrfToken() {
@@ -191,17 +205,17 @@ function renderizarInbox(ordens) {
     }
 
     lista.innerHTML = ordens.map(os => `
-        <a href="/empresa/ordens/${os.id}" class="os-card-link">
+        <a href="/empresa/ordens/${h(String(os.id))}" class="os-card-link">
             <div class="os-card">
                 <div class="os-card-head">
-                    <span class="os-numero">${os.numero_os || '#' + os.id}</span>
+                    <span class="os-numero">${h(os.numero_os || '#' + os.id)}</span>
                     ${badgeHtml(os.status)}
                 </div>
                 <div class="os-card-body">
-                    <div class="os-evento">${os.evento || '—'}</div>
+                    <div class="os-evento">${h(os.evento || '—')}</div>
                     <div class="os-meta">
-                        <span>📅 ${formatarData(os.data)}</span>
-                        ${os.modulo ? `<span>📦 ${os.modulo}</span>` : ''}
+                        <span>📅 ${h(formatarData(os.data))}</span>
+                        ${os.modulo ? `<span>📦 ${h(os.modulo)}</span>` : ''}
                     </div>
                 </div>
                 <div class="os-card-arrow">›</div>
@@ -222,7 +236,7 @@ async function carregarDetalhe(osId) {
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
             document.getElementById('os-header').innerHTML =
-                `<div class="inbox-error">Erro: ${err.erro || resp.status}</div>`;
+                `<div class="inbox-error">Erro: ${h(String(err.erro || resp.status))}</div>`;
             return;
         }
         _osAtual = await resp.json();
@@ -238,30 +252,30 @@ function renderizarDetalhe(os) {
     // Header
     document.getElementById('os-header').innerHTML = `
         <div class="os-detalhe-titulo">
-            <h1>O.S. ${numOS}</h1>
+            <h1>O.S. ${h(numOS)}</h1>
             ${badgeHtml(os.status)}
         </div>
-        <p class="os-detalhe-evento">${os.evento || '—'}</p>
+        <p class="os-detalhe-evento">${h(os.evento || '—')}</p>
     `;
     document.getElementById('breadcrumb-os').textContent = `O.S. ${numOS}`;
     document.getElementById('os-body').style.display = '';
 
     // Info grid — linha 1: identificação
-    const horarioFmt = (os.horario || '').replace(/\n/g, ' • ');
+    const horarioFmt = h((os.horario || '').replace(/\n/g, ' • '));
     document.getElementById('os-info-grid').innerHTML = `
-        <div class="info-item"><span class="info-label">Número O.S.</span><span class="info-value">${os.numeroOS || os.numero_os || '—'}</span></div>
+        <div class="info-item"><span class="info-label">Número O.S.</span><span class="info-value">${h(os.numeroOS || os.numero_os || '—')}</span></div>
         <div class="info-item"><span class="info-label">Status</span><span class="info-value">${badgeHtml(os.status)}</span></div>
-        <div class="info-item"><span class="info-label">Módulo</span><span class="info-value">${os.modulo || '—'}</span></div>
-        <div class="info-item"><span class="info-label">Grupo</span><span class="info-value">${os.grupo || '—'}</span></div>
-        <div class="info-item info-item-full"><span class="info-label">Evento</span><span class="info-value">${os.evento || '—'}</span></div>
-        <div class="info-item"><span class="info-label">Data do Evento</span><span class="info-value">${os.data ? formatarData(os.data) : '—'}</span></div>
+        <div class="info-item"><span class="info-label">Módulo</span><span class="info-value">${h(os.modulo || '—')}</span></div>
+        <div class="info-item"><span class="info-label">Grupo</span><span class="info-value">${h(os.grupo || '—')}</span></div>
+        <div class="info-item info-item-full"><span class="info-label">Evento</span><span class="info-value">${h(os.evento || '—')}</span></div>
+        <div class="info-item"><span class="info-label">Data do Evento</span><span class="info-value">${h(os.data ? formatarData(os.data) : '—')}</span></div>
         <div class="info-item"><span class="info-label">Horário</span><span class="info-value">${horarioFmt || '—'}</span></div>
-        <div class="info-item info-item-full"><span class="info-label">Local</span><span class="info-value">${os.local || '—'}</span></div>
-        ${os.responsavel ? `<div class="info-item info-item-full"><span class="info-label">Responsável</span><span class="info-value">${os.responsavel}</span></div>` : ''}
-        ${os.contrato ? `<div class="info-item"><span class="info-label">Contrato</span><span class="info-value">${os.contrato}</span></div>` : ''}
-        ${os.detentora ? `<div class="info-item"><span class="info-label">Detentora</span><span class="info-value">${os.detentora}</span></div>` : ''}
-        ${os.justificativa ? `<div class="info-item info-item-full"><span class="info-label">Justificativa</span><span class="info-value info-value-pre">${os.justificativa}</span></div>` : ''}
-        ${os.observacoes ? `<div class="info-item info-item-full"><span class="info-label">Observações</span><span class="info-value info-value-pre">${os.observacoes}</span></div>` : ''}
+        <div class="info-item info-item-full"><span class="info-label">Local</span><span class="info-value">${h(os.local || '—')}</span></div>
+        ${os.responsavel ? `<div class="info-item info-item-full"><span class="info-label">Responsável</span><span class="info-value">${h(os.responsavel)}</span></div>` : ''}
+        ${os.contrato ? `<div class="info-item"><span class="info-label">Contrato</span><span class="info-value">${h(os.contrato)}</span></div>` : ''}
+        ${os.detentora ? `<div class="info-item"><span class="info-label">Detentora</span><span class="info-value">${h(os.detentora)}</span></div>` : ''}
+        ${os.justificativa ? `<div class="info-item info-item-full"><span class="info-label">Justificativa</span><span class="info-value info-value-pre">${h(os.justificativa)}</span></div>` : ''}
+        ${os.observacoes ? `<div class="info-item info-item-full"><span class="info-label">Observações</span><span class="info-value info-value-pre">${h(os.observacoes)}</span></div>` : ''}
     `;
 
     // Itens
@@ -272,10 +286,10 @@ function renderizarDetalhe(os) {
             <thead><tr><th>Item</th><th>Qtd Solicitada</th><th>Qtd Total</th><th>Unidade</th></tr></thead>
             <tbody>${itens.map(it => `
                 <tr>
-                    <td>${it.descricao || it.nome || '—'}</td>
-                    <td>${it.qtdSolicitada ?? it.quantidade ?? '—'}</td>
-                    <td>${it.qtdTotal ?? '—'}</td>
-                    <td>${it.unidade || '—'}</td>
+                    <td>${h(it.descricao || it.nome || '—')}</td>
+                    <td>${h(String(it.qtdSolicitada ?? it.quantidade ?? '—'))}</td>
+                    <td>${h(String(it.qtdTotal ?? '—'))}</td>
+                    <td>${h(it.unidade || '—')}</td>
                 </tr>`).join('')}
             </tbody>
            </table>`;
@@ -286,8 +300,8 @@ function renderizarDetalhe(os) {
         ? '<p class="lista-vazia">Nenhuma revisão registrada.</p>'
         : revisoes.map(r => `
             <div class="revisao-item ${r.descricao && r.descricao.includes('[RECUSA]') ? 'revisao-recusa' : ''}">
-                <div class="revisao-descricao">${r.descricao || '—'}</div>
-                <div class="revisao-meta">${formatarDataHora(r.criadoEm || r.criado_em)}</div>
+                <div class="revisao-descricao">${h(r.descricao || '—')}</div>
+                <div class="revisao-meta">${h(formatarDataHora(r.criadoEm || r.criado_em))}</div>
             </div>`).join('');
 
     // Comentários
@@ -323,9 +337,9 @@ function renderizarComentarios(comentarios) {
         const autor = isOperador ? (c.autorNome || 'Operador') : 'Você';
         return `
             <div class="msg-bubble ${isOperador ? 'msg-operador' : 'msg-empresa'}">
-                <div class="msg-autor">${isOperador ? '🏢 ' : '🏭 '}${autor}</div>
-                <div class="msg-texto">${c.texto || '—'}</div>
-                <div class="msg-data">${formatarDataHora(c.criadoEm || c.criado_em)}</div>
+                <div class="msg-autor">${isOperador ? '🏢 ' : '🏭 '}${h(autor)}</div>
+                <div class="msg-texto">${h(c.texto || '—')}</div>
+                <div class="msg-data">${h(formatarDataHora(c.criadoEm || c.criado_em))}</div>
             </div>`;
     }).join('');
 }
@@ -338,13 +352,15 @@ function renderizarAceite(aceites) {
     const aceite = aceites[0];
     const path = aceite.assinaturaPath || aceite.assinatura_path;
     card.style.display = '';
+    // Validar path: deve ser apenas assinaturas/os{N}_{data}.png — sem path traversal
+    const safePath = path && /^assinaturas\/os\d+_[\w]+\.png$/.test(path) ? path : null;
     info.innerHTML = `
-        <div class="aceite-nome">Responsável: <strong>${aceite.nomeResponsavel || aceite.nome_responsavel || '—'}</strong></div>
-        <div class="aceite-data">📅 ${formatarDataHora(aceite.dataHora || aceite.data_hora)}</div>
-        ${path ? `
+        <div class="aceite-nome">Responsável: <strong>${h(aceite.nomeResponsavel || aceite.nome_responsavel || '—')}</strong></div>
+        <div class="aceite-data">📅 ${h(formatarDataHora(aceite.dataHora || aceite.data_hora))}</div>
+        ${safePath ? `
             <div style="margin-top:.75rem;">
                 <div style="font-size:.7rem;color:#9e9e9e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Assinatura digital registrada</div>
-                <img src="/static/${path}" class="aceite-assinatura" alt="Assinatura digital">
+                <img src="/static/${h(safePath)}" class="aceite-assinatura" alt="Assinatura digital">
             </div>` : ''}
         <div style="font-size:.72rem;color:#9e9e9e;margin-top:.5rem;">🔐 Evidência com hash criptográfico registrada</div>
     `;

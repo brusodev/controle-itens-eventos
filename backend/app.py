@@ -1,5 +1,6 @@
 from flask import Flask, render_template
 from flask_cors import CORS
+from extensions import limiter
 from models import db
 from dotenv import load_dotenv
 import os
@@ -13,6 +14,10 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 def create_app():
     app = Flask(__name__)
+
+    # Rate limiting — usa memória local (desenvolvimento); em produção, trocar por Redis:
+    # storage_uri="redis://localhost:6379" no extensions.py
+    limiter.init_app(app)
 
     # Banco de dados com caminho absoluto (evita duplicar instâncias)
     db_path = os.path.join(BASE_DIR, 'instance', 'controle_itens.db')
@@ -43,6 +48,9 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'            # Bloqueia CSRF cross-site em POSTs
     app.config['SESSION_COOKIE_PATH'] = '/'
     app.config['PERMANENT_SESSION_LIFETIME'] = 86400          # 24 horas
+
+    # Limite de tamanho de requisição — previne DoS via payload gigante (16MB)
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
     # CORS restrito - suporta multiplas origens separadas por virgula no .env
     # Ex: CORS_ORIGIN=https://meusite.com,http://localhost:5100
@@ -115,6 +123,12 @@ def create_app():
     @app.errorhandler(403)
     def acesso_negado(e):
         return render_template('403.html'), 403
+
+    # Handler de erro 413 (Payload Too Large — MAX_CONTENT_LENGTH excedido)
+    from flask import jsonify as _jsonify_err
+    @app.errorhandler(413)
+    def payload_muito_grande(e):
+        return _jsonify_err({'erro': 'Requisição muito grande. Tamanho máximo permitido: 16MB.'}), 413
 
     # Garantir que o diretório instance/ existe antes de criar o banco
     os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)

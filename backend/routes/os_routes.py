@@ -723,6 +723,8 @@ def cancelar_ordem(os_id):
     motivo = (dados.get('motivo') or '').strip()
     if not motivo:
         return jsonify({'erro': 'O motivo do cancelamento é obrigatório.'}), 400
+    if len(motivo) > 1000:
+        return jsonify({'erro': 'motivo deve ter no máximo 1000 caracteres'}), 400
 
     os_obj.status = 'cancelada'
     db.session.commit()
@@ -764,16 +766,37 @@ def assinar_ordem_interno(os_id):
 
     if not nome:
         return jsonify({'erro': 'nome_responsavel é obrigatório'}), 400
+    if len(nome) > 120:
+        return jsonify({'erro': 'nome_responsavel deve ter no máximo 120 caracteres'}), 400
+    if cargo and len(cargo) > 100:
+        return jsonify({'erro': 'cargo deve ter no máximo 100 caracteres'}), 400
     if not assinatura_b64:
         return jsonify({'erro': 'assinatura_base64 é obrigatório'}), 400
 
-    # Salvar imagem PNG
+    # Salvar imagem PNG — com validação de segurança
     BASE_DIR_LOCAL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     assinaturas_dir = os.path.join(BASE_DIR_LOCAL, 'static', 'assinaturas')
     os.makedirs(assinaturas_dir, exist_ok=True)
 
+    _PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
+    _MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+
     b64_data = assinatura_b64.split(',', 1)[1] if ',' in assinatura_b64 else assinatura_b64
-    img_bytes = base64.b64decode(b64_data)
+
+    if len(b64_data) > int(_MAX_BYTES * 1.37):
+        return jsonify({'erro': 'Assinatura excede o tamanho máximo permitido (2 MB)'}), 400
+
+    try:
+        img_bytes = base64.b64decode(b64_data, validate=True)
+    except Exception:
+        return jsonify({'erro': 'Dados de assinatura inválidos (base64 malformado)'}), 400
+
+    if len(img_bytes) > _MAX_BYTES:
+        return jsonify({'erro': 'Assinatura excede o tamanho máximo permitido (2 MB)'}), 400
+
+    if not img_bytes.startswith(_PNG_MAGIC):
+        return jsonify({'erro': 'Arquivo de assinatura inválido (não é PNG)'}), 400
+
     hash_sha256 = hashlib.sha256(img_bytes).hexdigest()
 
     from datetime import datetime as _dt
@@ -827,6 +850,8 @@ def comentar_os(os_id):
     texto = (dados.get('texto') or '').strip()
     if not texto:
         return jsonify({'erro': 'texto é obrigatório'}), 400
+    if len(texto) > 2000:
+        return jsonify({'erro': 'texto deve ter no máximo 2000 caracteres'}), 400
 
     comentario = ComentarioEmpresa(
         ordem_servico_id=os_id,
