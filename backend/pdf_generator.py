@@ -224,11 +224,26 @@ class PDFOrdemServico:
         
         # Construir PDF com numeração de página
         numero_os = self._get_safe(dados_os, 'numeroOS', 'N/A')
+        status_os = self._get_safe(dados_os, 'status', '')
 
         def _rodape_pagina(canvas, doc):
-            """Adiciona número da página no rodapé"""
+            """Adiciona número da página no rodapé e marca d'água se cancelada"""
             canvas.saveState()
+
+            # Marca d'água diagonal para O.S. cancelada
+            if status_os == 'cancelada':
+                canvas.setFillColor(colors.Color(0.85, 0.1, 0.1, alpha=0.18))
+                canvas.setStrokeColor(colors.Color(0.75, 0.05, 0.05, alpha=0.35))
+                canvas.setLineWidth(2)
+                canvas.setFont('Helvetica-Bold', 80)
+                canvas.translate(doc.pagesize[0] / 2, doc.pagesize[1] / 2)
+                canvas.rotate(45)
+                canvas.drawCentredString(0, 0, 'CANCELADA')
+                canvas.rotate(-45)
+                canvas.translate(-doc.pagesize[0] / 2, -doc.pagesize[1] / 2)
+
             canvas.setFont('Helvetica', 6)
+            canvas.setFillColor(colors.black)
             page_num = canvas.getPageNumber()
             text = f"O.S. {numero_os} - Página {page_num}"
             canvas.drawCentredString(doc.pagesize[0] / 2, 8 * mm, text)
