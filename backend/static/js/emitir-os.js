@@ -1239,8 +1239,9 @@ function _verificarRascunhoOS() {
         </div>
     `;
 
-    const form = document.getElementById('form-emitir-os');
-    if (form) form.parentElement.insertBefore(banner, form);
+    const section = document.getElementById('tab-emitir-os');
+    const anchor = section || document.getElementById('form-emitir-os')?.parentElement;
+    if (anchor) anchor.insertBefore(banner, anchor.firstChild);
 
     _iniciarAutoSave();
 }
