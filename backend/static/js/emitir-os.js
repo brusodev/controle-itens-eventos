@@ -4,13 +4,8 @@
 
 async function renderizarEmitirOS() {
     // Carregar dados e grupos do módulo atual sempre que renderizar
-    console.log('📡 [Emitir OS] Carregando dados do módulo...');
     dadosAlimentacao = await APIClient.listarAlimentacao();
     await carregarGruposDropdown();
-
-    // Limpar itens anteriores
-    itensOSSelecionados = [];
-    renderizarTabelaItensOS();
 
     // Inicializar signatários dinâmicos
     inicializarSignatarios();
@@ -22,6 +17,16 @@ async function renderizarEmitirOS() {
             <button type="button" class="btn-small btn-primary" onclick="visualizarOS()">👁️ Visualizar O.S.</button>
             <button type="submit" class="btn-small btn-success">✅ Emitir O.S.</button>
         `;
+    }
+
+    // Verificar rascunho salvo (já inicia auto-save interno)
+    _verificarRascunhoOS();
+
+    // Salvar rascunho imediatamente ao alterar qualquer campo do formulário
+    const form = document.getElementById('form-emitir-os');
+    if (form && !form._rascunhoListenerAdded) {
+        form.addEventListener('input', salvarRascunhoOS);
+        form._rascunhoListenerAdded = true;
     }
 }
 
@@ -199,11 +204,51 @@ function onDetentoraOrganizacaoChange(detentoraId) {
 
 // itensOSSelecionados declarado em globals.js
 
+function _calcularDisponivelItem(item, grupo) {
+    const regiao = item.regioes && item.regioes[grupo];
+    if (!regiao) return null;
+    const parseQtd = v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0;
+    return parseQtd(regiao.inicial) - parseQtd(regiao.gasto);
+}
+
+function _badgeEstoque(disponivel, unidade) {
+    if (disponivel === null) return '';
+    if (disponivel <= 0) {
+        return `<span class="badge-estoque sem-estoque">Sem estoque</span>`;
+    }
+    const fmt = disponivel.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+    return `<span class="badge-estoque com-estoque">Estoque: ${fmt} ${unidade || ''}</span>`;
+}
+
+function _validarQtdVsEstoque(inputQtd) {
+    const row = inputQtd.closest('.seletor-item-row');
+    const disponivel = parseFloat(row.getAttribute('data-disponivel'));
+    if (isNaN(disponivel)) return;
+
+    const cfgSeletor = getModuleConfig();
+    const qtd = parseFloat(inputQtd.value) || 0;
+    const diarias = cfgSeletor.usaDiarias
+        ? (parseInt(row.querySelector('.seletor-diarias')?.value) || 1)
+        : 1;
+    const total = qtd * diarias;
+
+    const aviso = row.querySelector('.aviso-estoque');
+    if (total > disponivel && disponivel >= 0) {
+        inputQtd.style.borderColor = '#dc3545';
+        if (aviso) aviso.textContent = `⚠️ Excede estoque (disp: ${disponivel.toLocaleString('pt-BR', { maximumFractionDigits: 2 })})`;
+    } else {
+        inputQtd.style.borderColor = '';
+        if (aviso) aviso.textContent = '';
+    }
+}
+
 function abrirSeletorItens() {
     if (!dadosAlimentacao || Object.keys(dadosAlimentacao).length === 0) {
         alert('Nenhum item disponível. Verifique se há itens cadastrados para este módulo.');
         return;
     }
+
+    const grupoAtual = document.getElementById('os-grupo')?.value || '1';
 
     const container = document.getElementById('seletor-categorias');
     container.innerHTML = '';
@@ -227,21 +272,27 @@ function abrirSeletorItens() {
             const jaSelecionado = itensOSSelecionados.some(i => i.itemId === item.id && i.categoria === cat);
             const itemExistente = jaSelecionado ? itensOSSelecionados.find(i => i.itemId === item.id && i.categoria === cat) : null;
 
+            const disponivel = _calcularDisponivelItem(item, grupoAtual);
+            const badge = _badgeEstoque(disponivel, item.unidade);
+            const dispAttr = disponivel !== null ? `data-disponivel="${disponivel}"` : '';
+
             const cfgSeletor = getModuleConfig();
             itensHtml += `
-                <div class="seletor-item-row ${jaSelecionado ? 'selecionado' : ''}" data-item-id="${item.id}" data-cat="${cat}" data-nome="${item.descricao.toLowerCase()}">
+                <div class="seletor-item-row ${jaSelecionado ? 'selecionado' : ''}" data-item-id="${item.id}" data-cat="${cat}" data-nome="${item.descricao.toLowerCase()}" ${dispAttr}>
                     <input type="checkbox" ${jaSelecionado ? 'checked' : ''} onchange="toggleItemSeletor(this)">
                     <span class="item-nome" onclick="this.previousElementSibling.click()">${item.descricao}</span>
                     <span class="item-unidade">${item.unidade || ''}</span>
+                    ${badge}
                     ${cfgSeletor.usaDiarias ? `
                     <div class="seletor-campo">
                         <label>Diárias:</label>
-                        <input type="number" class="seletor-diarias" min="1" value="${itemExistente ? itemExistente.diarias : 1}" placeholder="1">
+                        <input type="number" class="seletor-diarias" min="1" value="${itemExistente ? itemExistente.diarias : 1}" placeholder="1" oninput="_validarQtdVsEstoque(this.closest('.seletor-item-row').querySelector('.seletor-qtd'))">
                     </div>` : '<input type="hidden" class="seletor-diarias" value="1">'}
                     <div class="seletor-campo">
                         <label>${cfgSeletor.colunaQtdCompacta}:</label>
-                        <input type="number" class="seletor-qtd" min="0" value="${itemExistente ? itemExistente.qtdSolicitada : ''}" placeholder="0">
+                        <input type="number" class="seletor-qtd" min="0" value="${itemExistente ? itemExistente.qtdSolicitada : ''}" placeholder="0" oninput="_validarQtdVsEstoque(this)">
                     </div>
+                    <span class="aviso-estoque"></span>
                 </div>
             `;
         });
@@ -421,6 +472,7 @@ function confirmarSelecaoItens() {
     itensOSSelecionados = itensOSSelecionados.filter(i => idsNoSeletor.has(`${i.categoria}:${i.itemId}`));
 
     renderizarTabelaItensOS();
+    salvarRascunhoOS();
     fecharSeletorItens();
 }
 
@@ -942,6 +994,7 @@ async function confirmarEmissaoOS() {
         }
 
         // Limpar formulário e fechar modal
+        descartarRascunhoOS();
         document.getElementById('form-emitir-os').reset();
         itensOSSelecionados = [];
         renderizarTabelaItensOS();
@@ -1050,4 +1103,144 @@ function gerarSignatariosPreview(dados) {
     });
     html += '</div>';
     return html;
+}
+
+// ========================================
+// RASCUNHO AUTOMÁTICO
+// ========================================
+
+let _autoSaveTimer = null;
+let _rascunhoPendente = null;
+
+function _chaveRascunho() {
+    const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+    return `rascunho_os_${modulo}`;
+}
+
+function salvarRascunhoOS() {
+    const campos = {};
+    const ids = [
+        'os-contrato-num', 'os-data-assinatura', 'os-prazo-vigencia',
+        'os-detentora', 'os-cnpj', 'os-servico', 'os-grupo',
+        'os-evento', 'os-data-evento', 'os-horario', 'os-local',
+        'os-justificativa', 'os-observacoes', 'os-responsavel'
+    ];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) campos[id] = el.value;
+    });
+
+    const grupoSelect = document.getElementById('os-grupo-select');
+    if (grupoSelect) campos['os-grupo-select'] = grupoSelect.value;
+
+    const rascunho = {
+        timestamp: Date.now(),
+        campos,
+        itens: itensOSSelecionados,
+        signatarios: signatariosOS
+    };
+
+    try {
+        localStorage.setItem(_chaveRascunho(), JSON.stringify(rascunho));
+    } catch (e) {
+        // localStorage cheio — ignorar silenciosamente
+    }
+}
+
+function descartarRascunhoOS() {
+    localStorage.removeItem(_chaveRascunho());
+    if (_autoSaveTimer) {
+        clearInterval(_autoSaveTimer);
+        _autoSaveTimer = null;
+    }
+    const banner = document.getElementById('banner-rascunho');
+    if (banner) banner.remove();
+}
+
+function _iniciarAutoSave() {
+    if (_autoSaveTimer) clearInterval(_autoSaveTimer);
+    _autoSaveTimer = setInterval(salvarRascunhoOS, 30000);
+}
+
+function _restaurarCamposRascunho(campos) {
+    Object.entries(campos).forEach(([id, valor]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = valor;
+    });
+}
+
+async function _aplicarRascunho(rascunho) {
+    const banner = document.getElementById('banner-rascunho');
+    if (banner) banner.remove();
+
+    // Restaurar grupo/select primeiro para disparar carregamento de detentora se necessário
+    if (rascunho.campos['os-grupo-select']) {
+        const grupoSelect = document.getElementById('os-grupo-select');
+        if (grupoSelect) {
+            grupoSelect.value = rascunho.campos['os-grupo-select'];
+            grupoSelect.dispatchEvent(new Event('change'));
+            // Aguardar carregamento assíncrono
+            await new Promise(r => setTimeout(r, 400));
+        }
+    }
+
+    _restaurarCamposRascunho(rascunho.campos);
+
+    itensOSSelecionados = rascunho.itens || [];
+    renderizarTabelaItensOS();
+
+    if (rascunho.signatarios && rascunho.signatarios.length > 0) {
+        signatariosOS = rascunho.signatarios;
+        renderizarSignatarios();
+    }
+
+    _iniciarAutoSave();
+}
+
+function _verificarRascunhoOS() {
+    // Limpar itens de estado anterior
+    itensOSSelecionados = [];
+    renderizarTabelaItensOS();
+
+    const raw = localStorage.getItem(_chaveRascunho());
+    if (!raw) {
+        _iniciarAutoSave();
+        return;
+    }
+
+    let rascunho;
+    try { rascunho = JSON.parse(raw); } catch (e) {
+        localStorage.removeItem(_chaveRascunho());
+        _iniciarAutoSave();
+        return;
+    }
+
+    // Ignorar rascunhos vazios (sem itens e sem campos preenchidos)
+    const temItens = rascunho.itens && rascunho.itens.length > 0;
+    const temCampos = rascunho.campos && Object.values(rascunho.campos).some(v => v && v.trim && v.trim() !== '');
+    if (!temItens && !temCampos) {
+        localStorage.removeItem(_chaveRascunho());
+        _iniciarAutoSave();
+        return;
+    }
+
+    _rascunhoPendente = rascunho;
+
+    const data = new Date(rascunho.timestamp).toLocaleString('pt-BR');
+    const nItens = (rascunho.itens || []).length;
+
+    const banner = document.createElement('div');
+    banner.id = 'banner-rascunho';
+    banner.innerHTML = `
+        <span>📝 Rascunho salvo em ${data} — ${nItens} ${nItens === 1 ? 'item' : 'itens'}</span>
+        <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-small btn-primary" onclick="_aplicarRascunho(_rascunhoPendente)">Restaurar</button>
+            <button type="button" class="btn-small btn-secondary" onclick="descartarRascunhoOS()">Descartar</button>
+        </div>
+    `;
+
+    const form = document.getElementById('form-emitir-os');
+    if (form) form.parentElement.insertBefore(banner, form);
+
+    _iniciarAutoSave();
 }

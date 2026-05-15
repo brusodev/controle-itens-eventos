@@ -269,9 +269,3 @@ function adicionarKitNaRequisicao() {
     alert(`Kit "${kit.nome}" adicionado com ${kit.itens.length} ${kit.itens.length === 1 ? 'item' : 'itens'}!`);
 }
 
-// Fechar modais ao clicar fora
-window.onclick = function(event) {
-    if (event.target.className === 'modal') {
-        event.target.style.display = 'none';
-    }
-}
