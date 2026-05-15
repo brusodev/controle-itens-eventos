@@ -17,7 +17,20 @@
       "Bash(pip install:*)",
       "Bash(python3:*)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(claude mcp *)",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Bash(npx -y @modelcontextprotocol/server-git --help)",
+      "Bash(npx -y @modelcontextprotocol/server-sqlite --help)",
+      "Bash(npx -y mcp-server-git --help)",
+      "Bash(pip show *)",
+      "Bash(pip index *)",
+      "Bash(pip uninstall *)",
+      "Bash(pip list *)",
+      "Bash(Select-String -Pattern \"starlette|fastapi\")",
+      "PowerShell($mcpDir = \"C:\\\\Users\\\\bruno\\\\.claude\\\\mcp-servers\\\\git\"; New-Item -ItemType Directory -Path $mcpDir -Force | Out-Null; python -m venv \"$mcpDir\\\\venv\" 2>&1 | Select-Object -Last 3)",
+      "PowerShell(& \"C:\\\\Users\\\\bruno\\\\.claude\\\\mcp-servers\\\\git\\\\venv\\\\Scripts\\\\pip.exe\" install mcp-server-git 2>&1)"
     ]
   }
 }
