@@ -630,7 +630,7 @@ class AssinaturaInterna(db.Model):
     ip_address = db.Column(db.String(45))
 
     usuario = db.relationship('Usuario', backref='assinaturas_internas', foreign_keys=[usuario_id])
-    ordem_servico = db.relationship('OrdemServico', backref='assinaturas_internas', foreign_keys=[ordem_servico_id])
+    ordem_servico = db.relationship('OrdemServico', backref=db.backref('assinaturas_internas', passive_deletes=True), foreign_keys=[ordem_servico_id], passive_deletes=True)
 
     def to_dict(self):
         return {
