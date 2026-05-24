@@ -22,6 +22,21 @@ from controle_estoque import (
 os_bp = Blueprint('ordens_servico', __name__)
 
 
+def _parsear_data_emissao(data_str):
+    """Converte dd/mm/yyyy ou yyyy-mm-dd para datetime. Retorna datetime.now() se inválido."""
+    if not data_str:
+        return datetime.now()
+    try:
+        s = str(data_str).strip()
+        if '/' in s:
+            return datetime.strptime(s, '%d/%m/%Y')
+        if 'T' in s:
+            return datetime.fromisoformat(s.replace('Z', '+00:00'))
+        return datetime.strptime(s.split()[0], '%Y-%m-%d')
+    except (ValueError, AttributeError):
+        return datetime.now()
+
+
 def gerar_proximo_numero_os(modulo=None):
     """Gera automaticamente o próximo número de O.S. no formato N/ANO, por módulo"""
     ano_atual = datetime.now().year
@@ -162,7 +177,8 @@ def criar_ordem():
             fiscal_contrato=dados.get('fiscalContrato'),
             fiscal_tipo=dados.get('fiscalTipo', 'Fiscal do Contrato'),
             responsavel=dados.get('responsavel'),
-            data_emissao_completa=datetime.now().isoformat(),
+            data_emissao=_parsear_data_emissao(dados.get('dataEmissao')),
+            data_emissao_completa=_parsear_data_emissao(dados.get('dataEmissao')).isoformat(),
             signatarios_json=json.dumps(dados['signatarios'], ensure_ascii=False) if dados.get('signatarios') else None
         )
         db.session.add(os)
@@ -193,14 +209,14 @@ def criar_ordem():
                 item_bec=item_os_data.get('itemBec', ''),
                 descricao=item_os_data['descricao'],
                 unidade=item_os_data.get('unidade', 'Unidade'),
-                diarias=item_os_data.get('diarias', 1),
+                diarias=item_os_data.get('diarias') or 1,
                 quantidade_solicitada=item_os_data.get('qtdSolicitada'),
                 quantidade_total=item_os_data['qtdTotal'],
                 valor_unitario=valor_unitario  # ✅ NOVO: Salvar valor unitário
             )
             db.session.add(item_os)
             itens_os.append(item_os)
-        
+
         db.session.flush()  # Garantir que os itens tenham IDs
         
         # ✅ PROCESSAR BAIXAS DE ESTOQUE COM VALIDAÇÃO
@@ -303,6 +319,10 @@ def atualizar_ordem(os_id):
         os.fiscal_contrato = dados.get('fiscalContrato', os.fiscal_contrato)
         os.fiscal_tipo = dados.get('fiscalTipo', os.fiscal_tipo)
         os.responsavel = dados.get('responsavel', os.responsavel)
+        if dados.get('dataEmissao'):
+            nova_data = _parsear_data_emissao(dados['dataEmissao'])
+            os.data_emissao = nova_data
+            os.data_emissao_completa = nova_data.isoformat()
         if dados.get('signatarios'):
             os.signatarios_json = json.dumps(dados['signatarios'], ensure_ascii=False)
 
@@ -329,16 +349,16 @@ def atualizar_ordem(os_id):
                 item_bec=item_os_data.get('itemBec', ''),
                 descricao=item_os_data['descricao'],
                 unidade=item_os_data.get('unidade', 'Unidade'),
-                diarias=item_os_data.get('diarias', 1),
+                diarias=item_os_data.get('diarias') or 1,
                 quantidade_solicitada=item_os_data.get('qtdSolicitada'),
                 quantidade_total=item_os_data['qtdTotal'],
                 valor_unitario=valor_unitario  # ✅ NOVO: Salvar valor unitário
             )
             db.session.add(item_os)
             itens_os.append(item_os)
-        
+
         db.session.flush()
-        
+
         # ✅ PROCESSAR NOVAS BAIXAS DE ESTOQUE
         try:
             print(f"📦 Processando novas baixas de estoque para região {regiao_estoque}...")

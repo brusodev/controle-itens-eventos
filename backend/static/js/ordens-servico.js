@@ -618,6 +618,7 @@ async function editarOS(osId) {
         document.getElementById('os-servico').value = os.servico || 'COFFEE BREAK';
         document.getElementById('os-grupo').value = os.grupo || '';
         document.getElementById('os-evento').value = os.evento || '';
+        document.getElementById('os-data-emissao').value = converterDataParaInput(os.dataEmissao);
         document.getElementById('os-data-evento').value = converterDataParaInput(os.data);
         document.getElementById('os-horario').value = os.horario || '';
         document.getElementById('os-local').value = os.local || '';
@@ -753,6 +754,7 @@ async function restaurarOSParaEdicao() {
         document.getElementById('os-servico').value = os.servico || 'COFFEE BREAK';
         document.getElementById('os-grupo').value = os.grupo || '';
         document.getElementById('os-evento').value = os.evento || '';
+        document.getElementById('os-data-emissao').value = converterDataParaInput(os.dataEmissao);
         document.getElementById('os-data-evento').value = converterDataParaInput(os.data);
         document.getElementById('os-horario').value = os.horario || '';
         document.getElementById('os-local').value = os.local || '';

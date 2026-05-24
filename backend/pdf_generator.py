@@ -29,6 +29,15 @@ class PDFOrdemServico:
         """Retorna valor do dict garantindo que não seja None"""
         value = dados.get(key, default)
         return value if value is not None else default
+
+    @staticmethod
+    def _fmt_qtd(v):
+        """Formata quantidade: inteiro se for número inteiro, até 3 casas decimais caso contrário."""
+        v = float(v or 0)
+        if v == int(v):
+            return f"{int(v):,}".replace(',', '.')
+        s = f"{v:,.3f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        return s.rstrip('0').rstrip(',')
     
     # Configuração de labels por módulo (espelha MODULE_CONFIG do frontend)
     MODULE_LABELS = {
@@ -437,8 +446,8 @@ class PDFOrdemServico:
             valor_total += total_item
             
             # Formatar números com separador de milhares
-            qtd_sol_fmt = f"{qtd_solicitada:,.0f}".replace(',', '.')
-            qtd_total_fmt = f"{qtd_total:,.0f}".replace(',', '.')
+            qtd_sol_fmt = self._fmt_qtd(qtd_solicitada)
+            qtd_total_fmt = self._fmt_qtd(qtd_total)
             
             if usa_diarias:
                 row = [

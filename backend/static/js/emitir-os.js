@@ -19,6 +19,12 @@ async function renderizarEmitirOS() {
         `;
     }
 
+    // Definir data de emissão padrão como hoje (apenas se não foi preenchida pela edição)
+    const campoDataEmissao = document.getElementById('os-data-emissao');
+    if (campoDataEmissao && !campoDataEmissao.value) {
+        campoDataEmissao.value = new Date().toISOString().slice(0, 10);
+    }
+
     // Verificar rascunho salvo (já inicia auto-save interno)
     _verificarRascunhoOS();
 
@@ -290,7 +296,7 @@ function abrirSeletorItens() {
                     </div>` : '<input type="hidden" class="seletor-diarias" value="1">'}
                     <div class="seletor-campo">
                         <label>${cfgSeletor.colunaQtdCompacta}:</label>
-                        <input type="number" class="seletor-qtd" min="0" value="${itemExistente ? itemExistente.qtdSolicitada : ''}" placeholder="0" oninput="_validarQtdVsEstoque(this)">
+                        <input type="number" class="seletor-qtd" min="0" step="any" value="${itemExistente ? itemExistente.qtdSolicitada : ''}" placeholder="0" oninput="_validarQtdVsEstoque(this)">
                     </div>
                     <span class="aviso-estoque"></span>
                 </div>
@@ -536,8 +542,8 @@ function renderizarTabelaItensOS() {
                 <td style="text-align: center; color: #888;">${idx + 1}</td>
                 <td class="item-descricao">${item.descricao}</td>
                 <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
-                <td><input type="number" value="${item.diarias}" min="1" onchange="atualizarItemTabela(${idx}, 'diarias', this.value)"></td>
-                <td><input type="number" value="${item.qtdSolicitada}" min="0" onchange="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
+                <td><input type="number" value="${item.diarias}" min="1" oninput="atualizarItemTabela(${idx}, 'diarias', this.value)"></td>
+                <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
                 <td class="td-total">${total}</td>
                 <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
             `;
@@ -547,7 +553,7 @@ function renderizarTabelaItensOS() {
                 <td style="text-align: center; color: #888;">${idx + 1}</td>
                 <td class="item-descricao">${item.descricao}</td>
                 <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
-                <td><input type="number" value="${item.qtdSolicitada}" min="0" onchange="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
+                <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
                 <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
             `;
         }
@@ -724,7 +730,14 @@ function coletarDadosOS() {
         fiscalTipo: signatariosOS[1]?.cargo || 'Fiscal do Contrato',
         responsavel: document.getElementById('os-responsavel').value,
         itens: itensOS,
-        dataEmissao: new Date().toLocaleDateString('pt-BR'),
+        dataEmissao: (() => {
+            const v = document.getElementById('os-data-emissao')?.value;
+            if (v && v.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [y, m, d] = v.split('-');
+                return `${d}/${m}/${y}`;
+            }
+            return new Date().toLocaleDateString('pt-BR');
+        })(),
         numeroOS: `${proximoIdOS}/2025`
     };
 }
@@ -844,8 +857,8 @@ function gerarPreviewOS(dados) {
                             const valorTotalItem = valorUnit * qtdTotal;
 
                             // Formatar números com separador de milhares
-                            const qtdSolFmt = qtdSolicitada.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                            const qtdTotalFmt = qtdTotal.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                            const qtdSolFmt = qtdSolicitada.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 3});
+                            const qtdTotalFmt = qtdTotal.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 3});
                             const valorUnitFmt = valorUnit.toFixed(2).replace('.', ',');
                             const valorTotalFmt = valorTotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
@@ -939,6 +952,7 @@ async function confirmarEmissaoOS() {
             fiscalTipo: dadosOS.fiscalTipo,
             signatarios: dadosOS.signatarios,
             responsavel: dadosOS.responsavel,
+            dataEmissao: dadosOS.dataEmissao,
             modulo: localStorage.getItem('modulo_atual') || 'coffee',
             itens: dadosOS.itens.map(item => ({
                 categoria: item.categoria,
@@ -1173,18 +1187,29 @@ async function _aplicarRascunho(rascunho) {
     const banner = document.getElementById('banner-rascunho');
     if (banner) banner.remove();
 
-    // Restaurar grupo/select primeiro para disparar carregamento de detentora se necessário
+    // Restaurar campos salvos primeiro (os campos de detentora virão do evento change abaixo)
+    _restaurarCamposRascunho(rascunho.campos);
+
+    // Disparar mudança de grupo DEPOIS de restaurar campos:
+    // carregarDadosDetentora() (ou onGrupoOrganizacaoChange) escreve por último,
+    // sobrescrevendo corretamente quaisquer valores de detentora desatualizados no rascunho.
     if (rascunho.campos['os-grupo-select']) {
         const grupoSelect = document.getElementById('os-grupo-select');
         if (grupoSelect) {
             grupoSelect.value = rascunho.campos['os-grupo-select'];
             grupoSelect.dispatchEvent(new Event('change'));
-            // Aguardar carregamento assíncrono
-            await new Promise(r => setTimeout(r, 400));
+
+            // Para organizacao: aguardar a lista de detentoras carregar e re-selecionar
+            const detentoraSelect = document.getElementById('os-detentora-select');
+            if (detentoraSelect && rascunho.campos['os-detentora-select']) {
+                await new Promise(r => setTimeout(r, 500));
+                detentoraSelect.value = rascunho.campos['os-detentora-select'];
+                if (detentoraSelect.value) {
+                    onDetentoraOrganizacaoChange(detentoraSelect.value);
+                }
+            }
         }
     }
-
-    _restaurarCamposRascunho(rascunho.campos);
 
     itensOSSelecionados = rascunho.itens || [];
     renderizarTabelaItensOS();

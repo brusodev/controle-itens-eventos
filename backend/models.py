@@ -226,6 +226,7 @@ class OrdemServico(db.Model):
     signatarios_json = db.Column(db.Text)  # JSON: [{"cargo": "...", "nome": "..."}, ...]
 
     # Controle
+    status = db.Column(db.String(30), nullable=False, server_default='emitida', default='emitida')
     data_emissao = db.Column(db.DateTime, default=datetime.utcnow)
     data_emissao_completa = db.Column(db.String(50))
     motivo_exclusao = db.Column(db.Text)  # ✅ Motivo da exclusão registrado pelo admin
@@ -274,6 +275,7 @@ class OrdemServico(db.Model):
             'responsavel': self.responsavel,
             'signatarios': self._get_signatarios(),
             'regiaoEstoque': self.regiao_estoque,  # Região do estoque vinculada
+            'status': self.status or 'emitida',
             'dataEmissao': self.data_emissao.isoformat() if self.data_emissao else None,
             'dataEmissaoCompleta': self.data_emissao_completa,
             'motivoExclusao': self.motivo_exclusao,  # ✅ Motivo da exclusão

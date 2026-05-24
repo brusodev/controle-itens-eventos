@@ -127,6 +127,11 @@
 
                     <h3>Dados do Evento</h3>
                     <div class="form-group">
+                        <label for="os-data-emissao">Data de Emissão *</label>
+                        <input type="date" id="os-data-emissao" required>
+                    </div>
+
+                    <div class="form-group">
                         <label for="os-evento">Evento *</label>
                         <input type="text" id="os-evento" required placeholder="Orientação técnica para a APEOESP..." list="lista-eventos">
                         <datalist id="lista-eventos"></datalist>
@@ -807,8 +812,8 @@
     <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.2"></script>
     <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.12"></script>
     <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.9"></script>
-    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.5"></script>
-    <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.9"></script>
+    <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.5"></script>
     <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.8"></script>
     <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.3"></script>
