@@ -30,7 +30,23 @@
       "Bash(pip list *)",
       "Bash(Select-String -Pattern \"starlette|fastapi\")",
       "PowerShell($mcpDir = \"C:\\\\Users\\\\bruno\\\\.claude\\\\mcp-servers\\\\git\"; New-Item -ItemType Directory -Path $mcpDir -Force | Out-Null; python -m venv \"$mcpDir\\\\venv\" 2>&1 | Select-Object -Last 3)",
-      "PowerShell(& \"C:\\\\Users\\\\bruno\\\\.claude\\\\mcp-servers\\\\git\\\\venv\\\\Scripts\\\\pip.exe\" install mcp-server-git 2>&1)"
+      "PowerShell(& \"C:\\\\Users\\\\bruno\\\\.claude\\\\mcp-servers\\\\git\\\\venv\\\\Scripts\\\\pip.exe\" install mcp-server-git 2>&1)",
+      "Bash(cd /var/www/controle-itens-eventos/backend && source venv/bin/activate && python -m pytest tests/ -v --tb=short 2>&1 | tail -50)",
+      "Bash(systemctl status controle-itens-eventos 2>/dev/null || systemctl status gunicorn 2>/dev/null || ps aux | grep -E \"gunicorn|flask|python\" | grep -v grep)",
+      "Bash(source venv/bin/activate && pip install pytest -q 2>&1 | tail -3 && python -m pytest tests/ -v --tb=short 2>&1 | tail -60)",
+      "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short 2>&1 | head -80)",
+      "Bash(source venv/bin/activate && flask db current 2>&1 && flask db heads 2>&1)",
+      "Bash(source venv/bin/activate && pip list | grep -E \"requests|flask|sqlalchemy|gunicorn|reportlab\" 2>&1)",
+      "Bash(source venv/bin/activate && pip list 2>&1 | grep -E \"Flask|SQLAlchemy|Requests|Jinja\")",
+      "Bash(journalctl -u gunicorn.service -n 30 --no-pager 2>&1)",
+      "Bash(systemctl status controle-itens.service 2>&1)",
+      "Bash(sqlite3 /var/www/controle-itens-eventos/backend/instance/controle_itens.db \"ALTER TABLE ordens_servico ADD COLUMN status VARCHAR\\(50\\) DEFAULT 'emitida'\")",
+      "Bash(source venv/bin/activate && python -c \"import requests; print\\(requests.__version__\\)\")",
+      "Bash(kill 1410432 1410450 1410493 2>&1; sleep 2 && sudo systemctl restart controle-itens.service 2>&1 && sudo systemctl status controle-itens.service --no-pager 2>&1)",
+      "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short 2>&1 | tail -40)",
+      "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short --ignore=tests/test_fluxo_edicao.py 2>&1 | tail -40)",
+      "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short --ignore=tests/test_fluxo_edicao.py --ignore=tests/test_criacao_completa.py --ignore=tests/test_edicao_interface.py 2>&1 | tail -40)",
+      "Bash(git add backend/requirements.txt .claude/settings.local.json && git commit -m \"$\\(cat <<'EOF'\nAdd requests dependency and update allowed commands\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
