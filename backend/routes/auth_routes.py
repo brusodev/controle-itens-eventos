@@ -3,8 +3,10 @@ Rotas de autenticação e gerenciamento de usuários
 """
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from models import db, Usuario
+from extensions import limiter
 from datetime import datetime
 from functools import wraps
+import secrets
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -26,12 +28,65 @@ def admin_requerido(f):
     def verificar_admin(*args, **kwargs):
         if 'usuario_id' not in session:
             return jsonify({'erro': 'Não autenticado'}), 401
-        
+
         if session.get('usuario_perfil') != 'admin':
             return jsonify({'erro': 'Acesso negado. Apenas administradores podem realizar esta ação.'}), 403
-        
+
         return f(*args, **kwargs)
     return verificar_admin
+
+
+def empresa_requerido(f):
+    """Decorator para rotas acessíveis apenas por usuários com perfil 'empresa'"""
+    @wraps(f)
+    def verificar_empresa(*args, **kwargs):
+        if 'usuario_id' not in session:
+            return jsonify({'erro': 'Não autenticado'}), 401
+
+        if session.get('usuario_perfil') != 'empresa':
+            return jsonify({'erro': 'Acesso negado. Apenas contas de empresa podem realizar esta ação.'}), 403
+
+        return f(*args, **kwargs)
+    return verificar_empresa
+
+
+def admin_ou_empresa_requerido(f):
+    """Decorator para rotas acessíveis por admin ou empresa"""
+    @wraps(f)
+    def verificar(*args, **kwargs):
+        if 'usuario_id' not in session:
+            return jsonify({'erro': 'Não autenticado'}), 401
+
+        if session.get('usuario_perfil') not in ('admin', 'empresa'):
+            return jsonify({'erro': 'Acesso negado.'}), 403
+
+        return f(*args, **kwargs)
+    return verificar
+
+
+def csrf_protegido(f):
+    """
+    Decorator CSRF para rotas de mutação (POST/PUT/DELETE).
+    Valida o header X-CSRF-Token contra o token armazenado na sessão.
+    Rotas GET/HEAD/OPTIONS são dispensadas automaticamente.
+
+    O frontend deve:
+      1. Buscar o token em GET /auth/csrf-token após o login.
+      2. Incluir o header X-CSRF-Token em todas as requisições mutantes.
+    """
+    @wraps(f)
+    def verificar_csrf(*args, **kwargs):
+        if request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return f(*args, **kwargs)
+
+        token_sessao = session.get('csrf_token')
+        token_header = request.headers.get('X-CSRF-Token', '')
+
+        if not token_sessao or not secrets.compare_digest(token_sessao, token_header):
+            return jsonify({'erro': 'Token CSRF inválido ou ausente'}), 403
+
+        return f(*args, **kwargs)
+    return verificar_csrf
 
 
 # ========================================
@@ -39,6 +94,7 @@ def admin_requerido(f):
 # ========================================
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
 def login():
     """Página de login"""
     if request.method == 'GET':
@@ -72,7 +128,10 @@ def login():
     session['usuario_nome'] = usuario.nome
     session['usuario_email'] = usuario.email
     session['usuario_cargo'] = usuario.cargo
-    session['usuario_perfil'] = usuario.perfil  # 'admin' ou 'comum'
+    session['usuario_perfil'] = usuario.perfil  # 'admin', 'comum' ou 'empresa'
+    session['detentora_id'] = usuario.detentora_id  # None para admin/comum
+    session['csrf_token'] = secrets.token_hex(32)  # Token CSRF por sessão
+    session.permanent = True  # Respeitar PERMANENT_SESSION_LIFETIME
     
     return jsonify({
         'sucesso': True,
@@ -87,6 +146,21 @@ def logout():
     return redirect(url_for('auth.login'))
 
 
+@auth_bp.route('/csrf-token', methods=['GET'])
+@login_requerido
+def obter_csrf_token():
+    """
+    Retorna o token CSRF da sessão atual.
+    O frontend deve chamar este endpoint após o login e incluir o token
+    no header X-CSRF-Token em todas as requisições POST/PUT/DELETE.
+    """
+    token = session.get('csrf_token')
+    if not token:
+        token = secrets.token_hex(32)
+        session['csrf_token'] = token
+    return jsonify({'csrf_token': token})
+
+
 @auth_bp.route('/registro', methods=['GET', 'POST'])
 @login_requerido
 def registro():
@@ -95,36 +169,46 @@ def registro():
         return render_template('registro.html')
     
     dados = request.get_json()
-    
+
     # Validações
     email = dados.get('email', '').strip().lower()
     nome = dados.get('nome', '').strip()
     senha = dados.get('senha', '')
     cargo = dados.get('cargo', '').strip()
-    perfil = dados.get('perfil', 'comum')  # 'admin' ou 'comum'
-    
+    perfil = dados.get('perfil', 'comum')  # 'admin', 'comum' ou 'empresa'
+    detentora_id = dados.get('detentora_id') or None
+
     if not all([email, nome, senha]):
         return jsonify({'erro': 'Email, nome e senha são obrigatórios'}), 400
-    
-    if len(senha) < 6:
-        return jsonify({'erro': 'Senha deve ter no mínimo 6 caracteres'}), 400
-    
-    if perfil not in ['admin', 'comum']:
-        return jsonify({'erro': 'Perfil inválido. Use "admin" ou "comum"'}), 400
-    
-    # APENAS ADMINISTRADOR PODE CRIAR USUÁRIOS COM PERFIL ADMIN
-    if perfil == 'admin' and session.get('usuario_perfil') != 'admin':
-        return jsonify({'erro': 'Apenas administradores podem criar outros administradores'}), 403
-    
+
+    if len(senha) < 12:
+        return jsonify({'erro': 'Senha deve ter no mínimo 12 caracteres'}), 400
+
+    if perfil not in ['admin', 'comum', 'empresa']:
+        return jsonify({'erro': 'Perfil inválido. Use "admin", "comum" ou "empresa"'}), 400
+
+    # Apenas admin pode criar qualquer tipo de usuário
+    if session.get('usuario_perfil') != 'admin':
+        return jsonify({'erro': 'Apenas administradores podem criar usuários'}), 403
+
+    # Perfil empresa exige vínculo com detentora existente
+    if perfil == 'empresa':
+        if not detentora_id:
+            return jsonify({'erro': 'Perfil "empresa" exige um detentora_id válido'}), 400
+        from models import Detentora
+        if not Detentora.query.get(int(detentora_id)):
+            return jsonify({'erro': 'Detentora não encontrada'}), 404
+
     if Usuario.query.filter_by(email=email).first():
         return jsonify({'erro': 'Email já cadastrado'}), 409
-    
+
     # Criar novo usuário
     novo_usuario = Usuario(
         nome=nome,
         email=email,
         cargo=cargo or None,
-        perfil=perfil
+        perfil=perfil,
+        detentora_id=int(detentora_id) if detentora_id else None
     )
     novo_usuario.set_senha(senha)
     
@@ -198,35 +282,58 @@ def atualizar_usuario(usuario_id):
             else:
                 return jsonify({'erro': 'Apenas administradores podem alterar o status'}), 403
         
+        perfil_alterado = False
+        detentora_alterada = False
+
         if 'perfil' in dados:
             # Apenas admin pode alterar perfil
             if session.get('usuario_perfil') != 'admin':
                 return jsonify({'erro': 'Apenas administradores podem alterar perfis'}), 403
-            
-            if dados['perfil'] not in ['admin', 'comum']:
-                return jsonify({'erro': 'Perfil inválido'}), 400
-            
-            # APENAS ADMIN PODE PROMOVER PARA ADMIN
-            if dados['perfil'] == 'admin' and usuario.perfil != 'admin':
-                # Confirmação adicional: está promovendo alguém para admin
+
+            if dados['perfil'] not in ['admin', 'comum', 'empresa']:
+                return jsonify({'erro': 'Perfil inválido. Use "admin", "comum" ou "empresa"'}), 400
+
+            if dados['perfil'] == 'empresa' and not dados.get('detentora_id') and not usuario.detentora_id:
+                return jsonify({'erro': 'Perfil "empresa" exige um detentora_id válido'}), 400
+
+            if usuario.perfil != dados['perfil']:
                 usuario.perfil = dados['perfil']
-            elif dados['perfil'] == 'comum':
-                # Rebaixar de admin para comum
-                usuario.perfil = dados['perfil']
-            else:
-                # Já é admin, manter
-                usuario.perfil = dados['perfil']
-        
+                perfil_alterado = True
+
+        if 'detentora_id' in dados:
+            if session.get('usuario_perfil') != 'admin':
+                return jsonify({'erro': 'Apenas administradores podem alterar o vínculo com detentora'}), 403
+            novo_det_id = int(dados['detentora_id']) if dados['detentora_id'] else None
+            if novo_det_id != usuario.detentora_id:
+                # Validar que a detentora existe
+                if novo_det_id is not None:
+                    from models import Detentora
+                    if not Detentora.query.get(novo_det_id):
+                        return jsonify({'erro': 'Detentora não encontrada'}), 404
+                usuario.detentora_id = novo_det_id
+                detentora_alterada = True
+
         if 'senha' in dados and dados['senha']:
             usuario.set_senha(dados['senha'])
-        
+
         db.session.commit()
-        
+
+        # Se o admin alterou o próprio usuário logado, atualizar sessão
+        if session['usuario_id'] == usuario_id:
+            session['usuario_nome'] = usuario.nome
+            session['usuario_email'] = usuario.email
+            session['usuario_perfil'] = usuario.perfil
+            session['detentora_id'] = usuario.detentora_id
+            # Regenerar CSRF token se perfil ou detentora mudou — invalida tokens antigos
+            if perfil_alterado or detentora_alterada:
+                session['csrf_token'] = secrets.token_hex(32)
+
         return jsonify({
             'sucesso': True,
-            'usuario': usuario.to_dict()
+            'usuario': usuario.to_dict(),
+            'sessao_atualizada': session['usuario_id'] == usuario_id
         })
-        
+
     except Exception:
         db.session.rollback()
         return jsonify({'erro': 'Erro ao atualizar usuário'}), 500
@@ -269,6 +376,7 @@ def obter_usuario_atual():
 
 @auth_bp.route('/api/alterar-senha', methods=['POST'])
 @login_requerido
+@limiter.limit('5 per minute')
 def alterar_senha_api():
     """Altera a senha do usuário logado"""
     try:
@@ -288,8 +396,8 @@ def alterar_senha_api():
         if not usuario.verificar_senha(senha_atual):
             return jsonify({'erro': 'Senha atual incorreta'}), 401
         
-        if len(senha_nova) < 6:
-            return jsonify({'erro': 'Senha deve ter no mínimo 6 caracteres'}), 400
+        if len(senha_nova) < 12:
+            return jsonify({'erro': 'Senha deve ter no mínimo 12 caracteres'}), 400
         
         usuario.set_senha(senha_nova)
         db.session.commit()

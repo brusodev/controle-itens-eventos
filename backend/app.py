@@ -6,6 +6,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from flask import Flask, render_template
 from flask_cors import CORS
+from extensions import limiter
 from models import db
 from dotenv import load_dotenv
 import os
@@ -19,6 +20,10 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 def create_app():
     app = Flask(__name__)
+
+    # Rate limiting — usa memória local (desenvolvimento); em produção, trocar por Redis:
+    # storage_uri="redis://localhost:6379" no extensions.py
+    limiter.init_app(app)
 
     # Banco de dados com caminho absoluto (evita duplicar instâncias)
     db_path = os.path.join(BASE_DIR, 'instance', 'controle_itens.db')
@@ -40,10 +45,18 @@ def create_app():
         print('[AVISO] Crie um arquivo .env com SECRET_KEY=<sua-chave> para persistir sessoes.')
 
     app.config['SECRET_KEY'] = secret_key
-    app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 horas
+
+    # Configuração de sessão — hardened
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    app.config['SESSION_COOKIE_NAME'] = 'sie_session'        # Nome não genérico (evita fingerprinting)
+    app.config['SESSION_COOKIE_SECURE'] = is_production       # HTTPS only em produção
+    app.config['SESSION_COOKIE_HTTPONLY'] = True              # Inacessível via JavaScript
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'            # Bloqueia CSRF cross-site em POSTs
+    app.config['SESSION_COOKIE_PATH'] = '/'
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400          # 24 horas
+
+    # Limite de tamanho de requisição — previne DoS via payload gigante (16MB)
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
     # CORS restrito - suporta multiplas origens separadas por virgula no .env
     # Ex: CORS_ORIGIN=https://meusite.com,http://localhost:5100
@@ -68,7 +81,6 @@ def create_app():
     from routes.detentoras_routes import detentoras_bp
     from routes.auditoria_routes import auditoria_bp
     from routes.categorias_routes import categorias_bp
-
     app.register_blueprint(itens_bp, url_prefix='/api/itens')
     app.register_blueprint(categorias_bp, url_prefix='/api/categorias')
     app.register_blueprint(alimentacao_bp, url_prefix='/api/alimentacao')
@@ -77,12 +89,38 @@ def create_app():
     app.register_blueprint(detentoras_bp, url_prefix='/api/detentoras')
     app.register_blueprint(auditoria_bp, url_prefix='/api/auditoria')
 
+    # Feature flag: Portal da Detentora
+    # Ative definindo PORTAL_DETENTORA_ATIVO=true no .env
+    # Quando desativado, as rotas /api/empresa/* retornam 503
+    portal_ativo_env = os.environ.get('PORTAL_DETENTORA_ATIVO', 'false').lower() == 'true'
+    portal_ativo_cfg = app.config.get('PORTAL_DETENTORA_ATIVO', False)
+    portal_ativo = portal_ativo_env or portal_ativo_cfg
+
+    if portal_ativo:
+        from routes.detentora_portal_routes import detentora_portal_bp
+        app.register_blueprint(detentora_portal_bp, url_prefix='/api/empresa')
+        print('[Portal Detentora] Ativo — rotas /api/empresa/* registradas.')
+    else:
+        from flask import Blueprint, jsonify as _jsonify
+        _portal_stub = Blueprint('detentora_portal_stub', __name__)
+
+        @_portal_stub.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+        def portal_desativado(path):
+            return _jsonify({'erro': 'Portal da Detentora não está ativo neste ambiente.'}), 503
+
+        app.register_blueprint(_portal_stub, url_prefix='/api/empresa')
+        print('[Portal Detentora] Inativo — defina PORTAL_DETENTORA_ATIVO=true no .env para ativar.')
+
     # Headers de segurança em todas as respostas
     @app.after_request
     def adicionar_headers_seguranca(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
+        # Expor header CSRF para o frontend (necessário para leitura via JS)
+        response.headers['Access-Control-Expose-Headers'] = 'X-CSRF-Token'
+        # Referrer-Policy: não vazar URL para domínios externos
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         if os.environ.get('FLASK_ENV') == 'production':
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         return response
@@ -91,6 +129,15 @@ def create_app():
     @app.errorhandler(403)
     def acesso_negado(e):
         return render_template('403.html'), 403
+
+    # Handler de erro 413 (Payload Too Large — MAX_CONTENT_LENGTH excedido)
+    from flask import jsonify as _jsonify_err
+    @app.errorhandler(413)
+    def payload_muito_grande(e):
+        return _jsonify_err({'erro': 'Requisição muito grande. Tamanho máximo permitido: 16MB.'}), 413
+
+    # Garantir que o diretório instance/ existe antes de criar o banco
+    os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
 
     # Criar tabelas
     with app.app_context():

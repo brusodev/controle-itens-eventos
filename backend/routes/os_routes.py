@@ -1,9 +1,13 @@
-from flask import Blueprint, request, jsonify, send_file
-from models import db, OrdemServico, ItemOrdemServico, Item, EstoqueRegional, Categoria, MovimentacaoEstoque, get_datetime_br
+from flask import Blueprint, request, jsonify, send_file, session
+from models import (
+    db, OrdemServico, ItemOrdemServico, Item, EstoqueRegional, Categoria,
+    MovimentacaoEstoque, get_datetime_br, status_transicao_valida, STATUS_LABELS,
+    STATUS_BLOQUEADOS_EDICAO, AssinaturaInterna
+)
 from datetime import datetime
 from sqlalchemy import func
 from pdf_generator import gerar_pdf_os
-from routes.auth_routes import login_requerido, admin_requerido  # ✅ Importar decorators
+from routes.auth_routes import login_requerido, admin_requerido, csrf_protegido
 from utils.auditoria import registrar_auditoria
 import sys
 import os
@@ -118,6 +122,10 @@ def obter_ordem(os_id):
 @login_requerido
 def criar_ordem():
     """Cria uma nova ordem de serviço e atualiza estoque COM VALIDAÇÃO"""
+    # Empresa contratada não pode emitir O.S. — apenas operadores internos
+    if session.get('usuario_perfil') == 'empresa':
+        return jsonify({'erro': 'Empresa contratada não tem permissão para emitir Ordens de Serviço'}), 403
+
     try:
         dados = request.json
         
@@ -155,6 +163,11 @@ def criar_ordem():
         
         print(f"🗺️  Região do estoque: {regiao_estoque}")
         
+        # Resolver detentora_id: aceita id explícito ou busca pelo nome/grupo
+        detentora_id = dados.get('detentoraId') or dados.get('detentora_id') or None
+        if detentora_id:
+            detentora_id = int(detentora_id)
+
         # Criar ordem de serviço
         os = OrdemServico(
             numero_os=numero_os_gerado,
@@ -166,7 +179,8 @@ def criar_ordem():
             servico=dados.get('servico'),
             modulo=dados.get('modulo') or request.args.get('modulo', 'coffee'),
             grupo=grupo,
-            regiao_estoque=regiao_estoque,  # ✅ VINCULAR REGIÃO
+            regiao_estoque=regiao_estoque,
+            detentora_id=detentora_id,
             evento=dados.get('evento'),
             data=dados.get('data'),
             horario=dados.get('horario'),
@@ -262,10 +276,26 @@ def criar_ordem():
 @login_requerido
 def atualizar_ordem(os_id):
     """Atualiza uma ordem de serviço existente COM CONTROLE DE ESTOQUE"""
+    # Empresa contratada não pode editar estrutura da O.S.
+    if session.get('usuario_perfil') == 'empresa':
+        return jsonify({'erro': 'Empresa contratada não tem permissão para editar Ordens de Serviço'}), 403
+
     try:
         os = OrdemServico.query.get_or_404(os_id)
+
+        # Bloquear edição estrutural se a O.S. já foi enviada ao fluxo da detentora
+        status_atual = os.status or 'emitida'
+        if status_atual != 'emitida':
+            return jsonify({
+                'erro': (
+                    f'Não é possível editar estruturalmente uma O.S. com status '
+                    f'"{STATUS_LABELS.get(status_atual, status_atual)}". '
+                    f'Apenas O.S. com status "Emitida" podem ser alteradas.'
+                )
+            }), 409
+
         dados = request.get_json()
-        
+
         # Salvar dados antes para auditoria (com itens)
         dados_antes = os.to_dict(incluir_itens=True)
         
@@ -325,6 +355,11 @@ def atualizar_ordem(os_id):
             os.data_emissao_completa = nova_data.isoformat()
         if dados.get('signatarios'):
             os.signatarios_json = json.dumps(dados['signatarios'], ensure_ascii=False)
+
+        # Atualizar detentora_id se fornecido
+        if 'detentoraId' in dados or 'detentora_id' in dados:
+            det_id = dados.get('detentoraId') or dados.get('detentora_id')
+            os.detentora_id = int(det_id) if det_id else None
 
         # Adicionar novos itens
         itens_os = []
@@ -401,18 +436,29 @@ def atualizar_ordem(os_id):
 
 @os_bp.route('/<int:os_id>', methods=['DELETE'])
 @login_requerido
-@admin_requerido  # ✅ Apenas administradores podem deletar O.S.
+@admin_requerido  # Apenas administradores podem deletar O.S.
 def deletar_ordem(os_id):
     """Deleta uma ordem de serviço e reverte o estoque automaticamente"""
     try:
         os = OrdemServico.query.get_or_404(os_id)
         numero_os = os.numero_os
         evento = os.evento
-        
-        # ✅ Receber motivo da exclusão
+
+        # Bloquear exclusão se a O.S. já está no fluxo da detentora
+        status_atual = os.status or 'emitida'
+        if status_atual != 'emitida':
+            return jsonify({
+                'erro': (
+                    f'Não é possível excluir uma O.S. com status '
+                    f'"{STATUS_LABELS.get(status_atual, status_atual)}". '
+                    f'Apenas O.S. com status "Emitida" podem ser excluídas.'
+                )
+            }), 409
+
+        # Receber motivo da exclusão
         dados_requisicao = request.get_json() or {}
         motivo_exclusao = dados_requisicao.get('motivo', '').strip()
-        
+
         if not motivo_exclusao:
             return jsonify({'erro': 'Motivo da exclusão é obrigatório'}), 400
         
@@ -516,9 +562,11 @@ def gerar_pdf_ordem(os_id):
         # Buscar O.S.
         os = OrdemServico.query.get_or_404(os_id)
         
-        # Preparar dados para o PDF
+        # Preparar dados para o PDF (incluindo aceites e assinaturas internas)
         dados_pdf = os.to_dict(incluir_itens=True)
-        
+        dados_pdf['aceites'] = [a.to_dict() for a in os.aceites]
+        dados_pdf['assinaturas_internas'] = [a.to_dict() for a in os.assinaturas_internas]
+
         # Gerar PDF
         pdf_buffer = gerar_pdf_os(dados_pdf)
         
@@ -548,4 +596,386 @@ def gerar_pdf_ordem(os_id):
         print(f"❌ Erro ao gerar PDF: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'erro': str(e)}), 500
+
+
+# ============================================================
+# PORTAL DA DETENTORA — endpoints do operador interno
+# ============================================================
+
+@os_bp.route('/<int:os_id>/enviar-empresa', methods=['POST'])
+@login_requerido
+@admin_requerido
+@csrf_protegido
+def enviar_para_empresa(os_id):
+    """
+    Operador envia a O.S. para aceite da detentora.
+    Transição: emitida → enviada_empresa.
+    A O.S. deve ter detentora_id preenchido.
+    """
+    os_obj = OrdemServico.query.get_or_404(os_id)
+
+    # Aceitar detentora_id no payload para vincular na hora do envio
+    dados = request.get_json(silent=True) or {}
+    if not os_obj.detentora_id and dados.get('detentora_id'):
+        os_obj.detentora_id = int(dados['detentora_id'])
+
+    if not os_obj.detentora_id:
+        return jsonify({'erro': 'Selecione a detentora antes de enviar.'}), 400
+
+    status_atual = os_obj.status or 'emitida'
+    if not status_transicao_valida(status_atual, 'enviada_empresa'):
+        return jsonify({
+            'erro': f'Transição inválida: {STATUS_LABELS.get(status_atual, status_atual)} → Enviada à Empresa'
+        }), 400
+
+    dados_antes = {'status': status_atual}
+    os_obj.status = 'enviada_empresa'
+
+    db.session.commit()
+
+    registrar_auditoria(
+        'UPDATE', 'OS',
+        f'O.S. #{os_obj.numero_os} enviada para aceite da detentora',
+        entidade_tipo='ordens_servico',
+        entidade_id=os_obj.id,
+        dados_antes=dados_antes,
+        dados_depois={'status': 'enviada_empresa'}
+    )
+
+    return jsonify({
+        'sucesso': True,
+        'status': os_obj.status,
+        'statusLabel': STATUS_LABELS['enviada_empresa']
+    }), 200
+
+
+@os_bp.route('/<int:os_id>/reenviar-empresa', methods=['POST'])
+@login_requerido
+@admin_requerido
+@csrf_protegido
+def reenviar_para_empresa(os_id):
+    """
+    Operador reenvia a O.S. após revisão solicitada pela detentora.
+    Transição: em_revisao → enviada_empresa.
+    Usado quando o operador corrigiu o que foi apontado na revisão.
+    """
+    os_obj = OrdemServico.query.get_or_404(os_id)
+
+    status_atual = os_obj.status or 'emitida'
+    if not status_transicao_valida(status_atual, 'enviada_empresa'):
+        return jsonify({
+            'erro': f'Transição inválida: {STATUS_LABELS.get(status_atual, status_atual)} → Enviada à Empresa. '
+                    f'Apenas O.S. em revisão podem ser reenviadas.'
+        }), 400
+
+    dados_antes = {'status': status_atual}
+    os_obj.status = 'enviada_empresa'
+    db.session.commit()
+
+    registrar_auditoria(
+        'UPDATE', 'OS',
+        f'O.S. #{os_obj.numero_os} reenviada para aceite da detentora após revisão',
+        entidade_tipo='ordens_servico',
+        entidade_id=os_obj.id,
+        dados_antes=dados_antes,
+        dados_depois={'status': 'enviada_empresa'}
+    )
+
+    return jsonify({
+        'sucesso': True,
+        'status': os_obj.status,
+        'statusLabel': STATUS_LABELS['enviada_empresa']
+    }), 200
+
+
+@os_bp.route('/<int:os_id>/atividade-portal', methods=['GET'])
+@login_requerido
+@admin_requerido
+def atividade_portal(os_id):
+    """
+    Retorna o histórico completo de atividade do portal para uma O.S.:
+    revisões, comentários da empresa e aceites.
+    Acessível apenas para admin/operador interno.
+    """
+    from models import RevisaoEmpresa, ComentarioEmpresa, AceiteEmpresa
+
+    os_obj = OrdemServico.query.get_or_404(os_id)
+
+    revisoes = RevisaoEmpresa.query.filter_by(ordem_servico_id=os_id).order_by(RevisaoEmpresa.criado_em).all()
+    comentarios = ComentarioEmpresa.query.filter_by(ordem_servico_id=os_id).order_by(ComentarioEmpresa.criado_em).all()
+    aceites = AceiteEmpresa.query.filter_by(ordem_servico_id=os_id).all()
+
+    return jsonify({
+        'os_id': os_id,
+        'status': os_obj.status or 'emitida',
+        'numero_os': os_obj.numero_os,
+        'evento': os_obj.evento,
+        'revisoes': [r.to_dict() for r in revisoes],
+        'comentarios': [c.to_dict() for c in comentarios],
+        'aceites': [a.to_dict() for a in aceites],
+    }), 200
+
+
+@os_bp.route('/<int:os_id>/cancelar', methods=['POST'])
+@login_requerido
+@admin_requerido
+@csrf_protegido
+def cancelar_ordem(os_id):
+    """
+    Cancela uma O.S. após aceite da detentora. Somente admin.
+    Status aceita | em_execucao → cancelada (terminal).
+    A O.S. não pode ser editada nem reativada após cancelamento.
+
+    Body JSON:
+      - motivo: str (obrigatório)
+    """
+    os_obj = OrdemServico.query.get_or_404(os_id)
+    status_atual = os_obj.status or 'emitida'
+
+    if status_atual not in ('aceita', 'em_execucao'):
+        return jsonify({
+            'erro': f'Só é possível cancelar O.S. com status "Aceita" ou "Em Execução". '
+                    f'Status atual: "{STATUS_LABELS.get(status_atual, status_atual)}".'
+        }), 400
+
+    dados = request.get_json() or {}
+    motivo = (dados.get('motivo') or '').strip()
+    if not motivo:
+        return jsonify({'erro': 'O motivo do cancelamento é obrigatório.'}), 400
+    if len(motivo) > 1000:
+        return jsonify({'erro': 'motivo deve ter no máximo 1000 caracteres'}), 400
+
+    os_obj.status = 'cancelada'
+    db.session.commit()
+
+    registrar_auditoria(
+        'UPDATE', 'OS',
+        f'O.S. #{os_obj.numero_os} cancelada pelo admin após aceite — motivo: {motivo}',
+        entidade_tipo='ordens_servico',
+        entidade_id=os_id,
+        dados_antes={'status': status_atual},
+        dados_depois={'status': 'cancelada', 'motivo': motivo}
+    )
+
+    return jsonify({'sucesso': True, 'status': 'cancelada'}), 200
+
+
+@os_bp.route('/<int:os_id>/assinar', methods=['POST'])
+@login_requerido
+@csrf_protegido
+def assinar_ordem_interno(os_id):
+    """
+    Operador/admin assina digitalmente a O.S. (assinatura interna, modelo SEI).
+    Qualquer usuário interno autenticado pode assinar.
+    Armazena imagem PNG gerada no front, nome, cargo e hash.
+
+    Body JSON:
+      - nome_responsavel: str (obrigatório)
+      - cargo: str (opcional)
+      - assinatura_base64: str PNG base64 (obrigatório)
+    """
+    import base64, hashlib
+
+    os_obj = OrdemServico.query.get_or_404(os_id)
+
+    dados = request.get_json() or {}
+    nome = (dados.get('nome_responsavel') or '').strip()
+    cargo = (dados.get('cargo') or '').strip()
+    assinatura_b64 = (dados.get('assinatura_base64') or '').strip()
+
+    if not nome:
+        return jsonify({'erro': 'nome_responsavel é obrigatório'}), 400
+    if len(nome) > 120:
+        return jsonify({'erro': 'nome_responsavel deve ter no máximo 120 caracteres'}), 400
+    if cargo and len(cargo) > 100:
+        return jsonify({'erro': 'cargo deve ter no máximo 100 caracteres'}), 400
+    if not assinatura_b64:
+        return jsonify({'erro': 'assinatura_base64 é obrigatório'}), 400
+
+    # Salvar imagem PNG — com validação de segurança
+    BASE_DIR_LOCAL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assinaturas_dir = os.path.join(BASE_DIR_LOCAL, 'static', 'assinaturas')
+    os.makedirs(assinaturas_dir, exist_ok=True)
+
+    _PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
+    _MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+
+    b64_data = assinatura_b64.split(',', 1)[1] if ',' in assinatura_b64 else assinatura_b64
+
+    if len(b64_data) > int(_MAX_BYTES * 1.37):
+        return jsonify({'erro': 'Assinatura excede o tamanho máximo permitido (2 MB)'}), 400
+
+    try:
+        img_bytes = base64.b64decode(b64_data, validate=True)
+    except Exception:
+        return jsonify({'erro': 'Dados de assinatura inválidos (base64 malformado)'}), 400
+
+    if len(img_bytes) > _MAX_BYTES:
+        return jsonify({'erro': 'Assinatura excede o tamanho máximo permitido (2 MB)'}), 400
+
+    if not img_bytes.startswith(_PNG_MAGIC):
+        return jsonify({'erro': 'Arquivo de assinatura inválido (não é PNG)'}), 400
+
+    hash_sha256 = hashlib.sha256(img_bytes).hexdigest()
+
+    from datetime import datetime as _dt
+    filename = f'int_os{os_id}_{_dt.now().strftime("%Y%m%d_%H%M%S")}.png'
+    with open(os.path.join(assinaturas_dir, filename), 'wb') as f:
+        f.write(img_bytes)
+
+    assinatura = AssinaturaInterna(
+        ordem_servico_id=os_id,
+        usuario_id=session['usuario_id'],
+        nome_responsavel=nome,
+        cargo=cargo or None,
+        assinatura_path=f'assinaturas/{filename}',
+        hash_payload=hash_sha256,
+        data_hora=get_datetime_br(),
+        ip_address=request.remote_addr,
+    )
+    db.session.add(assinatura)
+    db.session.commit()
+
+    registrar_auditoria(
+        'CREATE', 'ASSINATURA_INTERNA',
+        f'Assinatura interna registrada na O.S. #{os_obj.numero_os} por {nome}',
+        entidade_tipo='assinaturas_internas',
+        entidade_id=assinatura.id,
+        dados_depois=assinatura.to_dict()
+    )
+
+    return jsonify({'sucesso': True, 'assinatura': assinatura.to_dict()}), 201
+
+
+@os_bp.route('/<int:os_id>/comentar', methods=['POST'])
+@login_requerido
+@csrf_protegido
+def comentar_os(os_id):
+    """
+    Operador/admin adiciona comentário visível também para a empresa detentora.
+    Usa o detentora_id da própria O.S. para manter o thread compartilhado.
+
+    Body JSON:
+      - texto: str (obrigatório)
+    """
+    from models import ComentarioEmpresa, get_datetime_br
+
+    os_obj = OrdemServico.query.get_or_404(os_id)
+
+    if not os_obj.detentora_id:
+        return jsonify({'erro': 'Esta O.S. ainda não possui detentora vinculada'}), 400
+
+    dados = request.get_json() or {}
+    texto = (dados.get('texto') or '').strip()
+    if not texto:
+        return jsonify({'erro': 'texto é obrigatório'}), 400
+    if len(texto) > 2000:
+        return jsonify({'erro': 'texto deve ter no máximo 2000 caracteres'}), 400
+
+    comentario = ComentarioEmpresa(
+        ordem_servico_id=os_id,
+        usuario_id=session['usuario_id'],
+        detentora_id=os_obj.detentora_id,
+        texto=texto,
+        criado_em=get_datetime_br()
+    )
+    db.session.add(comentario)
+    db.session.commit()
+
+    registrar_auditoria(
+        'CREATE', 'COMENTARIO_OS',
+        f'Operador comentou na O.S. #{os_obj.numero_os}',
+        entidade_tipo='comentarios_empresa',
+        entidade_id=comentario.id,
+        dados_depois=comentario.to_dict()
+    )
+
+    return jsonify({'sucesso': True, 'comentario': comentario.to_dict()}), 201
+
+
+@os_bp.route('/monitoramento', methods=['GET'])
+@login_requerido
+@admin_requerido
+def monitoramento_aceite():
+    """
+    Painel consolidado do operador: O.S. enviadas para detentoras.
+    Exibe status: enviada_empresa, em_revisao, aceita, em_execucao, executada, recusada.
+
+    Filtros (query params):
+      - status: filtra por um ou mais status (separados por vírgula)
+      - modulo: ex. 'coffee'
+      - grupo: ex. '1'
+      - detentora_id: ID da detentora
+      - data_inicio / data_fim: período pela data de emissão (YYYY-MM-DD)
+    """
+    try:
+        status_filtro = request.args.get('status', '')
+        modulo = request.args.get('modulo', '')
+        grupo = request.args.get('grupo', '')
+        detentora_id = request.args.get('detentora_id', '')
+        data_inicio = request.args.get('data_inicio', '')
+        data_fim = request.args.get('data_fim', '')
+
+        # Excluir O.S. ainda não enviadas
+        statuses_monitoramento = [
+            'enviada_empresa', 'em_revisao', 'aceita',
+            'em_execucao', 'executada', 'recusada'
+        ]
+
+        query = OrdemServico.query.filter(OrdemServico.status.in_(statuses_monitoramento))
+
+        if status_filtro:
+            statuses = [s.strip() for s in status_filtro.split(',') if s.strip()]
+            query = query.filter(OrdemServico.status.in_(statuses))
+
+        if modulo:
+            query = query.filter_by(modulo=modulo)
+
+        if grupo:
+            query = query.filter_by(grupo=grupo)
+
+        if detentora_id:
+            query = query.filter_by(detentora_id=int(detentora_id))
+
+        if data_inicio:
+            query = query.filter(OrdemServico.data_emissao >= datetime.fromisoformat(data_inicio))
+
+        if data_fim:
+            query = query.filter(OrdemServico.data_emissao <= datetime.fromisoformat(data_fim + 'T23:59:59'))
+
+        ordens = query.order_by(OrdemServico.data_emissao.desc()).all()
+
+        # Montar resposta com resumo de aceite
+        resultado = []
+        for os_obj in ordens:
+            item = os_obj.to_dict(incluir_itens=False)
+            item['statusLabel'] = STATUS_LABELS.get(os_obj.status, os_obj.status)
+
+            # Último aceite registrado (se houver)
+            if os_obj.aceites:
+                ultimo_aceite = max(os_obj.aceites, key=lambda a: a.data_hora or datetime.min)
+                item['ultimoAceite'] = {
+                    'nomeResponsavel': ultimo_aceite.nome_responsavel,
+                    'dataHora': ultimo_aceite.data_hora.isoformat() if ultimo_aceite.data_hora else None,
+                }
+            else:
+                item['ultimoAceite'] = None
+
+            item['totalRevisoes'] = len(os_obj.revisoes)
+            item['totalComentarios'] = len(os_obj.comentarios)
+            resultado.append(item)
+
+        # Totais por status para o dashboard
+        totais = {}
+        for st in statuses_monitoramento:
+            totais[st] = sum(1 for r in resultado if r['status'] == st)
+
+        return jsonify({
+            'ordens': resultado,
+            'totais': totais,
+            'total': len(resultado)
+        }), 200
+
+    except Exception as e:
         return jsonify({'erro': str(e)}), 500

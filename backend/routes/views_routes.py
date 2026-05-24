@@ -23,6 +23,17 @@ def admin_requerido(f):
         return f(*args, **kwargs)
     return verificar_admin
 
+def empresa_requerido_view(f):
+    """Decorator para views acessíveis apenas por usuários 'empresa'"""
+    @wraps(f)
+    def verificar(*args, **kwargs):
+        if 'usuario_id' not in session:
+            return redirect(url_for('auth.login'))
+        if session.get('usuario_perfil') != 'empresa':
+            abort(403)
+        return f(*args, **kwargs)
+    return verificar
+
 @views_bp.before_request
 def verificar_autenticacao():
     """Middleware para verificar autenticação em todas as rotas"""
@@ -32,6 +43,8 @@ def verificar_autenticacao():
 @login_requerido
 def index():
     """Página principal do sistema"""
+    if session.get('usuario_perfil') == 'empresa':
+        return redirect(url_for('views.portal_empresa_inbox'))
     return render_template('index.html',
                          usuario_nome=session.get('usuario_nome'),
                          usuario_perfil=session.get('usuario_perfil', 'comum'))
@@ -40,6 +53,8 @@ def index():
 @login_requerido
 def dashboard():
     """Painel de seleção de módulos"""
+    if session.get('usuario_perfil') == 'empresa':
+        return redirect(url_for('views.portal_empresa_inbox'))
     return render_template('dashboard.html',
                          usuario_nome=session.get('usuario_nome'),
                          usuario_perfil=session.get('usuario_perfil', 'comum'))
@@ -126,7 +141,40 @@ def relatorios():
 @login_requerido
 def detentoras():
     """Página de Gerenciamento de Detentoras"""
-    return render_template('gerenciar-detentoras.html', 
+    return render_template('gerenciar-detentoras.html',
                          usuario_nome=session.get('usuario_nome'),
                          usuario_perfil=session.get('usuario_perfil', 'comum'))
 
+
+# ============================================================
+# PORTAL DA DETENTORA (perfil empresa)
+# ============================================================
+
+@views_bp.route('/empresa')
+@empresa_requerido_view
+def portal_empresa_inbox():
+    """Inbox de Ordens de Serviço para usuário empresa"""
+    # Sessão sem detentora_id → forçar re-login para recarregar dados do banco
+    if not session.get('detentora_id'):
+        from flask import flash
+        session.clear()
+        return redirect(url_for('auth.login') + '?msg=relogin')
+    return render_template(
+        'portal_empresa.html',
+        usuario_nome=session.get('usuario_nome'),
+        usuario_perfil='empresa',
+        detentora_id=session.get('detentora_id'),
+    )
+
+
+@views_bp.route('/empresa/ordens/<int:os_id>')
+@empresa_requerido_view
+def portal_empresa_detalhe(os_id):
+    """Detalhe de uma O.S. para usuário empresa"""
+    return render_template(
+        'portal_empresa_detalhe.html',
+        os_id=os_id,
+        usuario_nome=session.get('usuario_nome'),
+        usuario_perfil='empresa',
+        detentora_id=session.get('detentora_id'),
+    )

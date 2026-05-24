@@ -1,10 +1,51 @@
 {% macro sidebar(usuario_nome, usuario_perfil, current_path='') %}
-    <!-- Sidebar -->
+    {% if usuario_perfil == 'empresa' %}
+    <!-- Sidebar reduzida — Portal Detentora -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-toggle" onclick="toggleSidebar()">
             <span>&lsaquo;</span>
         </div>
-        
+
+        <div class="sidebar-header">
+            <div class="sidebar-logo">🏢</div>
+            <div class="sidebar-title">Portal Empresa</div>
+        </div>
+
+        <div class="sidebar-menu">
+            <a href="/empresa" class="menu-item {{ 'active' if current_path == '/empresa' }}" title="Caixa de Entrada">
+                <span class="menu-icon">📬</span>
+                <span class="menu-text">Caixa de Entrada</span>
+            </a>
+
+            <div class="menu-divider"></div>
+
+            <a href="/gerenciar-conta" class="menu-item {{ 'active' if '/gerenciar-conta' in current_path }}" title="Meu Perfil">
+                <span class="menu-icon">👤</span>
+                <span class="menu-text">Meu Perfil</span>
+            </a>
+            <a href="/alterar-senha" class="menu-item {{ 'active' if '/alterar-senha' in current_path }}" title="Alterar Senha">
+                <span class="menu-icon">🔐</span>
+                <span class="menu-text">Alterar Senha</span>
+            </a>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user-summary">
+                <div class="sidebar-user-avatar">{{ usuario_nome[0] if usuario_nome else 'E' }}</div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name">{{ usuario_nome.split()[0] if usuario_nome else 'Empresa' }}</div>
+                    <div class="sidebar-user-role">empresa</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+    {% else %}
+    <!-- Sidebar padrão — admin / comum -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-toggle" onclick="toggleSidebar()">
+            <span>&lsaquo;</span>
+        </div>
+
         <div class="sidebar-header">
             <div class="sidebar-logo">🎯</div>
             <div class="sidebar-title">Controle Itens</div>
@@ -15,7 +56,7 @@
                 <span class="menu-icon">🔄</span>
                 <span class="menu-text">Trocar Módulo</span>
             </a>
-            
+
             <div class="menu-divider"></div>
 
             <a href="/estoque" class="menu-item {{ 'active' if '/estoque' in current_path or '/alimentacao' in current_path }}" id="menu-alimentacao" title="Itens">
@@ -38,7 +79,7 @@
                 <span class="menu-icon">📊</span>
                 <span class="menu-text">Relatórios</span>
             </a>
-            
+
             <div class="menu-divider"></div>
 
             <a href="/detentoras" class="menu-item {{ 'active' if '/detentoras' in current_path }}" id="menu-detentoras" title="Detentoras">
@@ -68,6 +109,7 @@
             </div>
         </div>
     </aside>
+    {% endif %}
 {% endmacro %}
 
 {% macro topbar(usuario_nome) %}

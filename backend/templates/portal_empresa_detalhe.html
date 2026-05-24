@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhe da O.S. — Portal Empresa{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/portal-empresa.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="portal-detalhe" data-os-id="{{ os_id }}">
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="/empresa" class="breadcrumb-link">📬 Caixa de Entrada</a>
+        <span class="breadcrumb-sep">›</span>
+        <span id="breadcrumb-os">O.S. #{{ os_id }}</span>
+    </div>
+
+    <!-- Cabeçalho da O.S. -->
+    <div class="os-detalhe-header" id="os-header">
+        <div class="os-detalhe-loading">
+            <div class="spinner"></div>
+            <p>Carregando ordem de serviço...</p>
+        </div>
+    </div>
+
+    <!-- Corpo: info + ações -->
+    <div class="os-detalhe-body" id="os-body" style="display:none;">
+
+        <div class="os-detalhe-main">
+
+            <!-- Informações gerais -->
+            <section class="os-section">
+                <h3 class="os-section-title">Informações</h3>
+                <div class="os-info-grid" id="os-info-grid"></div>
+            </section>
+
+            <!-- Itens da O.S. -->
+            <section class="os-section" id="section-itens">
+                <h3 class="os-section-title">Itens</h3>
+                <div id="os-itens-lista" class="os-itens-lista"></div>
+            </section>
+
+            <!-- Histórico de revisões -->
+            <section class="os-section" id="section-revisoes">
+                <h3 class="os-section-title">Histórico de Revisões</h3>
+                <div id="os-revisoes-lista" class="os-revisoes-lista"></div>
+            </section>
+
+            <!-- Comentários -->
+            <section class="os-section" id="section-comentarios">
+                <h3 class="os-section-title">Comentários</h3>
+                <div id="os-comentarios-lista" class="os-comentarios-lista"></div>
+                <form class="comentario-form" id="comentario-form" onsubmit="enviarComentario(event)">
+                    <textarea
+                        id="comentario-texto"
+                        class="comentario-input"
+                        placeholder="Adicionar comentário..."
+                        rows="3"
+                        maxlength="1000"
+                    ></textarea>
+                    <button type="submit" class="btn-secondary btn-sm">Enviar</button>
+                </form>
+            </section>
+        </div>
+
+        <!-- Painel de ações -->
+        <aside class="os-detalhe-sidebar">
+            <div class="acoes-card" id="acoes-card">
+                <h3 class="acoes-titulo">Ações</h3>
+                <div id="acoes-botoes"></div>
+            </div>
+
+            <!-- Aceite registrado -->
+            <div class="aceite-card" id="aceite-card" style="display:none;">
+                <h4>Aceite Registrado</h4>
+                <div id="aceite-info"></div>
+            </div>
+
+            <!-- Download PDF -->
+            <div class="acoes-card" id="card-download-pdf">
+                <h3 class="acoes-titulo">Documento</h3>
+                <a id="btn-download-pdf" href="#" target="_blank"
+                   class="btn-primary btn-acao"
+                   style="text-decoration:none;display:block;text-align:center;">
+                    📄 Baixar PDF completo
+                </a>
+                <p style="font-size:.72rem;color:#aaa;margin:.5rem 0 0;text-align:center;">
+                    Inclui assinatura digital se aceita
+                </p>
+            </div>
+        </aside>
+
+    </div>
+
+</div>
+
+<!-- Modal: Aceitar (assinatura digital por declaração) -->
+<div class="modal-overlay" id="modal-aceitar" style="display:none;">
+    <div class="modal modal-assinatura">
+        <div class="modal-header">
+            <h2>✅ Aceitar Ordem de Serviço</h2>
+            <button class="modal-close" onclick="fecharModal('modal-aceitar')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="assinatura-digital-info">
+                <span class="assinatura-digital-icon">🔐</span>
+                <div>
+                    <strong>Assinatura Digital</strong>
+                    <p>Ao confirmar, sua identidade será registrada com data, hora e identificação do dispositivo, com validade equivalente à assinatura eletrônica do SEI.</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Nome completo do responsável *</label>
+                <input type="text" id="aceitar-nome" class="form-control"
+                    placeholder="Digite seu nome completo" maxlength="120"
+                    oninput="atualizarPreviewAssinatura(this.value)">
+            </div>
+
+            <div class="form-group">
+                <label>Cargo / Função</label>
+                <input type="text" id="aceitar-cargo" class="form-control"
+                    placeholder="Ex: Gerente de Contratos" maxlength="100">
+            </div>
+
+            <div class="assinatura-preview" id="assinatura-preview">
+                <span class="assinatura-preview-label">Prévia da assinatura</span>
+                <div class="assinatura-preview-nome" id="assinatura-preview-nome">—</div>
+                <div class="assinatura-preview-meta" id="assinatura-preview-meta"></div>
+            </div>
+
+            <label class="assinatura-declaracao">
+                <input type="checkbox" id="aceitar-confirmacao">
+                <span>Declaro que sou o responsável autorizado e que estou ciente dos termos desta Ordem de Serviço, assumindo responsabilidade legal pela execução.</span>
+            </label>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModal('modal-aceitar')">Cancelar</button>
+            <button class="btn-success" onclick="confirmarAceite()" id="btn-confirmar-aceite">Assinar e Aceitar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modais: Solicitar Revisão e Recusar — criados dinamicamente via JS -->
+
+<!-- Modais de execução removidos — ver docs/MELHORIAS_PENDENTES.md -->
+
+<!-- Toast de notificação -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/portal-empresa.js') }}"></script>
+<script>
+    const OS_ID = {{ os_id }};
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarDetalhe(OS_ID);
+    });
+</script>
+{% endblock %}

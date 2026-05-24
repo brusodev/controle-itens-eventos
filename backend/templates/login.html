@@ -101,10 +101,13 @@
                     } else {
                         localStorage.removeItem('email');
                     }
-                    
+
                     mostrarAlerta('Login realizado com sucesso! Redirecionando...', 'sucesso');
+                    const destino = dados.usuario && dados.usuario.perfil === 'empresa'
+                        ? '/empresa'
+                        : '/dashboard';
                     setTimeout(() => {
-                        window.location.href = '/dashboard';
+                        window.location.href = destino;
                     }, 1500);
                 } else {
                     mostrarAlerta(dados.erro || 'Erro ao fazer login', 'erro');

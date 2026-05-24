@@ -213,18 +213,46 @@ class PDFOrdemServico:
             story.append(Spacer(1, 1.5*mm))
         
         # Assinaturas — SEMPRE manter juntas (nunca separar data/nomes/cargos)
-        # KeepTogether garante que, se não couber no espaço restante, vai tudo para a próxima página
         bloco_assinaturas = [Spacer(1, 1*mm)]
         bloco_assinaturas.extend(self._criar_secao_assinaturas(dados_os))
         story.append(KeepTogether(bloco_assinaturas))
+
+        # Assinaturas digitais internas (operadores/admin)
+        assinaturas_internas = dados_os.get('assinaturas_internas', [])
+        if assinaturas_internas:
+            bloco_int = [Spacer(1, 3*mm)]
+            bloco_int.extend(self._criar_secao_assinaturas_internas(assinaturas_internas))
+            story.append(KeepTogether(bloco_int))
+
+        # Aceite digital da detentora (se existir)
+        aceites = dados_os.get('aceites', [])
+        if aceites:
+            bloco_aceite = [Spacer(1, 3*mm)]
+            bloco_aceite.extend(self._criar_secao_aceite_digital(aceites[0]))
+            story.append(KeepTogether(bloco_aceite))
         
         # Construir PDF com numeração de página
         numero_os = self._get_safe(dados_os, 'numeroOS', 'N/A')
+        status_os = self._get_safe(dados_os, 'status', '')
 
         def _rodape_pagina(canvas, doc):
-            """Adiciona número da página no rodapé"""
+            """Adiciona número da página no rodapé e marca d'água se cancelada"""
             canvas.saveState()
+
+            # Marca d'água diagonal para O.S. cancelada
+            if status_os == 'cancelada':
+                canvas.setFillColor(colors.Color(0.85, 0.1, 0.1, alpha=0.18))
+                canvas.setStrokeColor(colors.Color(0.75, 0.05, 0.05, alpha=0.35))
+                canvas.setLineWidth(2)
+                canvas.setFont('Helvetica-Bold', 80)
+                canvas.translate(doc.pagesize[0] / 2, doc.pagesize[1] / 2)
+                canvas.rotate(45)
+                canvas.drawCentredString(0, 0, 'CANCELADA')
+                canvas.rotate(-45)
+                canvas.translate(-doc.pagesize[0] / 2, -doc.pagesize[1] / 2)
+
             canvas.setFont('Helvetica', 6)
+            canvas.setFillColor(colors.black)
             page_num = canvas.getPageNumber()
             text = f"O.S. {numero_os} - Página {page_num}"
             canvas.drawCentredString(doc.pagesize[0] / 2, 8 * mm, text)
@@ -655,6 +683,169 @@ class PDFOrdemServico:
             if i + 2 < len(signatarios):
                 elements.append(Spacer(1, 3*mm))
 
+        return elements
+
+
+    def _criar_secao_assinaturas_internas(self, assinaturas):
+        """Seção de assinaturas digitais dos operadores internos"""
+        elements = []
+
+        sep = Table([['']], colWidths=[186*mm])
+        sep.setStyle(TableStyle([
+            ('LINEABOVE', (0, 0), (-1, -1), 0.8, colors.HexColor('#2e7d32')),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(sep)
+        elements.append(Spacer(1, 2*mm))
+
+        titulo_style = ParagraphStyle(
+            'AssinaturaInternaTitle',
+            parent=self.styles['CustomLabel'],
+            fontSize=7.5,
+            textColor=colors.HexColor('#2e7d32'),
+            spaceAfter=3,
+        )
+        elements.append(Paragraph('✍  ASSINATURAS DIGITAIS INTERNAS', titulo_style))
+
+        rows = []
+        for ass in assinaturas:
+            nome = ass.get('nomeResponsavel', '—')
+            cargo = ass.get('cargo') or ''
+            data_hora = ass.get('dataHora', '')
+            assinatura_path = ass.get('assinaturaPath', '')
+
+            data_fmt = '—'
+            if data_hora:
+                try:
+                    from datetime import datetime as dt
+                    d = dt.fromisoformat(data_hora)
+                    data_fmt = d.strftime('%d/%m/%Y às %H:%M')
+                except Exception:
+                    data_fmt = data_hora
+
+            img_element = None
+            if assinatura_path:
+                full_path = os.path.join(os.path.dirname(__file__), 'static', assinatura_path)
+                if os.path.exists(full_path):
+                    img_element = Image(full_path, width=60*mm, height=18*mm)
+
+            texto = [
+                Paragraph(f'<b>{nome}</b>', self.styles['CustomLabel']),
+            ]
+            if cargo:
+                texto.append(Paragraph(f'<i>{cargo}</i>', self.styles['CustomNormal']))
+            texto.append(Paragraph(data_fmt, self.styles['CustomNormal']))
+
+            if img_element:
+                rows.append([texto, img_element])
+            else:
+                rows.append([texto, Paragraph('', self.styles['CustomNormal'])])
+
+        if not rows:
+            return elements
+
+        sig_table = Table(rows, colWidths=[120*mm, 66*mm])
+        sig_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor('#2e7d32')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#a5d6a7')),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f1f8e9')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(sig_table)
+        return elements
+
+    def _criar_secao_aceite_digital(self, aceite):
+        """Cria seção de aceite digital da detentora no PDF (modelo SEI)"""
+        elements = []
+
+        # Linha separadora
+        sep = Table([['']], colWidths=[186*mm])
+        sep.setStyle(TableStyle([
+            ('LINEABOVE', (0, 0), (-1, -1), 0.8, colors.HexColor('#1a237e')),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(sep)
+        elements.append(Spacer(1, 2*mm))
+
+        titulo_style = ParagraphStyle(
+            'AceiteTitle',
+            parent=self.styles['CustomLabel'],
+            fontSize=7.5,
+            textColor=colors.HexColor('#1a237e'),
+            spaceAfter=3,
+        )
+        elements.append(Paragraph('🔐  ACEITE DIGITAL DA DETENTORA', titulo_style))
+
+        # Dados do aceite
+        nome = aceite.get('nomeResponsavel') or aceite.get('nome_responsavel', '—')
+        data_hora = aceite.get('dataHora') or aceite.get('data_hora', '')
+        observacoes = aceite.get('observacoes', '')
+        assinatura_path = aceite.get('assinaturaPath') or aceite.get('assinatura_path', '')
+
+        # Formatar data
+        data_fmt = '—'
+        if data_hora:
+            try:
+                from datetime import datetime as dt
+                d = dt.fromisoformat(data_hora)
+                data_fmt = d.strftime('%d/%m/%Y às %H:%M:%S')
+            except Exception:
+                data_fmt = data_hora
+
+        # Imagem da assinatura digital
+        img_element = None
+        if assinatura_path:
+            full_path = os.path.join(os.path.dirname(__file__), 'static', assinatura_path)
+            if os.path.exists(full_path):
+                img_element = Image(full_path, width=80*mm, height=25*mm)
+
+        cargo = ''
+        if observacoes and observacoes.startswith('Cargo:'):
+            cargo = observacoes.replace('Cargo:', '').strip()
+
+        # Tabela de aceite
+        nome_block = [
+            Paragraph('<b>Responsável:</b>', self.styles['CustomLabel']),
+            Paragraph(nome, self.styles['CustomNormal']),
+        ]
+        if cargo:
+            nome_block.append(Paragraph(f'<i>{cargo}</i>', self.styles['CustomNormal']))
+        nome_block.append(Spacer(1, 1*mm))
+        nome_block.append(Paragraph('<b>Data/Hora:</b>', self.styles['CustomLabel']))
+        nome_block.append(Paragraph(data_fmt, self.styles['CustomNormal']))
+        nome_block.append(Spacer(1, 1*mm))
+        nome_block.append(Paragraph(
+            '<font size="6" color="grey">Documento assinado eletronicamente conforme Art. 10, §2º, MP 2.200-2/2001. '
+            'Hash SHA-256 registrado no sistema.</font>',
+            self.styles['CustomNormal']
+        ))
+
+        if img_element:
+            row_data = [[nome_block, img_element]]
+            col_widths = [110*mm, 76*mm]
+        else:
+            row_data = [[nome_block]]
+            col_widths = [186*mm]
+
+        aceite_table = Table(row_data, colWidths=col_widths)
+        aceite_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor('#1a237e')),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8f9ff')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('ALIGN', (1, 0), (1, 0), 'CENTER') if img_element else ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ]))
+        elements.append(aceite_table)
         return elements
 
 

@@ -46,7 +46,8 @@
       "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short 2>&1 | tail -40)",
       "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short --ignore=tests/test_fluxo_edicao.py 2>&1 | tail -40)",
       "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short --ignore=tests/test_fluxo_edicao.py --ignore=tests/test_criacao_completa.py --ignore=tests/test_edicao_interface.py 2>&1 | tail -40)",
-      "Bash(git add backend/requirements.txt .claude/settings.local.json && git commit -m \"$\\(cat <<'EOF'\nAdd requests dependency and update allowed commands\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git add backend/requirements.txt .claude/settings.local.json && git commit -m \"$\\(cat <<'EOF'\nAdd requests dependency and update allowed commands\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(grep -n \"PORTAL_DETENTORA_ATIVO\\\\|feature_flag\\\\|feature.flag\" c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/*.py c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/routes/*.py)"
     ]
   }
 }
