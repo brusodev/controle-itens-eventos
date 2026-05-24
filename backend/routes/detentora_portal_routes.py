@@ -228,7 +228,7 @@ def inbox():
     if grupo:
         query = query.filter_by(grupo=grupo)
 
-    ordens = query.order_by(OrdemServico.data_emissao.desc()).all()
+    ordens = query.order_by(OrdemServico.data_emissao.desc(), OrdemServico.id.desc()).all()
 
     # Calcular totais por status para os badges das abas
     todas = OrdemServico.query.filter_by(detentora_id=detentora_id).filter(

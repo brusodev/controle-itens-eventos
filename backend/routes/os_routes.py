@@ -99,7 +99,7 @@ def listar_ordens():
                 )
             )
         
-        ordens = query.order_by(OrdemServico.data_emissao.desc()).all()
+        ordens = query.order_by(OrdemServico.data_emissao.desc(), OrdemServico.id.desc()).all()
         return jsonify([os.to_dict() for os in ordens]), 200
     
     except Exception as e:
@@ -955,7 +955,7 @@ def monitoramento_aceite():
         if data_fim:
             query = query.filter(OrdemServico.data_emissao <= datetime.fromisoformat(data_fim + 'T23:59:59'))
 
-        ordens = query.order_by(OrdemServico.data_emissao.desc()).all()
+        ordens = query.order_by(OrdemServico.data_emissao.desc(), OrdemServico.id.desc()).all()
 
         # Montar resposta com resumo de aceite
         resultado = []

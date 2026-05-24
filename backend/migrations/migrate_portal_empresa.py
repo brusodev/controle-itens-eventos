@@ -79,6 +79,30 @@ def migrate():
         else:
             print("[--] ordens_servico.data_emissao ja existe")
 
+        # Backfill data_emissao para registros antigos (NULL) usando data_emissao_completa
+        # quando disponivel, senao usa data atual como placeholder de ordenacao
+        if coluna_existe(c, 'ordens_servico', 'data_emissao_completa'):
+            c.execute("""
+                UPDATE ordens_servico
+                SET data_emissao = CASE
+                    WHEN data_emissao_completa IS NOT NULL AND data_emissao_completa != ''
+                    THEN datetime(
+                        substr(data_emissao_completa, 7, 4) || '-' ||
+                        substr(data_emissao_completa, 4, 2) || '-' ||
+                        substr(data_emissao_completa, 1, 2)
+                    )
+                    ELSE datetime('now')
+                END
+                WHERE data_emissao IS NULL
+            """)
+            conn.commit()
+            c.execute("SELECT changes()")
+            n = c.fetchone()[0]
+            if n:
+                print(f"[OK] Backfill data_emissao: {n} registro(s) atualizado(s)")
+            else:
+                print("[--] Nenhum registro precisou de backfill em data_emissao")
+
         # ------------------------------------------------------------------
         # ordens_servico — data_emissao_completa
         # ------------------------------------------------------------------
