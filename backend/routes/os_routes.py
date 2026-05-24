@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, send_file, session
 from models import (
     db, OrdemServico, ItemOrdemServico, Item, EstoqueRegional, Categoria,
     MovimentacaoEstoque, get_datetime_br, status_transicao_valida, STATUS_LABELS,
-    STATUS_BLOQUEADOS_EDICAO, AssinaturaInterna
+    STATUS_BLOQUEADOS_EDICAO, AssinaturaInterna, Usuario, Detentora
 )
 from datetime import datetime
 from sqlalchemy import func
@@ -622,6 +622,17 @@ def enviar_para_empresa(os_id):
 
     if not os_obj.detentora_id:
         return jsonify({'erro': 'Selecione a detentora antes de enviar.'}), 400
+
+    usuario_portal = Usuario.query.filter_by(
+        detentora_id=os_obj.detentora_id, perfil='empresa', ativo=True
+    ).first()
+    if not usuario_portal:
+        detentora = Detentora.query.get(os_obj.detentora_id)
+        nome_det = detentora.nome if detentora else 'esta detentora'
+        return jsonify({
+            'erro': f'A detentora "{nome_det}" não possui usuário ativo no portal. '
+                    f'Acesse Gerenciar Usuários e crie um usuário com perfil "Empresa" vinculado a ela antes de enviar.'
+        }), 400
 
     status_atual = os_obj.status or 'emitida'
     if not status_transicao_valida(status_atual, 'enviada_empresa'):

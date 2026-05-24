@@ -225,12 +225,9 @@ class OrdemServico(db.Model):
     responsavel = db.Column(db.String(200))  # Responsável pela O.S.
     signatarios_json = db.Column(db.Text)  # JSON: [{"cargo": "...", "nome": "..."}, ...]
 
-    # Ciclo de vida / status do portal da detentora
-    # Estados: emitida, enviada_empresa, em_revisao, aceita, em_execucao, executada, recusada
-    status = db.Column(db.String(30), default='emitida', nullable=False, index=True)
-
-    # Controle
-    status = db.Column(db.String(30), nullable=False, server_default='emitida', default='emitida')
+    # Controle / ciclo de vida
+    # Estados: emitida, enviada_empresa, em_revisao, aceita, em_execucao, executada, recusada, cancelada
+    status = db.Column(db.String(30), nullable=False, server_default='emitida', default='emitida', index=True)
     data_emissao = db.Column(db.DateTime, default=datetime.utcnow)
     data_emissao_completa = db.Column(db.String(50))
     motivo_exclusao = db.Column(db.Text)  # Motivo da exclusão registrado pelo admin

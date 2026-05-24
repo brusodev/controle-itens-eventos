@@ -11,10 +11,12 @@ def listar_detentoras():
     """Lista todas as detentoras ativas"""
     try:
         incluir_inativas = request.args.get('incluir_inativas', 'false').lower() == 'true'
-        modulo = request.args.get('modulo', 'coffee')
-        
-        query = Detentora.query.filter_by(modulo=modulo)
-        
+        modulo = request.args.get('modulo')  # None = todos os módulos
+
+        query = Detentora.query
+        if modulo:
+            query = query.filter_by(modulo=modulo)
+
         if not incluir_inativas:
             query = query.filter_by(ativo=True)
             
