@@ -2,9 +2,9 @@ from flask import Blueprint, request, jsonify, send_file, session
 from models import (
     db, OrdemServico, ItemOrdemServico, Item, EstoqueRegional, Categoria,
     MovimentacaoEstoque, get_datetime_br, status_transicao_valida, STATUS_LABELS,
-    STATUS_BLOQUEADOS_EDICAO, AssinaturaInterna, Usuario, Detentora
+    STATUS_BLOQUEADOS_EDICAO, Usuario, Detentora
 )
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy import func
 from pdf_generator import gerar_pdf_os
 from routes.auth_routes import login_requerido, admin_requerido, csrf_protegido
@@ -179,6 +179,20 @@ def listar_ordens():
                     OrdemServico.detentora.ilike(f'%{busca}%')
                 )
             )
+
+        filtro = request.args.get('filtro', '')
+        hoje = date.today().isoformat()
+        if filtro == 'vencidas':
+            query = query.filter(
+                OrdemServico.pagamento_vencimento != None,
+                OrdemServico.pagamento_vencimento < hoje,
+                db.or_(
+                    OrdemServico.pagamento_pago == False,
+                    OrdemServico.pagamento_pago == None
+                )
+            )
+        elif filtro == 'pagas':
+            query = query.filter(OrdemServico.pagamento_pago == True)
 
         ordens = query.order_by(
             OrdemServico.id.desc()
@@ -667,10 +681,8 @@ def gerar_pdf_ordem(os_id):
         # Buscar O.S.
         os = OrdemServico.query.get_or_404(os_id)
         
-        # Preparar dados para o PDF (incluindo aceites e assinaturas internas)
         dados_pdf = os.to_dict(incluir_itens=True)
         dados_pdf['aceites'] = [a.to_dict() for a in os.aceites]
-        dados_pdf['assinaturas_internas'] = [a.to_dict() for a in os.assinaturas_internas]
 
         # Gerar PDF
         pdf_buffer = gerar_pdf_os(dados_pdf)
@@ -716,7 +728,6 @@ def baixar_png_os(os_id):
             return jsonify({'erro': 'Ordem de Serviço não encontrada'}), 404
         dados_pdf = os_obj.to_dict(incluir_itens=True)
         dados_pdf['aceites'] = [a.to_dict() for a in os_obj.aceites]
-        dados_pdf['assinaturas_internas'] = [a.to_dict() for a in os_obj.assinaturas_internas]
 
         pdf_buffer = gerar_pdf_os(dados_pdf)
         pdf_bytes = pdf_buffer.read() if hasattr(pdf_buffer, 'read') else pdf_buffer.getvalue()
@@ -1007,93 +1018,6 @@ def cancelar_ordem(os_id):
     )
 
     return jsonify({'sucesso': True, 'status': 'cancelada'}), 200
-
-
-@os_bp.route('/<int:os_id>/assinar', methods=['POST'])
-@login_requerido
-@csrf_protegido
-def assinar_ordem_interno(os_id):
-    """
-    Operador/admin assina digitalmente a O.S. (assinatura interna, modelo SEI).
-    Qualquer usuário interno autenticado pode assinar.
-    Armazena imagem PNG gerada no front, nome, cargo e hash.
-
-    Body JSON:
-      - nome_responsavel: str (obrigatório)
-      - cargo: str (opcional)
-      - assinatura_base64: str PNG base64 (obrigatório)
-    """
-    import base64, hashlib
-
-    os_obj = OrdemServico.query.get_or_404(os_id)
-
-    dados = request.get_json() or {}
-    nome = (dados.get('nome_responsavel') or '').strip()
-    cargo = (dados.get('cargo') or '').strip()
-    assinatura_b64 = (dados.get('assinatura_base64') or '').strip()
-
-    if not nome:
-        return jsonify({'erro': 'nome_responsavel é obrigatório'}), 400
-    if len(nome) > 120:
-        return jsonify({'erro': 'nome_responsavel deve ter no máximo 120 caracteres'}), 400
-    if cargo and len(cargo) > 100:
-        return jsonify({'erro': 'cargo deve ter no máximo 100 caracteres'}), 400
-    if not assinatura_b64:
-        return jsonify({'erro': 'assinatura_base64 é obrigatório'}), 400
-
-    # Salvar imagem PNG — com validação de segurança
-    BASE_DIR_LOCAL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    assinaturas_dir = os.path.join(BASE_DIR_LOCAL, 'static', 'assinaturas')
-    os.makedirs(assinaturas_dir, exist_ok=True)
-
-    _PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
-    _MAX_BYTES = 2 * 1024 * 1024  # 2 MB
-
-    b64_data = assinatura_b64.split(',', 1)[1] if ',' in assinatura_b64 else assinatura_b64
-
-    if len(b64_data) > int(_MAX_BYTES * 1.37):
-        return jsonify({'erro': 'Assinatura excede o tamanho máximo permitido (2 MB)'}), 400
-
-    try:
-        img_bytes = base64.b64decode(b64_data, validate=True)
-    except Exception:
-        return jsonify({'erro': 'Dados de assinatura inválidos (base64 malformado)'}), 400
-
-    if len(img_bytes) > _MAX_BYTES:
-        return jsonify({'erro': 'Assinatura excede o tamanho máximo permitido (2 MB)'}), 400
-
-    if not img_bytes.startswith(_PNG_MAGIC):
-        return jsonify({'erro': 'Arquivo de assinatura inválido (não é PNG)'}), 400
-
-    hash_sha256 = hashlib.sha256(img_bytes).hexdigest()
-
-    from datetime import datetime as _dt
-    filename = f'int_os{os_id}_{_dt.now().strftime("%Y%m%d_%H%M%S")}.png'
-    with open(os.path.join(assinaturas_dir, filename), 'wb') as f:
-        f.write(img_bytes)
-
-    assinatura = AssinaturaInterna(
-        ordem_servico_id=os_id,
-        usuario_id=session['usuario_id'],
-        nome_responsavel=nome,
-        cargo=cargo or None,
-        assinatura_path=f'assinaturas/{filename}',
-        hash_payload=hash_sha256,
-        data_hora=get_datetime_br(),
-        ip_address=request.remote_addr,
-    )
-    db.session.add(assinatura)
-    db.session.commit()
-
-    registrar_auditoria(
-        'CREATE', 'ASSINATURA_INTERNA',
-        f'Assinatura interna registrada na O.S. #{os_obj.numero_os} por {nome}',
-        entidade_tipo='assinaturas_internas',
-        entidade_id=assinatura.id,
-        dados_depois=assinatura.to_dict()
-    )
-
-    return jsonify({'sucesso': True, 'assinatura': assinatura.to_dict()}), 201
 
 
 @os_bp.route('/<int:os_id>/comentar', methods=['POST'])

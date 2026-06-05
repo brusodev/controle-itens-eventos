@@ -32,13 +32,14 @@ async function filtrarOS() {
     const container = document.getElementById('lista-ordens-servico');
     const busca = document.getElementById('filtro-os').value.toLowerCase();
     const grupo = document.getElementById('filtro-grupo')?.value || '';
+    const filtro = document.getElementById('filtro-pagamento')?.value || '';
 
     container.innerHTML = '<p class="empty-message">Carregando...</p>';
 
     try {
         // ✅ SEMPRE buscar direto da API - SEM CACHE
         console.log('🔄 filtrarOS: Buscando da API...');
-        const ordensServico = await APIClient.listarOrdensServico(busca, grupo);
+        const ordensServico = await APIClient.listarOrdensServico(busca, grupo, filtro);
         console.log('📡 filtrarOS: API retornou', ordensServico.length, 'O.S.');
         console.log('📋 filtrarOS: Dados completos:', ordensServico);
 
@@ -73,10 +74,29 @@ async function filtrarOS() {
             const statusCfg = statusLabels[statusOS] || { texto: statusOS, cor: '#555', bg: '#eee' };
             const badgeStatus = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:600;background:${statusCfg.bg};color:${statusCfg.cor}">${statusCfg.texto}</span>`;
 
+            let badgePagamento = '';
+            if (os.pagamentoPago) {
+                badgePagamento = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:600;background:#e8f5e9;color:#2e7d32">✅ Paga</span>`;
+            } else if (os.pagamentoVencimento) {
+                const venc = os.pagamentoVencimento.includes('/')
+                    ? os.pagamentoVencimento.split('/').reverse().join('-')
+                    : os.pagamentoVencimento;
+                const hoje = new Date().toISOString().slice(0, 10);
+                if (venc < hoje) {
+                    badgePagamento = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:600;background:#ffebee;color:#b71c1c">⚠️ Vencida</span>`;
+                } else {
+                    const [y, m, d] = venc.split('-');
+                    badgePagamento = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:600;background:#fff8e1;color:#e65100">📅 Vence ${d}/${m}/${y}</span>`;
+                }
+            }
+
             card.innerHTML = `
                 <div class="item-header">
                     <span class="item-categoria">O.S. ${os.numeroOS}</span>
-                    ${badgeStatus}
+                    <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">
+                        ${badgeStatus}
+                        ${badgePagamento}
+                    </div>
                 </div>
                 <div class="item-body os-card-body">
                     <h3>${os.evento || 'Sem título'}</h3>
@@ -1127,7 +1147,6 @@ async function verAtividadePortal(osId) {
                 </div>
             </div>`;
         document.body.appendChild(modal);
-        modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
     }
     modal.style.display = 'flex';
     document.getElementById('atividade-corpo').innerHTML = '<p style="text-align:center;color:#888;">Carregando...</p>';
@@ -1266,120 +1285,6 @@ async function cancelarOS(osId, numeroOS) {
     }
 }
 
-// ============================================================
-// ASSINAR DIGITALMENTE (operador interno — modelo SEI)
-// ============================================================
-
-function abrirModalAssinarInterno(osId) {
-    const anterior = document.getElementById('modal-assinar-interno');
-    if (anterior) anterior.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'modal-assinar-interno';
-    overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:1rem;';
-    overlay.innerHTML = `
-        <div style="background:#fff;border-radius:12px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #eee;">
-                <h2 style="margin:0;font-size:1.1rem;color:#1a237e;">✍️ Assinatura Digital Interna</h2>
-                <button onclick="document.getElementById('modal-assinar-interno').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
-            </div>
-            <div style="padding:1.25rem;">
-                <div style="display:flex;gap:.75rem;align-items:flex-start;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.85rem;">
-                    <span style="font-size:1.4rem;flex-shrink:0;">🔐</span>
-                    <div>
-                        <strong style="display:block;margin-bottom:.2rem;color:#2e7d32;">Assinatura Digital Interna</strong>
-                        <span style="color:#555;">Será registrada no PDF da O.S. com data, hora e identificação do usuário.</span>
-                    </div>
-                </div>
-                <div style="margin-bottom:1rem;">
-                    <label style="display:block;font-size:.85rem;font-weight:600;margin-bottom:.35rem;color:#333;">Nome completo *</label>
-                    <input type="text" id="int-assinar-nome" placeholder="Nome completo do signatário" maxlength="120"
-                        style="width:100%;padding:.55rem .75rem;border:1px solid #ccc;border-radius:6px;font-size:.95rem;box-sizing:border-box;"
-                        oninput="atualizarPreviewInterno(this.value)">
-                </div>
-                <div style="margin-bottom:1rem;">
-                    <label style="display:block;font-size:.85rem;font-weight:600;margin-bottom:.35rem;color:#333;">Cargo / Função *</label>
-                    <input type="text" id="int-assinar-cargo" placeholder="Ex: Gestor do Contrato" maxlength="100"
-                        style="width:100%;padding:.55rem .75rem;border:1px solid #ccc;border-radius:6px;font-size:.95rem;box-sizing:border-box;">
-                </div>
-                <div style="border:1.5px solid #c5cae9;border-radius:8px;padding:1rem 1.25rem;background:#fafafa;margin-bottom:1rem;min-height:80px;">
-                    <span style="display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9e9e9e;margin-bottom:.5rem;">Prévia</span>
-                    <div id="int-preview-nome" style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:1.5rem;color:#1a237e;border-bottom:1px solid #c5cae9;padding-bottom:.4rem;margin-bottom:.3rem;">—</div>
-                    <div id="int-preview-meta" style="font-size:.72rem;color:#aaa;"></div>
-                </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.25rem;border-top:1px solid #eee;">
-                <button onclick="document.getElementById('modal-assinar-interno').remove()" style="padding:.55rem 1.2rem;border-radius:8px;border:1px solid #ccc;background:#f5f5f5;font-weight:600;cursor:pointer;font-size:.9rem;">Cancelar</button>
-                <button onclick="confirmarAssinaturaInterna(${osId})" id="btn-confirmar-ass-int" style="padding:.55rem 1.2rem;border-radius:8px;border:none;background:#1565c0;color:#fff;font-weight:600;cursor:pointer;font-size:.9rem;">Assinar Digitalmente</button>
-            </div>
-        </div>`;
-
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    document.getElementById('int-assinar-nome').focus();
-}
-
-function atualizarPreviewInterno(nome) {
-    const el = document.getElementById('int-preview-nome');
-    const meta = document.getElementById('int-preview-meta');
-    if (!el) return;
-    el.textContent = nome.trim() || '—';
-    if (meta) meta.textContent = nome.trim() ? `Assinado digitalmente em ${new Date().toLocaleString('pt-BR')}` : '';
-}
-
-function _gerarAssinaturaBase64Interno(nome, cargo) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 480; canvas.height = 120;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#c5cae9'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(20, 80); ctx.lineTo(460, 80); ctx.stroke();
-    ctx.fillStyle = '#1a237e';
-    ctx.font = 'italic 28px Georgia, serif';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(nome, 20, 74);
-    if (cargo) { ctx.fillStyle = '#555'; ctx.font = '12px Arial, sans-serif'; ctx.fillText(cargo, 20, 96); }
-    ctx.fillStyle = '#aaa'; ctx.font = '10px Arial, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(new Date().toLocaleString('pt-BR'), 460, 112);
-    return canvas.toDataURL('image/png');
-}
-
-async function confirmarAssinaturaInterna(osId) {
-    const nome = document.getElementById('int-assinar-nome')?.value?.trim();
-    const cargo = document.getElementById('int-assinar-cargo')?.value?.trim() || '';
-    if (!nome) { alert('Informe o nome completo.'); return; }
-
-    const btn = document.getElementById('btn-confirmar-ass-int');
-    btn.disabled = true; btn.textContent = 'Registrando...';
-
-    try {
-        const csrfResp = await fetch('/auth/csrf-token', { credentials: 'same-origin' });
-        const { csrf_token } = await csrfResp.json();
-
-        const assinaturaBase64 = _gerarAssinaturaBase64Interno(nome, cargo);
-
-        const resp = await fetch(`/api/ordens-servico/${osId}/assinar`, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf_token },
-            body: JSON.stringify({ nome_responsavel: nome, cargo, assinatura_base64: assinaturaBase64 })
-        });
-        const data = await resp.json();
-        if (resp.ok) {
-            document.getElementById('modal-assinar-interno').remove();
-            alert('✅ Assinatura digital registrada com sucesso! Ela aparecerá no PDF da O.S.');
-            await filtrarOS();
-        } else {
-            alert('Erro: ' + (data.erro || resp.status));
-            btn.disabled = false; btn.textContent = 'Assinar Digitalmente';
-        }
-    } catch (e) {
-        alert('Erro de conexão.');
-        btn.disabled = false; btn.textContent = 'Assinar Digitalmente';
-    }
-}
 
 async function reenviarParaEmpresa(osId) {
     if (!confirm('Reenviar esta O.S. para a empresa após a revisão solicitada?')) return;
@@ -1415,6 +1320,17 @@ function abrirModalPagamento(osId, vencimentoAtual, pagoAtual) {
     const anterior = document.getElementById('modal-pagamento-os');
     if (anterior) anterior.remove();
 
+    // Exibir sempre no formato dd/mm/aaaa no campo de texto
+    let vencimentoExibir = '';
+    if (vencimentoAtual) {
+        if (vencimentoAtual.includes('-')) {
+            const [y, m, d] = vencimentoAtual.split('-');
+            vencimentoExibir = `${d}/${m}/${y}`;
+        } else {
+            vencimentoExibir = vencimentoAtual;
+        }
+    }
+
     const overlay = document.createElement('div');
     overlay.id = 'modal-pagamento-os';
     overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:1rem;';
@@ -1428,7 +1344,7 @@ function abrirModalPagamento(osId, vencimentoAtual, pagoAtual) {
                 <div style="margin-bottom:1rem;">
                     <label style="display:block;font-size:.85rem;font-weight:600;margin-bottom:.35rem;color:#333;">Data de Vencimento da Nota</label>
                     <input type="text" id="pag-vencimento" placeholder="dd/mm/aaaa"
-                        value="${vencimentoAtual || ''}"
+                        value="${vencimentoExibir}"
                         maxlength="10"
                         style="width:100%;padding:.55rem .75rem;border:1px solid #ccc;border-radius:6px;font-size:.95rem;box-sizing:border-box;">
                 </div>
@@ -1447,13 +1363,23 @@ function abrirModalPagamento(osId, vencimentoAtual, pagoAtual) {
         </div>`;
 
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     document.getElementById('pag-vencimento').focus();
 }
 
 async function salvarPagamento(osId) {
-    const vencimento = document.getElementById('pag-vencimento')?.value?.trim() || '';
+    const vencimentoRaw = document.getElementById('pag-vencimento')?.value?.trim() || '';
     const pago = document.getElementById('pag-pago')?.checked || false;
+
+    // Converter dd/mm/aaaa → yyyy-mm-dd para armazenar em ISO
+    let vencimento = '';
+    if (vencimentoRaw) {
+        if (vencimentoRaw.includes('/')) {
+            const [d, m, y] = vencimentoRaw.split('/');
+            vencimento = `${y}-${m}-${d}`;
+        } else {
+            vencimento = vencimentoRaw;
+        }
+    }
 
     const btn = document.getElementById('btn-salvar-pagamento');
     if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
@@ -1596,7 +1522,6 @@ async function abrirModalEditarTrajeto(osId) {
         </div>`;
 
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 async function salvarTrajetos(osId) {

@@ -538,18 +538,6 @@
             alert.className = `alert ${tipo === 'success' ? 'alert-success' : 'alert-error'} show`;
         }
 
-        // Fechar modal ao clicar fora
-        window.onclick = function(event) {
-            const modalSenha = document.getElementById('modalSenha');
-            const modalPerfil = document.getElementById('modalPerfil');
-
-            if (event.target == modalSenha) {
-                fecharModalSenha();
-            }
-            if (event.target == modalPerfil) {
-                fecharModalPerfil();
-            }
-        }
     </script>
 </body>
 </html>

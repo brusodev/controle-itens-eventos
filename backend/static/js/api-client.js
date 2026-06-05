@@ -174,13 +174,14 @@ class APIClient {
     
     // ==================== ORDENS DE SERVIÇO ====================
     
-    static async listarOrdensServico(busca = '', grupo = '') {
+    static async listarOrdensServico(busca = '', grupo = '', filtro = '') {
         const modulo = localStorage.getItem('modulo_atual') || 'coffee';
         const params = new URLSearchParams();
         params.append('modulo', modulo);
         if (busca) params.append('busca', busca);
         if (grupo) params.append('grupo', grupo);
-        
+        if (filtro) params.append('filtro', filtro);
+
         const url = `/ordens-servico/?${params.toString()}`;
         console.log('🌐 APIClient.listarOrdensServico: Fazendo request para', url);
         const result = await this.request(url);

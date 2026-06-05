@@ -253,6 +253,18 @@ class OrdemServico(db.Model):
     revisoes = db.relationship('RevisaoEmpresa', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
     comentarios = db.relationship('ComentarioEmpresa', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
     
+    def _normalizar_vencimento(self, v):
+        """Garante que a data de vencimento esteja sempre em formato ISO (YYYY-MM-DD)."""
+        if not v:
+            return v
+        if '/' in str(v):
+            try:
+                from datetime import datetime as _dt
+                return _dt.strptime(v, '%d/%m/%Y').strftime('%Y-%m-%d')
+            except ValueError:
+                return v
+        return v
+
     def _get_signatarios(self):
         """Retorna lista de signatários do JSON ou fallback para colunas legadas"""
         import json as _json
@@ -304,7 +316,7 @@ class OrdemServico(db.Model):
             'dataEmissaoCompleta': self.data_emissao_completa,
             'motivoExclusao': self.motivo_exclusao,  # ✅ Motivo da exclusão
             'dataExclusao': self.data_exclusao.isoformat() if self.data_exclusao else None,  # ✅ Data da exclusão
-            'pagamentoVencimento': self.pagamento_vencimento,
+            'pagamentoVencimento': self._normalizar_vencimento(self.pagamento_vencimento),
             'pagamentoPago': bool(self.pagamento_pago) if self.pagamento_pago is not None else False
         }
         

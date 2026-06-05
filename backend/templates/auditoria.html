@@ -952,12 +952,6 @@
             return text.replace(/[&<>"']/g, m => map[m]);
         }
 
-        // Fechar modal ao clicar fora
-        document.getElementById('modal-detalhes').addEventListener('click', function(e) {
-            if (e.target === this) {
-                fecharModal();
-            }
-        });
 
         // Inicializar
         document.addEventListener('DOMContentLoaded', () => {

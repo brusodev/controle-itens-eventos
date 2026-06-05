@@ -504,12 +504,13 @@
     </div>
 {% endblock %}
 
+{% block before_scripts %}<script>window.usuarioPerfil = "{{ usuario_perfil }}";</script>{% endblock %}
+
 {% block scripts %}
     <script>
         let usuarios = [];
         let detentoras = [];
         let editandoId = null;
-        const usuarioPerfil = '{{ usuario_perfil }}';
 
         // Carregar detentoras primeiro, depois usuários (evita timing race)
         document.addEventListener('DOMContentLoaded', async function() {
@@ -850,12 +851,5 @@
             alert.className = `alert ${tipo === 'success' ? 'alert-success' : 'alert-error'} show`;
         }
 
-        // Fechar modal ao clicar fora
-        window.onclick = function(event) {
-            const modal = document.getElementById('modalUsuario');
-            if (event.target == modal) {
-                fecharModal();
-            }
-        }
     </script>
 {% endblock %}

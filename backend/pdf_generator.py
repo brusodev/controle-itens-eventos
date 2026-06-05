@@ -222,13 +222,6 @@ class PDFOrdemServico:
         bloco_assinaturas.extend(self._criar_secao_assinaturas(dados_os))
         story.append(KeepTogether(bloco_assinaturas))
 
-        # Assinaturas digitais internas (operadores/admin)
-        assinaturas_internas = dados_os.get('assinaturas_internas', [])
-        if assinaturas_internas:
-            bloco_int = [Spacer(1, 3*mm)]
-            bloco_int.extend(self._criar_secao_assinaturas_internas(assinaturas_internas))
-            story.append(KeepTogether(bloco_int))
-
         # Aceite digital da detentora (se existir)
         aceites = dados_os.get('aceites', [])
         if aceites:

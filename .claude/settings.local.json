@@ -47,7 +47,18 @@
       "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short --ignore=tests/test_fluxo_edicao.py 2>&1 | tail -40)",
       "Bash(source venv/bin/activate && python -m pytest tests/ -v --tb=short --ignore=tests/test_fluxo_edicao.py --ignore=tests/test_criacao_completa.py --ignore=tests/test_edicao_interface.py 2>&1 | tail -40)",
       "Bash(git add backend/requirements.txt .claude/settings.local.json && git commit -m \"$\\(cat <<'EOF'\nAdd requests dependency and update allowed commands\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(grep -n \"PORTAL_DETENTORA_ATIVO\\\\|feature_flag\\\\|feature.flag\" c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/*.py c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/routes/*.py)"
+      "Bash(grep -n \"PORTAL_DETENTORA_ATIVO\\\\|feature_flag\\\\|feature.flag\" c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/*.py c:/Users/SEDUC.SEE-902951-N/Documents/GitHub/controle-itens-eventos/backend/routes/*.py)",
+      "Bash(journalctl -u controle-itens.service --since \"10 minutes ago\" --no-pager 2>&1 | tail -60)",
+      "Bash(sudo journalctl -u gunicorn)",
+      "Bash(sudo journalctl -u nginx)",
+      "Bash(git -C /var/www/controle-itens-eventos log --oneline --name-only -5)",
+      "Bash(sudo journalctl -u controle-itens.service -n 15 --no-pager)",
+      "Bash(sudo journalctl -u controle-itens.service -n 20 --no-pager)",
+      "Bash(grep -v \"^$\")",
+      "Bash(systemctl list-units *)",
+      "Bash(sudo systemctl restart controle-itens.service)",
+      "Bash(sudo systemctl status controle-itens.service --no-pager)",
+      "Bash(systemctl is-active *)"
     ]
   }
 }

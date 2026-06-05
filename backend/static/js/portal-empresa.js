@@ -443,7 +443,6 @@ function _abrirModalAceitar() {
         </div>`;
 
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     document.getElementById('btn-fechar-aceitar').onclick = () => overlay.remove();
     document.getElementById('din-aceitar-nome').focus();
 }
@@ -583,7 +582,6 @@ function _abrirModalRecusar() {
         </div>`;
 
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     document.getElementById('btn-fechar-recusar').onclick = () => overlay.remove();
     document.getElementById('btn-cancelar-recusar').onclick = () => overlay.remove();
     document.getElementById('din-recusar-motivo').focus();
@@ -639,11 +637,3 @@ async function enviarComentario(event) {
     }
 }
 
-// ============================================================
-// Fechar modais ao clicar no overlay
-// ============================================================
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
-        e.target.style.display = 'none';
-    }
-});
