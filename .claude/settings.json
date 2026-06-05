@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git rm:*)",
-      "Bash(xargs grep -l \"relatorio\\\\|report\" -i)"
+      "Bash(xargs grep -l \"relatorio\\\\|report\" -i)",
+      "Bash(Get-ChildItem backend\\\\routes)"
     ]
   }
 }

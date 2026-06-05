@@ -338,7 +338,9 @@ def relatorio_itens_mais_utilizados():
         limite = int(request.args.get('limite', 10))
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
-        
+        grupo = request.args.get('grupo')
+        ordenar_por = request.args.get('ordenar_por', 'total_consumido')
+
         query = db.session.query(
             Item.descricao,
             Item.unidade,
@@ -347,19 +349,23 @@ def relatorio_itens_mais_utilizados():
             func.count(ItemOrdemServico.id).label('vezes_utilizado')
         ).join(ItemOrdemServico).join(Categoria).join(OrdemServico)\
          .filter(Categoria.modulo == modulo)
-        
+
         if data_inicio:
             query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:
-            # ✅ Ajustar para o final do dia (23:59:59)
             dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
             query = query.filter(OrdemServico.data_emissao <= dt_fim)
-        
+        if grupo:
+            query = query.filter(OrdemServico.regiao_estoque == int(grupo))
+
+        ordem = func.count(ItemOrdemServico.id).desc() if ordenar_por == 'vezes_utilizado' \
+            else func.sum(ItemOrdemServico.quantidade_total).desc()
+
         resultados = query.group_by(
             Item.descricao,
             Item.unidade,
             Categoria.nome
-        ).order_by(func.sum(ItemOrdemServico.quantidade_total).desc()).limit(limite).all()
+        ).order_by(ordem).limit(limite).all()
         
         ranking = []
         for i, r in enumerate(resultados, 1):
@@ -377,6 +383,173 @@ def relatorio_itens_mais_utilizados():
             'ranking': ranking
         })
         
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@relatorios_bp.route('/api/relatorios/itens-mais-utilizados/excel', methods=['GET'])
+@login_requerido
+def exportar_top_itens_excel():
+    try:
+        modulo     = request.args.get('modulo', 'coffee')
+        limite     = int(request.args.get('limite', 10))
+        data_inicio = request.args.get('data_inicio')
+        data_fim    = request.args.get('data_fim')
+        grupo       = request.args.get('grupo')
+        ordenar_por = request.args.get('ordenar_por', 'total_consumido')
+
+        query = db.session.query(
+            Item.descricao,
+            Item.unidade,
+            Categoria.nome.label('categoria'),
+            func.sum(ItemOrdemServico.quantidade_total).label('total_consumido'),
+            func.count(ItemOrdemServico.id).label('vezes_utilizado')
+        ).join(ItemOrdemServico).join(Categoria).join(OrdemServico)\
+         .filter(Categoria.modulo == modulo)
+
+        if data_inicio:
+            query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
+        if data_fim:
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(OrdemServico.data_emissao <= dt_fim)
+        if grupo:
+            query = query.filter(OrdemServico.regiao_estoque == int(grupo))
+
+        ordem = func.count(ItemOrdemServico.id).desc() if ordenar_por == 'vezes_utilizado' \
+            else func.sum(ItemOrdemServico.quantidade_total).desc()
+
+        resultados = query.group_by(
+            Item.descricao, Item.unidade, Categoria.nome
+        ).order_by(ordem).limit(limite).all()
+
+        GRUPOS_NOME = {1: 'Capital / RMSP', 2: 'Interior', 3: 'Litoral'}
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Itens Mais Utilizados'
+
+        COR_HEADER  = 'FF4F46E5'
+        COR_OURO    = 'FFFFD700'
+        COR_PRATA   = 'FFB0C4DE'
+        COR_BRONZE  = 'FFCD9B6A'
+        COR_PAR     = 'FFF5F3FF'
+        COR_IMPAR   = 'FFFFFFFF'
+
+        thin   = Side(style='thin', color='FFCCCCCC')
+        borda  = Border(left=thin, right=thin, top=thin, bottom=thin)
+        NUM_COLS = 6
+
+        # Linha 1 — Título
+        ws.merge_cells(f'A1:{get_column_letter(NUM_COLS)}1')
+        c = ws['A1']
+        c.value = '🏆 Relatório — Itens Mais Utilizados'
+        c.font = Font(bold=True, size=14, color='FFFFFFFF')
+        c.fill = PatternFill('solid', fgColor=COR_HEADER)
+        c.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 30
+
+        # Linha 2 — Filtros aplicados
+        filtros_txt = []
+        if data_inicio or data_fim:
+            filtros_txt.append(f"Período: {data_inicio or '...'} → {data_fim or '...'}")
+        if grupo:
+            filtros_txt.append(f"Grupo: {GRUPOS_NOME.get(int(grupo), grupo)}")
+        filtros_txt.append(f"Ordenado por: {'Qtd. Consumida' if ordenar_por != 'vezes_utilizado' else 'Vezes Utilizado'}")
+        filtros_txt.append(f"Top {limite}")
+
+        ws.merge_cells(f'A2:{get_column_letter(NUM_COLS)}2')
+        c2 = ws['A2']
+        c2.value = '  |  '.join(filtros_txt)
+        c2.font = Font(italic=True, size=10, color='FF6B7280')
+        c2.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[2].height = 18
+
+        # Linha 3 — Data de geração
+        ws.merge_cells(f'A3:{get_column_letter(NUM_COLS)}3')
+        c3 = ws['A3']
+        c3.value = f'Gerado em: {datetime.now().strftime("%d/%m/%Y às %H:%M")}'
+        c3.font = Font(italic=True, size=9, color='FF9CA3AF')
+        c3.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[3].height = 16
+
+        ws.append([])  # linha em branco
+
+        # Cabeçalhos
+        headers = ['Posição', 'Item', 'Categoria', 'Unidade', 'Qtd. Consumida', 'Vezes Utilizado']
+        ws.append(headers)
+        header_row = ws.max_row
+        for col_idx in range(1, NUM_COLS + 1):
+            cell = ws.cell(row=header_row, column=col_idx)
+            cell.font = Font(bold=True, color='FFFFFFFF', size=11)
+            cell.fill = PatternFill('solid', fgColor=COR_HEADER)
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = borda
+        ws.row_dimensions[header_row].height = 22
+
+        # Dados
+        total_consumido_geral = 0.0
+        total_vezes_geral = 0
+        for i, r in enumerate(resultados, 1):
+            qtd = float(r.total_consumido or 0)
+            vezes = r.vezes_utilizado
+            total_consumido_geral += qtd
+            total_vezes_geral += vezes
+
+            if i == 1:
+                bg = COR_OURO
+            elif i == 2:
+                bg = COR_PRATA
+            elif i == 3:
+                bg = COR_BRONZE
+            else:
+                bg = COR_PAR if i % 2 == 0 else COR_IMPAR
+
+            ws.append([i, r.descricao, r.categoria, r.unidade, qtd, vezes])
+            row_idx = ws.max_row
+            row_fill = PatternFill('solid', fgColor=bg)
+            for col_idx in range(1, NUM_COLS + 1):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.fill = row_fill
+                cell.border = borda
+                cell.alignment = Alignment(vertical='center')
+            ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='center', vertical='center')
+            ws.cell(row=row_idx, column=4).alignment = Alignment(horizontal='center', vertical='center')
+            ws.cell(row=row_idx, column=5).number_format = '#,##0.00'
+            ws.cell(row=row_idx, column=6).alignment = Alignment(horizontal='center', vertical='center')
+            if i <= 3:
+                ws.cell(row=row_idx, column=2).font = Font(bold=True)
+
+        # Linha de totais
+        ws.append([])
+        ws.append(['', 'TOTAL GERAL', '', '', total_consumido_geral, total_vezes_geral])
+        tot_row = ws.max_row
+        for col_idx in range(1, NUM_COLS + 1):
+            cell = ws.cell(row=tot_row, column=col_idx)
+            cell.fill = PatternFill('solid', fgColor='FFE0E7FF')
+            cell.border = borda
+            cell.font = Font(bold=True)
+        ws.cell(row=tot_row, column=2).alignment = Alignment(horizontal='center')
+        ws.cell(row=tot_row, column=5).number_format = '#,##0.00'
+        ws.cell(row=tot_row, column=5).alignment = Alignment(horizontal='center')
+        ws.cell(row=tot_row, column=6).alignment = Alignment(horizontal='center')
+
+        # Larguras das colunas
+        for i, w in enumerate([10, 42, 28, 14, 20, 18], 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        ws.freeze_panes = f'A{header_row + 1}'
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        grupo_sfx = f'_grupo{grupo}' if grupo else ''
+        return send_file(
+            buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'itens_mais_utilizados{grupo_sfx}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

@@ -1228,6 +1228,9 @@ function salvarRascunhoOS() {
     const grupoSelect = document.getElementById('os-grupo-select');
     if (grupoSelect) campos['os-grupo-select'] = grupoSelect.value;
 
+    const detentoraSelectEl = document.getElementById('os-detentora-select');
+    if (detentoraSelectEl) campos['os-detentora-select'] = detentoraSelectEl.value;
+
     const rascunho = {
         timestamp: Date.now(),
         campos,

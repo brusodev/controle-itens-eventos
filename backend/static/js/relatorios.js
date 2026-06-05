@@ -471,12 +471,16 @@ async function gerarRelatorioTopItens() {
     const dataInicio = document.getElementById('rel-top-data-inicio').value;
     const dataFim = document.getElementById('rel-top-data-fim').value;
     const limite = document.getElementById('rel-top-limite').value;
+    const grupo = document.getElementById('rel-top-grupo').value;
+    const ordenarPor = document.getElementById('rel-top-ordenar').value;
 
     const params = new URLSearchParams();
     params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (dataInicio) params.append('data_inicio', dataInicio);
     if (dataFim) params.append('data_fim', dataFim);
     if (limite) params.append('limite', limite);
+    if (grupo) params.append('grupo', grupo);
+    if (ordenarPor) params.append('ordenar_por', ordenarPor);
 
     try {
         const response = await fetch(`/api/relatorios/itens-mais-utilizados?${params}`);
@@ -484,6 +488,7 @@ async function gerarRelatorioTopItens() {
 
         if (data.success) {
             exibirResultadoRelatorioTopItens(data);
+            document.getElementById('btn-excel-top').style.display = '';
         } else {
             alert('Erro ao gerar relatório: ' + data.error);
         }
@@ -491,6 +496,22 @@ async function gerarRelatorioTopItens() {
         console.error('Erro:', error);
         alert('Erro ao gerar relatório');
     }
+}
+
+function exportarTopItensExcel() {
+    const params = new URLSearchParams();
+    params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
+    const dataInicio = document.getElementById('rel-top-data-inicio').value;
+    const dataFim    = document.getElementById('rel-top-data-fim').value;
+    const limite     = document.getElementById('rel-top-limite').value;
+    const grupo      = document.getElementById('rel-top-grupo').value;
+    const ordenarPor = document.getElementById('rel-top-ordenar').value;
+    if (dataInicio) params.append('data_inicio', dataInicio);
+    if (dataFim)    params.append('data_fim', dataFim);
+    if (limite)     params.append('limite', limite);
+    if (grupo)      params.append('grupo', grupo);
+    if (ordenarPor) params.append('ordenar_por', ordenarPor);
+    window.open(`/api/relatorios/itens-mais-utilizados/excel?${params}`, '_blank');
 }
 
 // Referência global para destruir o gráfico antes de recriar
