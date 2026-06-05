@@ -102,20 +102,16 @@ def _nome_arquivo_os(dados_pdf, extensao='pdf'):
 
 
 def gerar_proximo_numero_os(modulo=None, detentora_id=None):
-    """Gera automaticamente o próximo número de O.S. (OS-001) por detentora e módulo"""
+    """Gera automaticamente o próximo número de O.S. (OS-001) por módulo.
+    A constraint UNIQUE é em (numero_os, modulo), portanto ignora detentora_id ao buscar o máximo."""
     query = OrdemServico.query
     if modulo:
         query = query.filter(OrdemServico.modulo == modulo)
-    if detentora_id is not None:
-        query = query.filter(OrdemServico.detentora_id == detentora_id)
 
-    ultima_os = query.order_by(OrdemServico.id.desc()).first()
-
-    if ultima_os:
-        numero_atual = _extrair_numero_os(ultima_os.numero_os) or 0
-        proximo_numero = numero_atual + 1
-    else:
-        proximo_numero = 1
+    todas_os = query.with_entities(OrdemServico.numero_os).all()
+    numeros = [_extrair_numero_os(row[0]) for row in todas_os]
+    numeros = [n for n in numeros if n is not None]
+    proximo_numero = (max(numeros) + 1) if numeros else 1
 
     return f"OS-{proximo_numero:03d}"
 

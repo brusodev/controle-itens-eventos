@@ -372,35 +372,43 @@ class PDFOrdemServico:
         horario = self._get_safe(dados, 'horario')
         horario_html = horario.replace('\n', '<br/>') if horario else ''
         
+        qtd_pessoas = dados.get('qtdPessoasAtendidas')
+        qtd_pessoas_str = str(int(qtd_pessoas)) if qtd_pessoas else ''
+
         data = [
-            [Paragraph('<b>EVENTO:</b>', self.styles['CustomLabel']), 
+            [Paragraph('<b>EVENTO:</b>', self.styles['CustomLabel']),
              Paragraph(self._get_safe(dados, 'evento'), self.styles['CustomNormal']), '', ''],
-            
-            [Paragraph(f"<b>{labels.get('os_data_label', 'DATA')}:</b>", self.styles['CustomLabel']), 
+
+            [Paragraph(f"<b>{labels.get('os_data_label', 'DATA')}:</b>", self.styles['CustomLabel']),
              Paragraph(self._get_safe(dados, 'data'), self.styles['CustomNormal']), '', ''],
-            
-            [Paragraph(f"<b>{labels.get('os_horario_label', 'HORÁRIO')}:</b>", self.styles['CustomLabel']), 
+
+            [Paragraph(f"<b>{labels.get('os_horario_label', 'HORÁRIO')}:</b>", self.styles['CustomLabel']),
              Paragraph(horario_html, self.styles['CustomNormal']), '', ''],
-            
-            [Paragraph(f"<b>{labels.get('os_local_label', 'LOCAL DO EVENTO')}:</b>", self.styles['CustomLabel']), 
+
+            [Paragraph(f"<b>{labels.get('os_local_label', 'LOCAL DO EVENTO')}:</b>", self.styles['CustomLabel']),
              Paragraph(self._get_safe(dados, 'local'), self.styles['CustomNormal']), '', ''],
-            
-            [Paragraph('<b>RESPONSÁVEL:</b>', self.styles['CustomLabel']), 
-             Paragraph(self._get_safe(dados, 'responsavel'), self.styles['CustomNormal']), '', '']
+
+            [Paragraph('<b>RESPONSÁVEL:</b>', self.styles['CustomLabel']),
+             Paragraph(self._get_safe(dados, 'responsavel'), self.styles['CustomNormal']), '', ''],
         ]
-        
+
+        if qtd_pessoas_str:
+            data.append([
+                Paragraph('<b>Nº DE PARTICIPANTES:</b>', self.styles['CustomLabel']),
+                Paragraph(qtd_pessoas_str, self.styles['CustomNormal']), '', ''
+            ])
+
+        n_rows = len(data)
+        span_rules = [('SPAN', (1, i), (3, i)) for i in range(n_rows)]
+
         table = Table(data, colWidths=[40*mm, 50*mm, 35*mm, 45*mm])
         table.setStyle(TableStyle([
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),  # Reduzido de 4 para 2
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Reduzido de 4 para 2
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),  # Reduzido de 5 para 3
-            ('SPAN', (1, 0), (3, 0)),  # EVENTO span 3 colunas
-            ('SPAN', (1, 1), (3, 1)),  # DATA span 3 colunas
-            ('SPAN', (1, 2), (3, 2)),  # HORÁRIO span 3 colunas
-            ('SPAN', (1, 3), (3, 3)),  # LOCAL span 3 colunas
-            ('SPAN', (1, 4), (3, 4)),  # RESPONSÁVEL span 3 colunas
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            *span_rules,
         ]))
         
         elements.append(table)
