@@ -496,6 +496,123 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Relatório de Eventos - Organização -->
+                    <div class="relatorio-card" style="grid-column: 1 / -1;">
+                        <div class="relatorio-header">
+                            <h3>📋 Eventos — Módulo Organização</h3>
+                            <p>Custo por categoria, pessoas atendidas e detalhamento de itens por evento</p>
+                        </div>
+
+                        <div class="relatorio-filtros" style="display:flex;flex-wrap:wrap;gap:1rem;">
+                            <div class="form-group">
+                                <label>Grupo:</label>
+                                <select id="rel-org-grupo" class="form-control">
+                                    <option value="">Todos</option>
+                                    <option value="1">Capital / RMSP</option>
+                                    <option value="2">Interior</option>
+                                    <option value="3">Litoral</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Status:</label>
+                                <select id="rel-org-status" class="form-control">
+                                    <option value="">Todos</option>
+                                    <option value="emitida">Emitida</option>
+                                    <option value="aceita">Aceita</option>
+                                    <option value="em_execucao">Em Execução</option>
+                                    <option value="executada">Executada</option>
+                                    <option value="cancelada">Cancelada</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Data Emissão De:</label>
+                                <input type="date" id="rel-org-data-inicio" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Data Emissão Até:</label>
+                                <input type="date" id="rel-org-data-fim" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Empresa:</label>
+                                <input type="text" id="rel-org-empresa" class="form-control" placeholder="Nome da empresa">
+                            </div>
+                        </div>
+
+                        <div class="relatorio-acoes">
+                            <button class="btn-small btn-primary" onclick="gerarRelatorioOrgEventos()">
+                                📊 Gerar Relatório
+                            </button>
+                            <button class="btn-small btn-success" onclick="exportarOrgEventosExcel()" id="btn-excel-org" style="display:none;">
+                                📥 Exportar Excel
+                            </button>
+                        </div>
+
+                        <div id="resultado-rel-org" class="relatorio-resultado" style="display: none;">
+                            <h4>Resultados:</h4>
+                            <div id="stats-rel-org" class="stats-grid"></div>
+                            <div id="tabela-rel-org"></div>
+                        </div>
+                    </div>
+
+                    <!-- Relatório de Controle de Pagamentos -->
+                    <div class="relatorio-card" style="grid-column: 1 / -1;">
+                        <div class="relatorio-header">
+                            <h3>💰 Controle de Pagamentos</h3>
+                            <p>Acompanhe prazos de vencimento das notas e visualize as O.S. pagas, pendentes e vencidas</p>
+                        </div>
+
+                        <div class="relatorio-filtros" style="display:flex;flex-wrap:wrap;gap:1rem;">
+                            <div class="form-group">
+                                <label>Status:</label>
+                                <select id="rel-pag-status" class="form-control">
+                                    <option value="">Todos</option>
+                                    <option value="pago">✅ Pago</option>
+                                    <option value="pendente">⏳ Pendente</option>
+                                    <option value="vencido">🔴 Vencido</option>
+                                    <option value="sem_prazo">— Sem Prazo</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Vencimento De:</label>
+                                <input type="date" id="rel-pag-data-inicio" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Vencimento Até:</label>
+                                <input type="date" id="rel-pag-data-fim" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Módulo:</label>
+                                <select id="rel-pag-modulo" class="form-control">
+                                    <option value="">Todos</option>
+                                    <option value="coffee">Coffee Break</option>
+                                    <option value="transporte">Transporte</option>
+                                    <option value="organizacao">Organização</option>
+                                    <option value="hospedagem">Hospedagem</option>
+                                    <option value="trofeus">Troféus</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Empresa:</label>
+                                <input type="text" id="rel-pag-empresa" class="form-control" placeholder="Nome da empresa">
+                            </div>
+                        </div>
+
+                        <div class="relatorio-acoes">
+                            <button class="btn-small btn-primary" onclick="gerarRelatorioPagamentos()">
+                                📊 Gerar Relatório
+                            </button>
+                            <button class="btn-small btn-success" onclick="exportarPagamentosExcel()" id="btn-excel-pagamentos" style="display:none;">
+                                📥 Exportar Excel
+                            </button>
+                        </div>
+
+                        <div id="resultado-rel-pag" class="relatorio-resultado" style="display: none;">
+                            <h4>Resultados:</h4>
+                            <div id="stats-rel-pag" class="stats-grid"></div>
+                            <div id="tabela-rel-pag"></div>
+                        </div>
+                    </div>
                 </div>
             </section>
 

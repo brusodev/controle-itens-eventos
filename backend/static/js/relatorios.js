@@ -590,4 +590,275 @@ function _renderizarGraficoPizza(ranking) {
     });
 }
 
+// ────────────────────────────────────────────────────
+// RELATÓRIO DE EVENTOS — MÓDULO ORGANIZAÇÃO
+// ────────────────────────────────────────────────────
+
+const ORG_STATUS_CFG = {
+    emitida:         { texto: 'Emitida',      cor: '#374151', bg: '#F3F4F6' },
+    enviada_empresa: { texto: 'Ag. Empresa',  cor: '#92400E', bg: '#FEF3C7' },
+    em_revisao:      { texto: 'Em Revisão',   cor: '#991B1B', bg: '#FEE2E2' },
+    aceita:          { texto: 'Aceita',       cor: '#1E3A8A', bg: '#DBEAFE' },
+    em_execucao:     { texto: 'Em Execução',  cor: '#92400E', bg: '#FFF7ED' },
+    executada:       { texto: 'Executada',    cor: '#14532D', bg: '#DCFCE7' },
+    recusada:        { texto: 'Recusada',     cor: '#7F1D1D', bg: '#FEE2E2' },
+    cancelada:       { texto: 'Cancelada',    cor: '#374151', bg: '#E5E7EB' },
+};
+
+function _getOrgParams() {
+    const params = new URLSearchParams();
+    const grupo  = document.getElementById('rel-org-grupo').value;
+    const status = document.getElementById('rel-org-status').value;
+    const inicio = document.getElementById('rel-org-data-inicio').value;
+    const fim    = document.getElementById('rel-org-data-fim').value;
+    const emp    = document.getElementById('rel-org-empresa').value;
+    if (grupo)  params.append('grupo', grupo);
+    if (status) params.append('status', status);
+    if (inicio) params.append('data_inicio', inicio);
+    if (fim)    params.append('data_fim', fim);
+    if (emp)    params.append('empresa', emp);
+    return params;
+}
+
+function _fmtBRL(valor) {
+    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function gerarRelatorioOrgEventos() {
+    const params = _getOrgParams();
+    try {
+        const response = await fetch(`/api/relatorios/organizacao/eventos?${params}`);
+        const data = await response.json();
+        if (!data.success) { alert('Erro: ' + data.error); return; }
+
+        const resultado = document.getElementById('resultado-rel-org');
+        const statsDiv  = document.getElementById('stats-rel-org');
+        const tabelaDiv = document.getElementById('tabela-rel-org');
+        const btnExcel  = document.getElementById('btn-excel-org');
+
+        resultado.style.display = 'block';
+        btnExcel.style.display  = 'inline-flex';
+
+        const e = data.estatisticas;
+
+        statsDiv.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${e.total_eventos}</div>
+                <div class="stat-label">Eventos</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #3B82F6;">
+                <div class="stat-value">${e.total_pessoas.toLocaleString('pt-BR')}</div>
+                <div class="stat-label">Pessoas Atendidas</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #10B981;">
+                <div class="stat-value" style="font-size:1rem;">R$&nbsp;${_fmtBRL(e.custo_total_geral)}</div>
+                <div class="stat-label">Custo Total Geral</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #8B5CF6;">
+                <div class="stat-value" style="font-size:1rem;">R$&nbsp;${_fmtBRL(e.custo_medio_evento)}</div>
+                <div class="stat-label">Custo Médio / Evento</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #F59E0B;">
+                <div class="stat-value" style="font-size:1rem;">R$&nbsp;${_fmtBRL(e.custo_medio_pessoa)}</div>
+                <div class="stat-label">Custo Médio / Pessoa</div>
+            </div>
+        `;
+
+        if (data.eventos.length === 0) {
+            tabelaDiv.innerHTML = '<p style="color:#6c757d;padding:1rem 0;">Nenhum evento encontrado para os filtros selecionados.</p>';
+            return;
+        }
+
+        let html = `
+            <div class="relatorio-tabela" style="overflow-x:auto;">
+                <table style="min-width:1100px;">
+                    <thead>
+                        <tr>
+                            <th>Nº O.S.</th>
+                            <th>Evento</th>
+                            <th>Data</th>
+                            <th>Grupo</th>
+                            <th>Empresa</th>
+                            <th>Status</th>
+                            <th style="text-align:right;">Pessoas</th>
+                            <th style="text-align:right;">Montagem/Dec.</th>
+                            <th style="text-align:right;">Rec. Humanos</th>
+                            <th style="text-align:right;">Equip. TI</th>
+                            <th style="text-align:right;">Mat. Gráfico</th>
+                            <th style="text-align:right;background:#EEF2FF;font-weight:700;">CUSTO TOTAL</th>
+                            <th style="text-align:right;">Custo/Pessoa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        data.eventos.forEach(ev => {
+            const stCfg = ORG_STATUS_CFG[ev.status] || { texto: ev.status, cor: '#555', bg: '#eee' };
+            const badge = `<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:600;background:${stCfg.bg};color:${stCfg.cor};">${stCfg.texto}</span>`;
+            const fmtV = v => v > 0 ? 'R$ ' + _fmtBRL(v) : '<span style="color:#9CA3AF">—</span>';
+
+            html += `
+                <tr>
+                    <td><strong>${ev.numeroOS}</strong></td>
+                    <td title="${ev.evento}">${ev.evento.length > 35 ? ev.evento.substring(0, 33) + '…' : ev.evento}</td>
+                    <td>${ev.dataEvento}</td>
+                    <td>${ev.grupoNome}</td>
+                    <td title="${ev.empresa}">${ev.empresa.length > 30 ? ev.empresa.substring(0, 28) + '…' : ev.empresa}</td>
+                    <td>${badge}</td>
+                    <td style="text-align:right;">${ev.qtdPessoas > 0 ? ev.qtdPessoas.toLocaleString('pt-BR') : '—'}</td>
+                    <td style="text-align:right;">${fmtV(ev.custoMontagem)}</td>
+                    <td style="text-align:right;">${fmtV(ev.custoRH)}</td>
+                    <td style="text-align:right;">${fmtV(ev.custoTI)}</td>
+                    <td style="text-align:right;">${fmtV(ev.custoGrafico)}</td>
+                    <td style="text-align:right;background:#EEF2FF;font-weight:700;">${fmtV(ev.custoTotal)}</td>
+                    <td style="text-align:right;">${fmtV(ev.custoPorPessoa)}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+        tabelaDiv.innerHTML = html;
+
+    } catch (err) {
+        console.error('Erro:', err);
+        alert('Erro ao gerar relatório de eventos de organização');
+    }
+}
+
+function exportarOrgEventosExcel() {
+    const params = _getOrgParams();
+    window.open(`/api/relatorios/organizacao/excel?${params}`, '_blank');
+}
+
+// ────────────────────────────────────────────────────
+// RELATÓRIO DE CONTROLE DE PAGAMENTOS
+// ────────────────────────────────────────────────────
+
+const PAG_STATUS_CFG = {
+    pago:      { texto: '✅ Pago',      cor: '#155724', bg: '#d4edda' },
+    pendente:  { texto: '⏳ Pendente',  cor: '#856404', bg: '#fff3cd' },
+    vencido:   { texto: '🔴 VENCIDO',   cor: '#721c24', bg: '#f8d7da' },
+    sem_prazo: { texto: '— Sem Prazo',  cor: '#495057', bg: '#e9ecef' },
+};
+
+function _getPagamentosParams() {
+    const status  = document.getElementById('rel-pag-status').value;
+    const inicio  = document.getElementById('rel-pag-data-inicio').value;
+    const fim     = document.getElementById('rel-pag-data-fim').value;
+    const modulo  = document.getElementById('rel-pag-modulo').value;
+    const empresa = document.getElementById('rel-pag-empresa').value;
+
+    const params = new URLSearchParams();
+    if (status)  params.append('status', status);
+    if (inicio)  params.append('data_inicio_vencimento', inicio);
+    if (fim)     params.append('data_fim_vencimento', fim);
+    if (modulo)  params.append('modulo', modulo);
+    if (empresa) params.append('empresa', empresa);
+    return params;
+}
+
+async function gerarRelatorioPagamentos() {
+    const params = _getPagamentosParams();
+    try {
+        const response = await fetch(`/api/relatorios/pagamentos?${params}`);
+        const data = await response.json();
+        if (!data.success) { alert('Erro: ' + data.error); return; }
+
+        const resultado = document.getElementById('resultado-rel-pag');
+        const statsDiv  = document.getElementById('stats-rel-pag');
+        const tabelaDiv = document.getElementById('tabela-rel-pag');
+        const btnExcel  = document.getElementById('btn-excel-pagamentos');
+
+        resultado.style.display = 'block';
+        btnExcel.style.display  = 'inline-flex';
+
+        const e = data.estatisticas;
+        const valorFmt = e.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        statsDiv.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${e.total}</div>
+                <div class="stat-label">Total de O.S.</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #28a745;">
+                <div class="stat-value" style="color:#155724">${e.pagos}</div>
+                <div class="stat-label">Pagas</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #ffc107;">
+                <div class="stat-value" style="color:#856404">${e.pendentes}</div>
+                <div class="stat-label">Pendentes</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #dc3545;">
+                <div class="stat-value" style="color:#721c24">${e.vencidos}</div>
+                <div class="stat-label">Vencidas</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #6c757d;">
+                <div class="stat-value" style="color:#495057">${e.sem_prazo}</div>
+                <div class="stat-label">Sem Prazo</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #17a2b8;">
+                <div class="stat-value" style="font-size:1rem;">R$&nbsp;${valorFmt}</div>
+                <div class="stat-label">Valor Total</div>
+            </div>
+        `;
+
+        if (data.pagamentos.length === 0) {
+            tabelaDiv.innerHTML = '<p style="color:#6c757d;padding:1rem 0;">Nenhum registro encontrado para os filtros selecionados.</p>';
+            return;
+        }
+
+        let html = `
+            <div class="relatorio-tabela">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nº O.S.</th>
+                            <th>Empresa</th>
+                            <th>Módulo</th>
+                            <th>Região</th>
+                            <th>Data Emissão</th>
+                            <th>Vencimento</th>
+                            <th>Valor Total (R$)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        data.pagamentos.forEach(p => {
+            const cfg = PAG_STATUS_CFG[p.status] || { texto: p.status, cor: '#000', bg: '#fff' };
+            const badge = `<span style="display:inline-block;padding:3px 10px;border-radius:8px;font-size:0.78rem;font-weight:600;background:${cfg.bg};color:${cfg.cor};">${cfg.texto}</span>`;
+            const valorFmt = p.valorTotal > 0
+                ? p.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : '—';
+            const rowStyle = p.status === 'vencido' ? 'background:#fff5f5;' : '';
+
+            html += `
+                <tr style="${rowStyle}">
+                    <td><strong>${p.numeroOS}</strong></td>
+                    <td>${p.empresa}</td>
+                    <td>${p.modulo}</td>
+                    <td>${p.regiao}</td>
+                    <td>${p.dataEmissao}</td>
+                    <td><strong>${p.vencimento}</strong></td>
+                    <td style="text-align:right;">${valorFmt === '—' ? '—' : 'R$ ' + valorFmt}</td>
+                    <td style="text-align:center;">${badge}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+        tabelaDiv.innerHTML = html;
+
+    } catch (err) {
+        console.error('Erro:', err);
+        alert('Erro ao gerar relatório de pagamentos');
+    }
+}
+
+function exportarPagamentosExcel() {
+    const params = _getPagamentosParams();
+    window.open(`/api/relatorios/pagamentos/excel?${params}`, '_blank');
+}
+
 console.log('✅ Funções de relatórios carregadas!');
