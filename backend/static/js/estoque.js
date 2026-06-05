@@ -207,6 +207,7 @@ function filtrarAlimentacao() {
                 </div>
                 <div class="item-footer">
                     <button class="btn-small btn-secondary" onclick="editarItemAlimentacao('${cat}', '${item.item}')">✏️ Editar</button>
+                    ${usuarioPerfil === 'admin' ? `<button class="btn-small btn-danger" onclick="excluirItemCatalogo(${item.id}, '${item.descricao.replace(/'/g,"\\'")}')">🗑️ Excluir</button>` : ''}
                 </div>
             `;
 
@@ -234,7 +235,8 @@ function editarItemAlimentacao(categoria, itemId) {
         'coffee': 'Editar Item de Alimentação',
         'transporte': 'Editar Item de Transporte',
         'hospedagem': 'Editar Item de Hospedagem',
-        'organizacao': 'Editar Item de Organização'
+        'organizacao': 'Editar Item de Organização',
+        'trofeus': 'Editar Item de Troféus'
     };
     document.getElementById('modal-alimentacao-titulo').textContent = titulosModal[moduloAtual] || 'Editar Item';
     
@@ -393,3 +395,29 @@ document.getElementById('form-alimentacao').addEventListener('submit', async fun
         alert('Erro ao salvar dados: ' + error.message);
     }
 });
+
+async function excluirItemCatalogo(itemId, descricao) {
+    if (!confirm(`Excluir o item "${descricao}"?\n\nAtenção: se este item estiver em alguma O.S., a exclusão será bloqueada pelo sistema.`)) return;
+
+    try {
+        const csrfResp = await fetch('/auth/csrf-token', { credentials: 'same-origin' });
+        const { csrf_token } = await csrfResp.json();
+
+        const resp = await fetch(`/api/itens/${itemId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': csrf_token }
+        });
+
+        const data = await resp.json();
+
+        if (resp.ok) {
+            await renderizarAlimentacao();
+        } else {
+            alert('Não foi possível excluir: ' + (data.erro || data.error || 'Erro desconhecido'));
+        }
+    } catch (e) {
+        alert('Erro ao excluir item: ' + e.message);
+    }
+}
+

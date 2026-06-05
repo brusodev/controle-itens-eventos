@@ -31,7 +31,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     const abaAtiva = document.querySelector('.tab-content.active');
     if (abaAtiva) {
         const tabId = abaAtiva.id.replace('tab-', '');
-        if (tabId === 'emitir-os') renderizarEmitirOS();
+        // Aguardar renderização antes de restaurar edição (evita race condition)
+        if (tabId === 'emitir-os') await renderizarEmitirOS();
     }
 
     // ✅ RESTAURAR O.S. PARA EDIÇÃO SE NECESSÁRIO

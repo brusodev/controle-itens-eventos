@@ -8,7 +8,8 @@ function atualizarLabelsModulo() {
         'coffee': { titulo: 'Coffee Break', emoji: '☕', itemLabel: 'Itens do Coffee', catLabel: 'Categorias de Alimentação', novaCat: 'Nova Categoria', icon: '📦' },
         'transporte': { titulo: 'Transporte', emoji: '🚚', itemLabel: 'Itens de Transporte', catLabel: 'Modalidades de Transporte', novaCat: 'Nova Modalidade', icon: '🚗' },
         'organizacao': { titulo: 'Organização', emoji: '📋', itemLabel: 'Itens Organização', catLabel: 'Categorias de Organização', novaCat: 'Nova Categoria', icon: '📋' },
-        'hospedagem': { titulo: 'Hospedagem', emoji: '🛏️', itemLabel: 'Itens de Hospedagem', catLabel: 'Modalidades de Hospedagem', novaCat: 'Nova Modalidade', icon: '🏨' }
+        'hospedagem': { titulo: 'Hospedagem', emoji: '🛏️', itemLabel: 'Itens de Hospedagem', catLabel: 'Modalidades de Hospedagem', novaCat: 'Nova Modalidade', icon: '🏨' },
+        'trofeus': { titulo: 'Troféus', emoji: '🏆', itemLabel: 'Itens de Troféus', catLabel: 'Categorias de Troféus', novaCat: 'Nova Categoria', icon: '🏆' }
     };
     const cfg = moduloLabels[moduloAtual] || moduloLabels['coffee'];
     const titulo = cfg.titulo;

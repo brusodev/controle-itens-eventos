@@ -175,6 +175,12 @@ def criar_detentora():
             existe = Detentora.query.filter_by(grupo=dados['grupo'], modulo=modulo, ativo=True).first()
             if existe:
                 return jsonify({'erro': f'Já existe uma detentora ativa para o grupo "{dados["grupo"]}" neste módulo'}), 409
+
+        # Transporte: somente uma detentora ativa no módulo
+        if modulo == 'transporte':
+            existe_transporte = Detentora.query.filter_by(modulo=modulo, ativo=True).first()
+            if existe_transporte:
+                return jsonify({'erro': 'O módulo Transporte permite apenas uma detentora ativa.'}), 409
         
         # Criar nova detentora
         detentora = Detentora(

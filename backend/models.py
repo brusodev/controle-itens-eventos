@@ -190,7 +190,7 @@ class OrdemServico(db.Model):
     """Ordens de Serviço emitidas"""
     __tablename__ = 'ordens_servico'
     __table_args__ = (
-        db.UniqueConstraint('numero_os', 'modulo', name='_numero_os_modulo_uc'),
+        db.UniqueConstraint('numero_os', 'modulo', 'detentora_id', name='_numero_os_modulo_detentora_uc'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -217,6 +217,15 @@ class OrdemServico(db.Model):
     local = db.Column(db.Text)
     justificativa = db.Column(db.Text)
     observacoes = db.Column(db.Text)  # ✅ Campo de observações
+
+    # Transporte (trajeto)
+    trajeto_origem = db.Column(db.String(200))
+    trajeto_destino = db.Column(db.String(200))
+    trajeto_km = db.Column(db.String(50))
+    trajeto_tipo = db.Column(db.String(20))  # 'ida' | 'volta'
+
+    # Organização (opcional)
+    qtd_pessoas_atendidas = db.Column(db.Integer)
     
     # Responsáveis
     gestor_contrato = db.Column(db.String(200))
@@ -232,6 +241,10 @@ class OrdemServico(db.Model):
     data_emissao_completa = db.Column(db.String(50))
     motivo_exclusao = db.Column(db.Text)  # Motivo da exclusão registrado pelo admin
     data_exclusao = db.Column(db.DateTime)  # Data da exclusão
+
+    # Pagamento
+    pagamento_vencimento = db.Column(db.String(20))
+    pagamento_pago = db.Column(db.Boolean, default=False)
 
     # Relacionamentos
     itens = db.relationship('ItemOrdemServico', backref='ordem_servico', lazy=True, cascade='all, delete-orphan')
@@ -264,6 +277,7 @@ class OrdemServico(db.Model):
             'dataAssinatura': self.data_assinatura,
             'prazoVigencia': self.prazo_vigencia,
             'detentora': self.detentora,
+            'detentoraId': self.detentora_id,
             'cnpj': self.cnpj,
             'servico': self.servico,
             'modulo': self.modulo,
@@ -274,6 +288,11 @@ class OrdemServico(db.Model):
             'local': self.local,
             'justificativa': self.justificativa,
             'observacoes': self.observacoes,  # ✅ Adicionar observações
+            'trajetoOrigem': self.trajeto_origem,
+            'trajetoDestino': self.trajeto_destino,
+            'trajetoKm': self.trajeto_km,
+            'trajetoTipo': self.trajeto_tipo,
+            'qtdPessoasAtendidas': self.qtd_pessoas_atendidas,
             'gestorContrato': self.gestor_contrato,
             'fiscalContrato': self.fiscal_contrato,
             'fiscalTipo': self.fiscal_tipo,  # ✅ Adicionar tipo de fiscal
@@ -284,7 +303,9 @@ class OrdemServico(db.Model):
             'dataEmissao': self.data_emissao.isoformat() if self.data_emissao else None,
             'dataEmissaoCompleta': self.data_emissao_completa,
             'motivoExclusao': self.motivo_exclusao,  # ✅ Motivo da exclusão
-            'dataExclusao': self.data_exclusao.isoformat() if self.data_exclusao else None  # ✅ Data da exclusão
+            'dataExclusao': self.data_exclusao.isoformat() if self.data_exclusao else None,  # ✅ Data da exclusão
+            'pagamentoVencimento': self.pagamento_vencimento,
+            'pagamentoPago': bool(self.pagamento_pago) if self.pagamento_pago is not None else False
         }
         
         if incluir_itens:
@@ -309,21 +330,29 @@ class ItemOrdemServico(db.Model):
     diarias = db.Column(db.Integer, default=1)  # Multiplicador de diárias
     quantidade_solicitada = db.Column(db.Float)  # Quantidade por diária
     quantidade_total = db.Column(db.Float)  # Quantidade total (diarias × qtd_solicitada)
-    valor_unitario = db.Column(db.String(20), default='0')  # ✅ NOVO: Preço unitário do item na época da emissão
-    
+    valor_unitario = db.Column(db.String(20), default='0')
+
+    # Transporte: trajeto por item
+    trajeto_origem = db.Column(db.String(200))
+    trajeto_destino = db.Column(db.String(200))
+    trajeto_tipo = db.Column(db.String(20))  # 'ida' | 'volta'
+
     def to_dict(self):
         return {
             'id': self.id,
             'categoria': self.categoria,
-            'itemId': self.item_id,  # ✅ CORRIGIDO: retornar ID do banco, não código BEC
-            'itemCodigo': self.item_codigo,  # ✅ Adicionar código BEC separado
+            'itemId': self.item_id,
+            'itemCodigo': self.item_codigo,
             'itemBec': self.item_bec,
             'descricao': self.descricao,
             'unidade': self.unidade,
             'diarias': self.diarias or 1,
             'qtdSolicitada': self.quantidade_solicitada,
             'qtdTotal': self.quantidade_total,
-            'valorUnit': self.valor_unitario or '0'  # ✅ NOVO: Retornar valor unitário
+            'valorUnit': self.valor_unitario or '0',
+            'trajetoOrigem': self.trajeto_origem,
+            'trajetoDestino': self.trajeto_destino,
+            'trajetoTipo': self.trajeto_tipo,
         }
 
 

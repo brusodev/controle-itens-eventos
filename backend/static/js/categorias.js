@@ -14,7 +14,8 @@ function mostrarModalNovoItem() {
         'coffee': 'Adicionar Item de Alimentação',
         'transporte': 'Adicionar Item de Transporte',
         'hospedagem': 'Adicionar Item de Hospedagem',
-        'organizacao': 'Adicionar Item de Organização'
+        'organizacao': 'Adicionar Item de Organização',
+        'trofeus': 'Adicionar Item de Troféus'
     };
     document.getElementById('modal-titulo').textContent = titulosModal[moduloAtual] || 'Adicionar Item ao Estoque';
     
@@ -137,8 +138,8 @@ function renderizarCategorias() {
     container.innerHTML = '<p class="empty-message">Carregando categorias...</p>';
 
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
-    const nomesModulo = { 'coffee': 'Coffee Break', 'transporte': 'Transportes', 'organizacao': 'Organização' };
-    const iconesModulo = { 'coffee': '📦', 'transporte': '🚗', 'organizacao': '📋' };
+    const nomesModulo = { 'coffee': 'Coffee Break', 'transporte': 'Transportes', 'organizacao': 'Organização', 'hospedagem': 'Hospedagem', 'trofeus': 'Troféus' };
+    const iconesModulo = { 'coffee': '📦', 'transporte': '🚗', 'organizacao': '📋', 'hospedagem': '🏨', 'trofeus': '🏆' };
 
     APIClient.listarCategorias()
         .then(categoriasBD => {

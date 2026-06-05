@@ -25,8 +25,11 @@ async function renderizarEmitirOS() {
         campoDataEmissao.value = new Date().toISOString().slice(0, 10);
     }
 
-    // Verificar rascunho salvo (já inicia auto-save interno)
-    _verificarRascunhoOS();
+    // Verificar rascunho salvo — ignorar se estamos em modo edição
+    // (restaurarOSParaEdicao irá preencher os campos com dados reais da OS)
+    if (!localStorage.getItem('osEditandoId')) {
+        _verificarRascunhoOS();
+    }
 
     // Salvar rascunho imediatamente ao alterar qualquer campo do formulário
     const form = document.getElementById('form-emitir-os');
@@ -108,6 +111,13 @@ function _atualizarLabelsFormulario(cfg) {
     const labelGrupo = document.querySelector('label[for="os-grupo"]');
     if (labelGrupo) {
         labelGrupo.innerHTML = `${cfg.grupoLabel} <small style="color: #6c757d;">(região do estoque)</small>`;
+    }
+
+    // Mostrar campo "Qtd. Pessoas Atendidas" somente para módulo organização
+    const campoQtdPessoas = document.getElementById('campo-qtd-pessoas');
+    if (campoQtdPessoas) {
+        const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+        campoQtdPessoas.style.display = moduloAtual === 'organizacao' ? '' : 'none';
     }
 }
 
@@ -507,12 +517,16 @@ function renderizarTabelaItensOS() {
                 <th style="width: 45px;"></th>
             `;
         } else {
+            // Transporte: inclui colunas de trajeto por item
             thead.innerHTML = `
                 <th style="width: 35px;">#</th>
                 <th>${cfg.descLabel === 'ESPECIFICAÇÃO' ? 'Especificação' : 'Descrição'}</th>
                 <th style="width: 130px;">Categoria</th>
                 <th style="width: 100px;">${cfg.colunaQtdCompacta}</th>
-                <th style="width: 45px;"></th>
+                <th style="width: 140px;">Origem</th>
+                <th style="width: 140px;">Destino</th>
+                <th style="width: 90px;">Ida/Volta</th>
+                <th style="width: 75px;" title="➕ duplicar linha | ✕ remover"></th>
             `;
         }
     }
@@ -548,13 +562,33 @@ function renderizarTabelaItensOS() {
                 <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
             `;
         } else {
-            // Transporte: sem diárias, qtdTotal = qtdSolicitada
+            // Transporte: sem diárias, com campos de trajeto por item
+            const origem = item.trajetoOrigem || '';
+            const destino = item.trajetoDestino || '';
+            const tipo = item.trajetoTipo || '';
             tr.innerHTML = `
                 <td style="text-align: center; color: #888;">${idx + 1}</td>
                 <td class="item-descricao">${item.descricao}</td>
                 <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
-                <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
-                <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
+                <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)" style="width:90px;"></td>
+                <td><input type="text" value="${origem}" placeholder="Cidade origem" maxlength="100"
+                    oninput="atualizarItemTabela(${idx}, 'trajetoOrigem', this.value)"
+                    style="width:130px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;"></td>
+                <td><input type="text" value="${destino}" placeholder="Cidade destino" maxlength="100"
+                    oninput="atualizarItemTabela(${idx}, 'trajetoDestino', this.value)"
+                    style="width:130px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;"></td>
+                <td><select onchange="atualizarItemTabela(${idx}, 'trajetoTipo', this.value)"
+                    style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;">
+                    <option value="" ${tipo === '' ? 'selected' : ''}>—</option>
+                    <option value="ida" ${tipo === 'ida' ? 'selected' : ''}>Ida</option>
+                    <option value="volta" ${tipo === 'volta' ? 'selected' : ''}>Volta</option>
+                </select></td>
+                <td style="white-space:nowrap;">
+                    <button type="button" title="Adicionar mesma linha com trajeto diferente"
+                        onclick="duplicarItemTransporte(${idx})"
+                        style="background:#1565c0;color:#fff;border:none;border-radius:4px;padding:3px 7px;font-size:1rem;cursor:pointer;margin-right:3px;">➕</button>
+                    <button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button>
+                </td>
             `;
         }
 
@@ -569,6 +603,12 @@ function atualizarItemTabela(idx, campo, valor) {
         itensOSSelecionados[idx].diarias = parseInt(valor) || 1;
     } else if (campo === 'qtd') {
         itensOSSelecionados[idx].qtdSolicitada = parseFloat(valor) || 0;
+    } else if (campo === 'trajetoOrigem') {
+        itensOSSelecionados[idx].trajetoOrigem = valor;
+    } else if (campo === 'trajetoDestino') {
+        itensOSSelecionados[idx].trajetoDestino = valor;
+    } else if (campo === 'trajetoTipo') {
+        itensOSSelecionados[idx].trajetoTipo = valor;
     }
 
     // Recalcular total
@@ -585,6 +625,36 @@ function atualizarItemTabela(idx, campo, valor) {
 
 function removerItemOS(idx) {
     itensOSSelecionados.splice(idx, 1);
+    renderizarTabelaItensOS();
+}
+
+function duplicarItemTransporte(idx) {
+    const original = itensOSSelecionados[idx];
+    if (!original) return;
+
+    // Inverter automaticamente origem/destino e ida/volta como sugestão
+    const novoTipo = original.trajetoTipo === 'ida' ? 'volta'
+                   : original.trajetoTipo === 'volta' ? 'ida'
+                   : '';
+
+    const novaLinha = {
+        categoria: original.categoria,
+        itemId: original.itemId,
+        descricao: original.descricao,
+        unidade: original.unidade,
+        itemBec: original.itemBec,
+        valorUnit: original.valorUnit,
+        diarias: original.diarias,
+        qtdSolicitada: original.qtdSolicitada,
+        qtdTotal: original.qtdTotal,
+        // Inverter trajeto como sugestão
+        trajetoOrigem: original.trajetoDestino || '',
+        trajetoDestino: original.trajetoOrigem || '',
+        trajetoTipo: novoTipo,
+    };
+
+    // Inserir logo abaixo da linha original
+    itensOSSelecionados.splice(idx + 1, 0, novaLinha);
     renderizarTabelaItensOS();
 }
 
@@ -697,7 +767,10 @@ function coletarDadosOS() {
             qtdTotal: sel.qtdTotal,
             valorUnit: valorUnit,
             categoria: sel.categoria,
-            itemId: sel.itemId
+            itemId: sel.itemId,
+            trajetoOrigem: sel.trajetoOrigem || null,
+            trajetoDestino: sel.trajetoDestino || null,
+            trajetoTipo: sel.trajetoTipo || null,
         };
     });
 
@@ -723,7 +796,11 @@ function coletarDadosOS() {
         horario: document.getElementById('os-horario').value,
         local: document.getElementById('os-local').value,
         justificativa: document.getElementById('os-justificativa').value,
-        observacoes: document.getElementById('os-observacoes').value,  // ✅ Adicionar observações
+        observacoes: document.getElementById('os-observacoes').value,
+        qtdPessoasAtendidas: (() => {
+            const v = document.getElementById('os-qtd-pessoas')?.value;
+            return (v && parseInt(v) > 0) ? parseInt(v) : null;
+        })(),
         signatarios: signatariosOS.filter(s => s.nome.trim() !== ''),
         gestor: signatariosOS[0]?.nome || '',
         fiscal: signatariosOS[1]?.nome || '',
@@ -947,6 +1024,7 @@ async function confirmarEmissaoOS() {
             local: dadosOS.local,
             justificativa: dadosOS.justificativa,
             observacoes: dadosOS.observacoes,
+            qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
             fiscalTipo: dadosOS.fiscalTipo,
@@ -960,10 +1038,13 @@ async function confirmarEmissaoOS() {
                 itemBec: item.itemBec,
                 descricao: item.descricao,
                 unidade: item.unidade,
-                diarias: item.diarias,  // ✅ Adicionar diárias
-                qtdSolicitada: item.qtdSolicitada,  // ✅ Adicionar quantidade solicitada
+                diarias: item.diarias,
+                qtdSolicitada: item.qtdSolicitada,
                 qtdTotal: item.qtdTotal,
-                valorUnit: item.valorUnit  // ✅ NOVO: Incluir preço unitário no envio à API
+                valorUnit: item.valorUnit,
+                trajetoOrigem: item.trajetoOrigem || null,
+                trajetoDestino: item.trajetoDestino || null,
+                trajetoTipo: item.trajetoTipo || null,
             }))
         };
 
@@ -1137,7 +1218,7 @@ function salvarRascunhoOS() {
         'os-contrato-num', 'os-data-assinatura', 'os-prazo-vigencia',
         'os-detentora', 'os-cnpj', 'os-servico', 'os-grupo',
         'os-evento', 'os-data-evento', 'os-horario', 'os-local',
-        'os-justificativa', 'os-observacoes', 'os-responsavel'
+        'os-justificativa', 'os-observacoes', 'os-responsavel', 'os-qtd-pessoas'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);

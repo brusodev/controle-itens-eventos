@@ -4,20 +4,41 @@
 
 async function renderizarOrdensServico() {
     console.log('📞 renderizarOrdensServico chamada - Buscando do banco...');
+    await _popularFiltroGrupo();
     await filtrarOS();
     console.log('✅ renderizarOrdensServico concluída');
+}
+
+async function _popularFiltroGrupo() {
+    const select = document.getElementById('filtro-grupo');
+    if (!select) return;
+    try {
+        const grupos = await APIClient.listarGrupos();
+        const valorAtual = select.value;
+        select.innerHTML = '<option value="">Todos os grupos</option>';
+        (grupos || []).forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = `Grupo ${g}`;
+            select.appendChild(opt);
+        });
+        if (valorAtual) select.value = valorAtual;
+    } catch (e) {
+        console.warn('Não foi possível carregar grupos:', e);
+    }
 }
 
 async function filtrarOS() {
     const container = document.getElementById('lista-ordens-servico');
     const busca = document.getElementById('filtro-os').value.toLowerCase();
+    const grupo = document.getElementById('filtro-grupo')?.value || '';
 
     container.innerHTML = '<p class="empty-message">Carregando...</p>';
 
     try {
         // ✅ SEMPRE buscar direto da API - SEM CACHE
         console.log('🔄 filtrarOS: Buscando da API...');
-        const ordensServico = await APIClient.listarOrdensServico(busca);
+        const ordensServico = await APIClient.listarOrdensServico(busca, grupo);
         console.log('📡 filtrarOS: API retornou', ordensServico.length, 'O.S.');
         console.log('📋 filtrarOS: Dados completos:', ordensServico);
 
@@ -70,10 +91,9 @@ async function filtrarOS() {
                     <button class="btn-small btn-success" onclick="imprimirOS(${os.id})">🖨️ Imprimir</button>
                     <button class="btn-small btn-secondary" onclick="baixarPDFTextoSelecionavel(${os.id})">📄 PDF</button>
                     ${usuarioPerfil === 'admin' && statusOS === 'emitida' ? `<button class="btn-small btn-danger" onclick="excluirOS(${os.id}, '${os.numeroOS}')">🗑️ Excluir</button>` : ''}
-                    ${usuarioPerfil === 'admin' && statusOS === 'emitida' ? `<button class="btn-small" style="background:#7b1fa2;color:#fff" onclick="enviarParaEmpresa(${os.id}, ${os.detentora_id || 'null'}, '${(os.detentora || '').replace(/'/g, "\\'")}')">📤 Enviar para Empresa</button>` : ''}
-                    ${usuarioPerfil === 'admin' && statusOS === 'em_revisao' ? `<button class="btn-small" style="background:#7b1fa2;color:#fff" onclick="reenviarParaEmpresa(${os.id})">🔄 Reenviar para Empresa</button>` : ''}
                     ${usuarioPerfil === 'admin' && statusOS !== 'emitida' ? `<button class="btn-small" style="background:#00695c;color:#fff" onclick="verAtividadePortal(${os.id})">💬 Atividade</button>` : ''}
-                    ${(usuarioPerfil === 'admin' || usuarioPerfil === 'comum') && !['cancelada','executada','recusada'].includes(statusOS) ? `<button class="btn-small" style="background:#1565c0;color:#fff" onclick="abrirModalAssinarInterno(${os.id})">✍️ Assinar</button>` : ''}
+                    ${(usuarioPerfil === 'admin' || usuarioPerfil === 'comum') && !['cancelada','recusada'].includes(statusOS) ? `<button class="btn-small" style="background:#e65100;color:#fff" onclick="abrirModalPagamento(${os.id}, '${os.pagamentoVencimento || ''}', ${os.pagamentoPago ? 'true' : 'false'})">💰 Pagamento</button>` : ''}
+                    <button class="btn-small" style="background:#37474f;color:#fff" onclick="baixarPNGParaSEI(${os.id}, '${os.numeroOS}')">🖼️ PNG/SEI</button>
                     ${usuarioPerfil === 'admin' && ['aceita','em_execucao'].includes(statusOS) ? `<button class="btn-small btn-danger" onclick="cancelarOS(${os.id}, '${os.numeroOS}')">🚫 Cancelar</button>` : ''}
                 </div>
             `;
@@ -285,9 +305,12 @@ async function visualizarOSEmitida(osId) {
 
         // Mudar os botões do modal para incluir imprimir e PDF
         const modalButtons = document.querySelector('#modal-visualizar-os .modal-content > div:last-child');
+        const ehTransporte = os.modulo === 'transporte';
+        const ehAdmin = usuarioPerfil === 'admin';
         modalButtons.innerHTML = `
             <button class="btn-small btn-success" onclick="imprimirOS(${osId})">🖨️ Imprimir</button>
             <button class="btn-small btn-primary" onclick="baixarPDFTextoSelecionavel(${osId})">📥 Baixar PDF</button>
+            ${ehTransporte && ehAdmin ? `<button class="btn-small" style="background:#1565c0;color:#fff" onclick="fecharModalVisualizarOS(); abrirModalEditarTrajeto(${osId})">🗺️ Editar Trajeto</button>` : ''}
             <button class="btn-small btn-secondary" onclick="fecharModalVisualizarOS()">❌ Fechar</button>
         `;
 
@@ -372,11 +395,15 @@ async function baixarPDFTextoSelecionavel(osId) {
             // Converter resposta para blob
             const blob = await response.blob();
 
-            // Criar link de download
+            // Ler nome do arquivo do header Content-Disposition
+            const cd = response.headers.get('Content-Disposition') || '';
+            const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            const filename = match ? match[1].replace(/['"]/g, '') : `${os.numeroOS.replace('/', '-')}.pdf`;
+
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `OS_${os.numeroOS.replace('/', '-')}.pdf`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
 
@@ -593,106 +620,21 @@ async function baixarPDFOS(osId) {
     }
 }
 
-// Função para editar uma O.S.
+// Inicia edição: sincroniza módulo, guarda ID e redireciona.
+// O preenchimento real do formulário é feito por restaurarOSParaEdicao()
+// após o carregamento da página /emitir-os.
 async function editarOS(osId) {
     try {
-        // Buscar dados atualizados da API
         const os = await APIClient.obterOrdemServico(osId);
-        if (!os) {
-            alert('Ordem de Serviço não encontrada.');
-            return;
-        }
+        if (!os) { alert('Ordem de Serviço não encontrada.'); return; }
 
-        // Armazenar ID da O.S. sendo editada
+        // Garantir que o módulo correto está ativo antes do redirect
+        if (os.modulo) localStorage.setItem('modulo_atual', os.modulo);
+
         localStorage.setItem('osEditandoId', osId);
-
-        // Navegar para a página de edição/emissão de O.S.
         window.location.href = '/emitir-os';
-
-        // Função auxiliar para converter data pt-BR para formato input date (YYYY-MM-DD)
-        const converterDataParaInput = (dataBR) => {
-            if (!dataBR) return '';
-            try {
-                // Se já está no formato YYYY-MM-DD, retorna direto
-                if (dataBR.match(/^\d{4}-\d{2}-\d{2}$/)) return dataBR;
-
-                // Converter de DD/MM/YYYY para YYYY-MM-DD
-                const partes = dataBR.split('/');
-                if (partes.length === 3) {
-                    const [dia, mes, ano] = partes;
-                    return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-                }
-            } catch (e) {
-                console.error('Erro ao converter data:', e);
-            }
-            return dataBR;
-        };
-
-        // Preencher campos do formulário
-        document.getElementById('os-contrato-num').value = os.contrato || '';
-        document.getElementById('os-data-assinatura').value = converterDataParaInput(os.dataAssinatura);
-        document.getElementById('os-prazo-vigencia').value = os.prazoVigencia || '';
-        document.getElementById('os-detentora').value = os.detentora || '';
-        document.getElementById('os-cnpj').value = os.cnpj || '';
-        document.getElementById('os-servico').value = os.servico || 'COFFEE BREAK';
-        document.getElementById('os-grupo').value = os.grupo || '';
-        document.getElementById('os-evento').value = os.evento || '';
-        document.getElementById('os-data-emissao').value = converterDataParaInput(os.dataEmissao);
-        document.getElementById('os-data-evento').value = converterDataParaInput(os.data);
-        document.getElementById('os-horario').value = os.horario || '';
-        document.getElementById('os-local').value = os.local || '';
-        document.getElementById('os-justificativa').value = os.justificativa || '';
-        document.getElementById('os-observacoes').value = os.observacoes || '';
-        document.getElementById('os-responsavel').value = os.responsavel || '';
-
-        // Carregar signatários dinâmicos
-        if (os.signatarios && os.signatarios.length > 0) {
-            signatariosOS = os.signatarios.map(s => ({ cargo: s.cargo || '', nome: s.nome || '' }));
-        } else {
-            // Fallback para campos legados
-            signatariosOS = [
-                { cargo: 'Gestor do Contrato', nome: os.gestorContrato || '' },
-                { cargo: os.fiscalTipo || 'Fiscal do Contrato', nome: os.fiscalContrato || '' }
-            ];
-        }
-        renderizarSignatarios();
-
-        // Limpar itens existentes e popular com os itens da O.S.
-        itensOSSelecionados = [];
-
-        if (os.itens && os.itens.length > 0) {
-            for (const item of os.itens) {
-                const diarias = item.diarias || 1;
-                const qtdSolicitada = item.qtdSolicitada || item.quantidade_solicitada || (item.qtdTotal || item.quantidade_total || 0) / diarias;
-
-                itensOSSelecionados.push({
-                    categoria: item.categoria,
-                    itemId: item.itemId,
-                    descricao: item.descricao,
-                    unidade: item.unidade || '',
-                    itemBec: item.itemBec || '',
-                    diarias: diarias,
-                    qtdSolicitada: qtdSolicitada,
-                    qtdTotal: diarias * qtdSolicitada
-                });
-            }
-        }
-
-        renderizarTabelaItensOS();
-
-        // Substituir botões do formulário pelo padrão de edição
-        const containerBotoes = document.getElementById('botoes-formulario-os');
-        containerBotoes.innerHTML = `
-            <button type="button" class="btn-small btn-primary" onclick="visualizarOS()">👁️ Visualizar</button>
-            <button type="button" class="btn-small btn-success" onclick="salvarEFecharOS()">💾 Salvar e Fechar</button>
-            <button type="button" class="btn-small btn-warning" onclick="salvarEContinuarOS()">💾 Salvar e Continuar</button>
-            <button type="button" class="btn-small btn-danger" onclick="cancelarEdicaoOS()">❌ Cancelar</button>
-        `;
-
-        alert('✏️ Modo Edição ativado! Altere os campos necessários e use os botões para salvar ou cancelar.');
-
     } catch (error) {
-        console.error('Erro ao carregar O.S. para edição:', error);
+        console.error('Erro ao iniciar edição da O.S.:', error);
         alert('Erro ao carregar dados da O.S. para edição.');
     }
 }
@@ -707,30 +649,25 @@ async function restaurarOSParaEdicao() {
             return; // Sem O.S. para editar
         }
 
-        // Remover do localStorage
-        localStorage.removeItem('osEditandoId');
-        console.log('✅ Removido osEditandoId do localStorage');
-
-        // Aguardar um pouco para garantir que a página está pronta
-        await new Promise(resolve => setTimeout(resolve, 200));
-
         // Verificar se estamos na página de emissão de O.S.
         const formOS = document.getElementById('form-emitir-os');
-        console.log('🔍 Procurando form-emitir-os:', formOS ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
-        if (!formOS) {
-            console.log('⚠️ Formulário não encontrado, abortando restauração');
+        if (!formOS) return;
+
+        // Buscar dados da O.S.
+        const os = await APIClient.obterOrdemServico(parseInt(osIdParaEditar));
+        if (!os) {
+            alert('Ordem de Serviço não encontrada.');
             return;
         }
 
-        // Buscar dados da O.S.
-        console.log('📡 Buscando O.S. com ID:', osIdParaEditar);
-        const os = await APIClient.obterOrdemServico(parseInt(osIdParaEditar));
-        console.log('📦 Dados da O.S. recebidos:', os);
+        // Remover flag de edição do localStorage (agora que temos os dados)
+        localStorage.removeItem('osEditandoId');
 
-        if (!os) {
-            alert('Ordem de Serviço não encontrada.');
-            console.error('❌ O.S. não encontrada na API');
-            return;
+        // Sincronizar módulo com a OS e recarregar grupos se necessário
+        if (os.modulo && os.modulo !== (localStorage.getItem('modulo_atual') || 'coffee')) {
+            localStorage.setItem('modulo_atual', os.modulo);
+            if (typeof atualizarLabelsModulo === 'function') atualizarLabelsModulo();
+            if (typeof carregarGruposDropdown === 'function') await carregarGruposDropdown();
         }
 
         // Definir que estamos editando (variável global)
@@ -741,9 +678,10 @@ async function restaurarOSParaEdicao() {
         const converterDataParaInput = (dataBR) => {
             if (!dataBR) return '';
             try {
-                // Se já está no formato YYYY-MM-DD, retorna direto
+                // ISO com horário: "2026-06-05T10:00:00" → "2026-06-05"
+                if (dataBR.match(/^\d{4}-\d{2}-\d{2}T/)) return dataBR.substring(0, 10);
+                // Já está no formato YYYY-MM-DD
                 if (dataBR.match(/^\d{4}-\d{2}-\d{2}$/)) return dataBR;
-
                 // Converter de DD/MM/YYYY para YYYY-MM-DD
                 const partes = dataBR.split('/');
                 if (partes.length === 3) {
@@ -758,11 +696,26 @@ async function restaurarOSParaEdicao() {
 
         // Preencher campos do formulário
 
-        // Preencher seletor de grupo primeiro (se existir)
+        // Preencher seletor de grupo e disparar carregamento de detentoras (organização)
         const grupoSelect = document.getElementById('os-grupo-select');
         if (grupoSelect && os.grupo) {
             grupoSelect.value = os.grupo;
-            console.log('✅ Grupo selecionado na edição:', os.grupo);
+            // Para organização: carregar detentoras do grupo e selecionar a correta
+            if (typeof onGrupoOrganizacaoChange === 'function' && os.modulo === 'organizacao') {
+                await onGrupoOrganizacaoChange(os.grupo);
+                // Aguardar render e selecionar a detentora salva
+                await new Promise(r => setTimeout(r, 150));
+                const detSelect = document.getElementById('os-detentora-select');
+                if (detSelect && os.detentoraId) {
+                    detSelect.value = String(os.detentoraId);
+                    if (typeof onDetentoraOrganizacaoChange === 'function') {
+                        onDetentoraOrganizacaoChange(String(os.detentoraId));
+                    }
+                }
+            } else {
+                // Outros módulos: dispara o change normal
+                grupoSelect.dispatchEvent(new Event('change'));
+            }
         }
 
         document.getElementById('os-contrato-num').value = os.contrato || '';
@@ -780,6 +733,8 @@ async function restaurarOSParaEdicao() {
         document.getElementById('os-justificativa').value = os.justificativa || '';
         document.getElementById('os-observacoes').value = os.observacoes || '';
         document.getElementById('os-responsavel').value = os.responsavel || '';
+        const _qtdPEl = document.getElementById('os-qtd-pessoas');
+        if (_qtdPEl) _qtdPEl.value = os.qtdPessoasAtendidas || '';
 
         // Carregar signatários dinâmicos
         if (os.signatarios && os.signatarios.length > 0) {
@@ -808,7 +763,10 @@ async function restaurarOSParaEdicao() {
                     itemBec: item.itemBec || '',
                     diarias: diarias,
                     qtdSolicitada: qtdSolicitada,
-                    qtdTotal: diarias * qtdSolicitada
+                    qtdTotal: diarias * qtdSolicitada,
+                    trajetoOrigem: item.trajetoOrigem || '',
+                    trajetoDestino: item.trajetoDestino || '',
+                    trajetoTipo: item.trajetoTipo || '',
                 });
             }
         }
@@ -1446,5 +1404,244 @@ async function reenviarParaEmpresa(osId) {
         }
     } catch (e) {
         alert('Erro de conexão ao reenviar O.S.');
+    }
+}
+
+// ============================================================
+// MODAL DE PAGAMENTO
+// ============================================================
+
+function abrirModalPagamento(osId, vencimentoAtual, pagoAtual) {
+    const anterior = document.getElementById('modal-pagamento-os');
+    if (anterior) anterior.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-pagamento-os';
+    overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:1rem;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.25);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #eee;">
+                <h2 style="margin:0;font-size:1.1rem;color:#e65100;">💰 Pagamento</h2>
+                <button onclick="document.getElementById('modal-pagamento-os').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+            </div>
+            <div style="padding:1.25rem;">
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-size:.85rem;font-weight:600;margin-bottom:.35rem;color:#333;">Data de Vencimento da Nota</label>
+                    <input type="text" id="pag-vencimento" placeholder="dd/mm/aaaa"
+                        value="${vencimentoAtual || ''}"
+                        maxlength="10"
+                        style="width:100%;padding:.55rem .75rem;border:1px solid #ccc;border-radius:6px;font-size:.95rem;box-sizing:border-box;">
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;">
+                    <input type="checkbox" id="pag-pago" ${pagoAtual ? 'checked' : ''}
+                        style="width:18px;height:18px;cursor:pointer;accent-color:#2e7d32;">
+                    <label for="pag-pago" style="font-size:.95rem;font-weight:600;color:#333;cursor:pointer;">Nota já foi paga</label>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.25rem;border-top:1px solid #eee;">
+                <button onclick="document.getElementById('modal-pagamento-os').remove()"
+                    style="padding:.55rem 1.2rem;border-radius:8px;border:1px solid #ccc;background:#f5f5f5;font-weight:600;cursor:pointer;font-size:.9rem;">Cancelar</button>
+                <button onclick="salvarPagamento(${osId})" id="btn-salvar-pagamento"
+                    style="padding:.55rem 1.2rem;border-radius:8px;border:none;background:#e65100;color:#fff;font-weight:600;cursor:pointer;font-size:.9rem;">Salvar</button>
+            </div>
+        </div>`;
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('pag-vencimento').focus();
+}
+
+async function salvarPagamento(osId) {
+    const vencimento = document.getElementById('pag-vencimento')?.value?.trim() || '';
+    const pago = document.getElementById('pag-pago')?.checked || false;
+
+    const btn = document.getElementById('btn-salvar-pagamento');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+    try {
+        const csrfResp = await fetch('/auth/csrf-token', { credentials: 'same-origin' });
+        const { csrf_token } = await csrfResp.json();
+
+        const resp = await fetch(`/api/ordens-servico/${osId}/pagamento`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf_token },
+            body: JSON.stringify({ pagamentoVencimento: vencimento || null, pagamentoPago: pago })
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            document.getElementById('modal-pagamento-os')?.remove();
+            await filtrarOS();
+        } else {
+            alert('Erro ao salvar pagamento: ' + (data.erro || resp.status));
+            if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+        }
+    } catch (e) {
+        alert('Erro de conexão ao salvar pagamento.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+    }
+}
+
+// ============================================================
+// DOWNLOAD PNG PARA SEI
+// ============================================================
+
+async function baixarPNGParaSEI(osId, numeroOS) {
+    const btn = event?.target;
+    const txtOriginal = btn?.innerHTML;
+    if (btn) { btn.innerHTML = '⏳ Gerando...'; btn.disabled = true; }
+
+    try {
+        const response = await fetch(`/api/ordens-servico/${osId}/png`, { credentials: 'same-origin' });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.erro || response.statusText);
+        }
+
+        const blob = await response.blob();
+        // Ler nome do arquivo do header Content-Disposition
+        const cd = response.headers.get('Content-Disposition') || '';
+        const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        const filename = match ? match[1].replace(/['"]/g, '') : `${numeroOS || osId}_SEI.png`;
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (error) {
+        alert('Erro ao gerar imagem PNG: ' + error.message);
+    } finally {
+        if (btn) { btn.innerHTML = txtOriginal; btn.disabled = false; }
+    }
+}
+
+// ============================================================
+// EDITAR TRAJETO DE OS JÁ EMITIDAS (admin — transporte)
+// ============================================================
+
+async function abrirModalEditarTrajeto(osId) {
+    const os = await APIClient.obterOrdemServico(osId);
+    if (!os || !os.itens || os.itens.length === 0) {
+        alert('Nenhum item encontrado nesta OS.'); return;
+    }
+
+    const anterior = document.getElementById('modal-editar-trajeto');
+    if (anterior) anterior.remove();
+
+    let linhasHTML = os.itens.map((item, idx) => {
+        const origem = item.trajetoOrigem || '';
+        const destino = item.trajetoDestino || '';
+        const tipo = item.trajetoTipo || '';
+        return `
+        <tr>
+            <td style="padding:6px 8px;font-size:.85rem;">${idx+1}. ${item.descricao.substring(0,45)}...</td>
+            <td style="padding:4px;">
+                <input type="text" data-item-id="${item.id}" data-campo="origem"
+                    value="${origem}" placeholder="Cidade origem" maxlength="100"
+                    style="width:130px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;">
+            </td>
+            <td style="padding:4px;">
+                <input type="text" data-item-id="${item.id}" data-campo="destino"
+                    value="${destino}" placeholder="Cidade destino" maxlength="100"
+                    style="width:130px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;">
+            </td>
+            <td style="padding:4px;">
+                <select data-item-id="${item.id}" data-campo="tipo"
+                    style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;">
+                    <option value="" ${tipo===''?'selected':''}>—</option>
+                    <option value="ida" ${tipo==='ida'?'selected':''}>Ida</option>
+                    <option value="volta" ${tipo==='volta'?'selected':''}>Volta</option>
+                </select>
+            </td>
+        </tr>`;
+    }).join('');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-editar-trajeto';
+    overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:1rem;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #eee;">
+                <h2 style="margin:0;font-size:1.1rem;color:#1565c0;">🗺️ Editar Trajeto — ${os.numeroOS}</h2>
+                <button onclick="document.getElementById('modal-editar-trajeto').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;">✕</button>
+            </div>
+            <div style="padding:1rem 1.25rem;">
+                <p style="color:#666;font-size:.85rem;margin:0 0 1rem;">Edite o trajeto de cada item. Útil para corrigir OS já emitidas em produção.</p>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:#f5f5f5;font-size:.8rem;text-align:left;">
+                                <th style="padding:6px 8px;">Item</th>
+                                <th style="padding:6px 8px;">Origem</th>
+                                <th style="padding:6px 8px;">Destino</th>
+                                <th style="padding:6px 8px;">Ida/Volta</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linhasHTML}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.25rem;border-top:1px solid #eee;">
+                <button onclick="document.getElementById('modal-editar-trajeto').remove()"
+                    style="padding:.55rem 1.2rem;border-radius:8px;border:1px solid #ccc;background:#f5f5f5;font-weight:600;cursor:pointer;">Cancelar</button>
+                <button onclick="salvarTrajetos(${osId})" id="btn-salvar-trajetos"
+                    style="padding:.55rem 1.2rem;border-radius:8px;border:none;background:#1565c0;color:#fff;font-weight:600;cursor:pointer;">💾 Salvar Trajetos</button>
+            </div>
+        </div>`;
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function salvarTrajetos(osId) {
+    const btn = document.getElementById('btn-salvar-trajetos');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+    try {
+        const csrfResp = await fetch('/auth/csrf-token', { credentials: 'same-origin' });
+        const { csrf_token } = await csrfResp.json();
+
+        // Agrupar dados por item_id
+        const itensPorId = {};
+        document.querySelectorAll('#modal-editar-trajeto [data-item-id]').forEach(el => {
+            const id = el.getAttribute('data-item-id');
+            const campo = el.getAttribute('data-campo');
+            if (!itensPorId[id]) itensPorId[id] = {};
+            itensPorId[id][campo] = el.value;
+        });
+
+        const resultados = await Promise.all(
+            Object.entries(itensPorId).map(([itemId, campos]) =>
+                fetch(`/api/ordens-servico/${osId}/itens/${itemId}/trajeto`, {
+                    method: 'PUT',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf_token },
+                    body: JSON.stringify({
+                        trajetoOrigem: campos.origem || null,
+                        trajetoDestino: campos.destino || null,
+                        trajetoTipo: campos.tipo || null,
+                    })
+                }).then(r => r.json())
+            )
+        );
+
+        const erros = resultados.filter(r => r.erro);
+        if (erros.length > 0) {
+            alert('Erro ao salvar: ' + erros[0].erro);
+        } else {
+            document.getElementById('modal-editar-trajeto')?.remove();
+            alert('✅ Trajetos salvos com sucesso!');
+            await filtrarOS();
+        }
+    } catch (e) {
+        alert('Erro de conexão: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Trajetos'; }
     }
 }

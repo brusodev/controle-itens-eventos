@@ -9,6 +9,7 @@
 // Hospedagem usa "Lote" (em vez de "Grupo") e "CATSERV" (em vez de "ITEM BEC").
 const MODULE_CONFIG = {
     coffee: {
+        titulo: 'Coffee Break', emoji: '☕', itemLabel: 'Itens do Coffee',
         grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
         itemCodeLabel: 'ITEM BEC', itemCodeLabelUpper: 'ITEM BEC',
         descLabel: 'DESCRIÇÃO',
@@ -33,6 +34,7 @@ const MODULE_CONFIG = {
         }
     },
     organizacao: {
+        titulo: 'Organização', emoji: '📋', itemLabel: 'Itens Organização',
         grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
         itemCodeLabel: 'ITEM BEC', itemCodeLabelUpper: 'ITEM BEC',
         descLabel: 'DESCRIÇÃO',
@@ -58,6 +60,7 @@ const MODULE_CONFIG = {
         }
     },
     hospedagem: {
+        titulo: 'Hospedagem', emoji: '🛏️', itemLabel: 'Itens de Hospedagem',
         grupoLabel: 'Lote',   grupoLabelUpper: 'LOTE',
         itemCodeLabel: 'CATSERV',  itemCodeLabelUpper: 'CATSERV',
         descLabel: 'DESCRIÇÃO',
@@ -82,6 +85,7 @@ const MODULE_CONFIG = {
         }
     },
     transporte: {
+        titulo: 'Transporte', emoji: '🚚', itemLabel: 'Itens de Transporte',
         grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
         itemCodeLabel: 'CATSER',   itemCodeLabelUpper: 'CATSER',
         descLabel: 'ESPECIFICAÇÃO',
@@ -104,6 +108,26 @@ const MODULE_CONFIG = {
                 2: 'Intermunicipal',
                 3: 'Interestadual'
             }
+        }
+    },
+    trofeus: {
+        titulo: 'Troféus', emoji: '🏆', itemLabel: 'Itens de Troféus',
+        grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
+        itemCodeLabel: 'ITEM BEC', itemCodeLabelUpper: 'ITEM BEC',
+        descLabel: 'DESCRIÇÃO',
+        usaDiarias: true,
+        colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
+        colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
+        colunaValorUnit: 'VALOR UNIT.',
+        osDataLabel: 'DATA',
+        osHorarioLabel: 'HORÁRIO DO EVENTO',
+        osLocalLabel: 'LOCAL DO EVENTO',
+        regioes: {
+            tipo: 'grupo',
+            tipoLabel: 'Grupo',
+            tipoLabelPlural: 'Grupos',
+            quantidade: 2,
+            nomes: { 1: 'Grupo 1', 2: 'Grupo 2' }
         }
     }
 };

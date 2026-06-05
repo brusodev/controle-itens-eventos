@@ -90,33 +90,30 @@ def seed_transportes():
         for item_info in itens_data:
             cat = categorias_criadas[item_info['categoria']]
             item = Item.query.filter_by(item_codigo=item_info['codigo'], categoria_id=cat.id).first()
-            
+
             if not item:
                 item = Item(
                     categoria_id=cat.id,
                     item_codigo=item_info['codigo'],
                     descricao=item_info['descricao'],
-                    # Quantidade inicial alta para transportes (considerado "ilimitado")
-                    qtd_inicial = '39095' if item_info['categoria'] == 'Veículos Passageiros' else '999999'
-                    estoque = EstoqueRegional(
-                        item_id=item.id,
-                        regiao_numero=regiao,
-                        quantidade_inicial=qtd_inicial,
-                
-                # Criar estoques para as 6 regiões
+                    unidade=item_info['unidade'],
+                )
+                db.session.add(item)
+                db.session.flush()
+
                 for regiao in range(1, 7):
                     preco = item_info['precos'].get(str(regiao), 0)
                     estoque = EstoqueRegional(
                         item_id=item.id,
                         regiao_numero=regiao,
-                        quantidade_inicial='999999', # Quantidade "infinita" inicial para transportes
-                        quantidade_gasto='0',
-                        preco=str(preco)
+                        quantidade_inicial=999999,
+                        quantidade_gasto=0,
+                        preco=float(preco)
                     )
                     db.session.add(estoque)
-                print(f"✅ Item criado: {item_info['descricao']}")
+                print(f"  ✅ Item criado: {item_info['descricao']}")
             else:
-                print(f"ℹ️ Item já existe: {item_info['descricao']}")
+                print(f"  ℹ️ Item já existe: {item_info['descricao']}")
         
         db.session.commit()
         print("\n✅ Seed Transportes concluído com sucesso!")

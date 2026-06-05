@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     {% block extra_css %}{% endblock %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     {% from "layout_parts.html" import sidebar, topbar, script_layout %}
@@ -23,6 +24,7 @@
     </div>
 
     {% block before_scripts %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.13"></script>
     {{ script_layout() }}
     {% block scripts %}{% endblock %}
 </body>

@@ -99,6 +99,17 @@ function exibirResultadoRelatorioOS(data) {
     `;
 
     // Tabela
+    const statusLabelsRel = {
+        'emitida': { texto: 'Emitida', cor: '#1565c0', bg: '#e3f2fd' },
+        'enviada_empresa': { texto: 'Ag. Empresa', cor: '#e65100', bg: '#fff3e0' },
+        'em_revisao': { texto: 'Em Revisão', cor: '#c62828', bg: '#fce4ec' },
+        'aceita': { texto: 'Aceita', cor: '#2e7d32', bg: '#e8f5e9' },
+        'em_execucao': { texto: 'Em Execução', cor: '#283593', bg: '#e8eaf6' },
+        'executada': { texto: 'Executada', cor: '#6a1b9a', bg: '#f3e5f5' },
+        'recusada': { texto: 'Recusada', cor: '#b71c1c', bg: '#ffebee' },
+        'cancelada': { texto: 'Cancelada', cor: '#555', bg: '#eee' },
+    };
+
     let tabelaHTML = `
         <div class="relatorio-tabela">
             <table>
@@ -106,6 +117,7 @@ function exibirResultadoRelatorioOS(data) {
                     <tr>
                         <th>Nº O.S.</th>
                         <th>Data Emissão</th>
+                        <th>Status</th>
                         <th>Serviço</th>
                         <th>Evento</th>
                         <th>Contratada</th>
@@ -118,10 +130,13 @@ function exibirResultadoRelatorioOS(data) {
 
     data.ordens.forEach(os => {
         const dataEmissao = os.dataEmissao ? new Date(os.dataEmissao).toLocaleDateString('pt-BR') : '-';
+        const stCfg = statusLabelsRel[os.status] || { texto: os.status || '-', cor: '#555', bg: '#eee' };
+        const badgeStatus = `<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:600;background:${stCfg.bg};color:${stCfg.cor}">${stCfg.texto}</span>`;
         tabelaHTML += `
             <tr>
                 <td><strong>${os.numeroOS}</strong></td>
                 <td>${dataEmissao}</td>
+                <td>${badgeStatus}</td>
                 <td>${os.servico || '-'}</td>
                 <td>${os.evento || '-'}</td>
                 <td>${os.detentora || '-'}</td>
@@ -478,6 +493,9 @@ async function gerarRelatorioTopItens() {
     }
 }
 
+// Referência global para destruir o gráfico antes de recriar
+let _graficoPizzaItens = null;
+
 function exibirResultadoRelatorioTopItens(data) {
     const resultado = document.getElementById('resultado-rel-top');
     const tabela = document.getElementById('tabela-rel-top');
@@ -523,6 +541,53 @@ function exibirResultadoRelatorioTopItens(data) {
     `;
 
     tabela.innerHTML = tabelaHTML;
+
+    // Gráfico de pizza
+    _renderizarGraficoPizza(data.ranking);
+}
+
+function _renderizarGraficoPizza(ranking) {
+    const canvas = document.getElementById('grafico-pizza-itens');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    if (_graficoPizzaItens) {
+        _graficoPizzaItens.destroy();
+        _graficoPizzaItens = null;
+    }
+
+    const labels = ranking.map(i => i.descricao.length > 30 ? i.descricao.substring(0, 28) + '…' : i.descricao);
+    const valores = ranking.map(i => i.total_consumido);
+
+    const cores = [
+        '#1565c0','#e65100','#2e7d32','#6a1b9a','#c62828',
+        '#00695c','#283593','#4e342e','#37474f','#f57f17',
+        '#558b2f','#0277bd','#ad1457','#6d4c41','#5c6bc0',
+    ];
+
+    _graficoPizzaItens = new Chart(canvas, {
+        type: 'pie',
+        data: {
+            labels,
+            datasets: [{
+                data: valores,
+                backgroundColor: cores.slice(0, labels.length),
+                borderWidth: 1,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
+                title: { display: true, text: 'Itens mais utilizados (por qtd. consumida)', font: { size: 13 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString('pt-BR')}`
+                    }
+                }
+            }
+        }
+    });
 }
 
 console.log('✅ Funções de relatórios carregadas!');

@@ -57,8 +57,13 @@ class PDFOrdemServico:
             'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
         },
         'transporte':  {
-            'grupo': 'GRUPO',  'item_code': 'CATSER',    'desc': 'ESPECIFICAÇÃO', 'usa_diarias': False, 
+            'grupo': 'GRUPO',  'item_code': 'CATSER',    'desc': 'ESPECIFICAÇÃO', 'usa_diarias': False,
             'qtd_label': 'QTDE KM',             'qtd_total_label': None,                           'valor_unit_label': 'VALOR UNIT.<br/>DO KM',
+            'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
+        },
+        'trofeus':     {
+            'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': True,
+            'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.',
             'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
         },
     }
@@ -489,9 +494,20 @@ class PDFOrdemServico:
                     Paragraph(f'R$ {total_item:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal'])
                 ]
             else:
+                # Transporte: incluir trajeto na célula de descrição
+                desc_texto = item.get('descricao', '')
+                origem = item.get('trajetoOrigem', '') or ''
+                destino = item.get('trajetoDestino', '') or ''
+                tipo = item.get('trajetoTipo', '') or ''
+                tipo_label = {'ida': 'Ida', 'volta': 'Volta'}.get(tipo, '')
+                if origem or destino:
+                    trajeto_str = f'{origem} → {destino}' if (origem and destino) else (origem or destino)
+                    if tipo_label:
+                        trajeto_str += f' ({tipo_label})'
+                    desc_texto += f'<br/><font size="8" color="#1a5276"><b>{trajeto_str}</b></font>'
                 row = [
                     Paragraph(str(idx), self.styles['CustomNormal']),
-                    Paragraph(item.get('descricao', ''), self.styles['CustomNormal']),
+                    Paragraph(desc_texto, self.styles['CustomNormal']),
                     Paragraph(str(item.get('itemBec', '')), self.styles['CustomNormal']),
                     Paragraph(qtd_total_fmt, self.styles['CustomNormal']),
                     Paragraph(f'R$ {valor_unit:.2f}', self.styles['CustomNormal']),

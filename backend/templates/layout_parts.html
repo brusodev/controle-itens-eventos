@@ -172,19 +172,15 @@
                 document.getElementById('sidebar').classList.add('collapsed');
             }
 
-            // Atualizar título do módulo na topbar imediatamente
+            // Atualizar título do módulo na topbar — usa MODULE_CONFIG de globals.js
             const modulo = localStorage.getItem('modulo_atual') || 'coffee';
-            const moduloConfig = {
-                'coffee': { icon: '☕', label: 'Coffee Break', menuIcon: '🍽️', menuText: 'Itens do Coffee' },
-                'transporte': { icon: '🚚', label: 'Transporte', menuIcon: '🚐', menuText: 'Itens Transporte' },
-                'organizacao': { icon: '📋', label: 'Organização', menuIcon: '📋', menuText: 'Itens Organização' },
-                'hospedagem': { icon: '🛏️', label: 'Hospedagem', menuIcon: '🏨', menuText: 'Itens de Hospedagem' }
-            };
-            const cfg = moduloConfig[modulo] || moduloConfig['coffee'];
+            const mc = (typeof MODULE_CONFIG !== 'undefined' ? MODULE_CONFIG : {})[modulo]
+                    || (typeof MODULE_CONFIG !== 'undefined' ? MODULE_CONFIG : {})['coffee']
+                    || { titulo: 'Coffee Break', emoji: '☕', itemLabel: 'Itens do Coffee' };
 
             const titleElement = document.getElementById('page-module-title');
             if (titleElement) {
-                titleElement.textContent = `Módulo: ${cfg.icon} ${cfg.label}`;
+                titleElement.textContent = `Módulo: ${mc.emoji} ${mc.titulo}`;
             }
 
             // Atualizar label do menu de estoque conforme módulo
@@ -192,8 +188,8 @@
             if (menuAlimentacao) {
                 const iconSpan = menuAlimentacao.querySelector('.menu-icon');
                 const textSpan = menuAlimentacao.querySelector('.menu-text');
-                if (iconSpan) iconSpan.textContent = cfg.menuIcon;
-                if (textSpan) textSpan.textContent = cfg.menuText;
+                if (iconSpan) iconSpan.textContent = mc.emoji;
+                if (textSpan) textSpan.textContent = mc.itemLabel;
             }
         });
     </script>

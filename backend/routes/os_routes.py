@@ -12,6 +12,7 @@ from utils.auditoria import registrar_auditoria
 import sys
 import os
 import json
+import re
 
 # Adicionar o diretório utils ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'utils'))
@@ -41,31 +42,106 @@ def _parsear_data_emissao(data_str):
         return datetime.now()
 
 
-def gerar_proximo_numero_os(modulo=None):
-    """Gera automaticamente o próximo número de O.S. no formato N/ANO, por módulo"""
-    ano_atual = datetime.now().year
+def _extrair_numero_os(numero_os):
+    if not numero_os:
+        return None
+    s = str(numero_os).strip().upper()
+    if '/' in s:
+        s = s.split('/')[0]
+    if s.startswith('OS-'):
+        s = s[3:]
+    try:
+        return int(s)
+    except ValueError:
+        m = re.search(r'(\d+)', s)
+        return int(m.group(1)) if m else None
 
-    # Buscar o último número do ano atual para o módulo específico
-    query = OrdemServico.query.filter(
-        OrdemServico.numero_os.like(f'%/{ano_atual}')
-    )
+
+_MODULO_LABEL = {
+    'coffee': 'CoffeeBreak',
+    'transporte': 'Transporte',
+    'organizacao': 'Organizacao',
+    'hospedagem': 'Hospedagem',
+    'trofeus': 'Trofeus',
+}
+
+def _nome_arquivo_os(dados_pdf, extensao='pdf'):
+    """Gera nome de arquivo identificável: Modulo_Detentora_Grupo_OS-XXX_DD-MM-AAAA.ext"""
+    import re as _re
+    from datetime import datetime as _dt
+
+    def _slug(texto, max_len=20):
+        if not texto:
+            return ''
+        s = str(texto).strip()
+        s = _re.sub(r'[^\w\s-]', '', s, flags=_re.UNICODE)
+        s = _re.sub(r'[\s]+', '-', s)
+        return s[:max_len]
+
+    modulo = dados_pdf.get('modulo', 'os')
+    modulo_label = _MODULO_LABEL.get(modulo, modulo.capitalize())
+    detentora = _slug(dados_pdf.get('detentora') or '', 15)
+    grupo = dados_pdf.get('grupo') or ''
+    numero_os = (dados_pdf.get('numeroOS') or '').replace('/', '-')
+    data_emissao = dados_pdf.get('dataEmissao') or ''
+    try:
+        dt = _dt.fromisoformat(str(data_emissao).replace('Z', '')) if data_emissao else _dt.now()
+        data_str = dt.strftime('%d-%m-%Y')
+    except Exception:
+        data_str = _dt.now().strftime('%d-%m-%Y')
+
+    partes = [modulo_label]
+    if detentora:
+        partes.append(detentora)
+    if grupo:
+        partes.append(f'G{grupo}')
+    partes.append(numero_os)
+    partes.append(data_str)
+
+    return '_'.join(partes) + f'.{extensao}'
+
+
+def gerar_proximo_numero_os(modulo=None, detentora_id=None):
+    """Gera automaticamente o próximo número de O.S. (OS-001) por detentora e módulo"""
+    query = OrdemServico.query
     if modulo:
         query = query.filter(OrdemServico.modulo == modulo)
+    if detentora_id is not None:
+        query = query.filter(OrdemServico.detentora_id == detentora_id)
 
     ultima_os = query.order_by(OrdemServico.id.desc()).first()
 
     if ultima_os:
-        # Extrair o número da última O.S. (formato: "N/ANO")
-        try:
-            numero_atual = int(ultima_os.numero_os.split('/')[0])
-            proximo_numero = numero_atual + 1
-        except (ValueError, IndexError):
-            proximo_numero = 1
+        numero_atual = _extrair_numero_os(ultima_os.numero_os) or 0
+        proximo_numero = numero_atual + 1
     else:
-        # Primeira O.S. do ano para este módulo
         proximo_numero = 1
 
-    return f"{proximo_numero}/{ano_atual}"
+    return f"OS-{proximo_numero:03d}"
+
+
+def _max_grupo_por_modulo(modulo):
+    if modulo == 'organizacao':
+        return 3
+    if modulo == 'transporte':
+        return 1
+    if modulo == 'trofeus':
+        return 2
+    return 6
+
+
+def _resolver_detentora_id(modulo, grupo, detentora_nome, detentora_id=None):
+    if detentora_id:
+        return int(detentora_id)
+
+    query = Detentora.query.filter_by(modulo=modulo, ativo=True)
+    if grupo:
+        query = query.filter_by(grupo=str(grupo).strip())
+    if detentora_nome:
+        query = query.filter(Detentora.nome.ilike(detentora_nome))
+
+    det = query.first()
+    return det.id if det else None
 
 
 @os_bp.route('/proximo-numero', methods=['GET'])
@@ -74,7 +150,8 @@ def obter_proximo_numero():
     """Retorna o próximo número de O.S. disponível para o módulo"""
     try:
         modulo = request.args.get('modulo', 'coffee')
-        proximo_numero = gerar_proximo_numero_os(modulo)
+        detentora_id = request.args.get('detentora_id')
+        proximo_numero = gerar_proximo_numero_os(modulo, int(detentora_id) if detentora_id else None)
         return jsonify({'proximoNumero': proximo_numero}), 200
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
@@ -90,6 +167,10 @@ def listar_ordens():
         
         query = OrdemServico.query.filter_by(modulo=modulo)
         
+        grupo = request.args.get('grupo')
+        if grupo:
+            query = query.filter(OrdemServico.grupo == str(grupo).strip())
+
         if busca:
             query = query.filter(
                 db.or_(
@@ -98,8 +179,10 @@ def listar_ordens():
                     OrdemServico.detentora.ilike(f'%{busca}%')
                 )
             )
-        
-        ordens = query.order_by(OrdemServico.data_emissao.desc(), OrdemServico.id.desc()).all()
+
+        ordens = query.order_by(
+            OrdemServico.id.desc()
+        ).all()
         return jsonify([os.to_dict() for os in ordens]), 200
     
     except Exception as e:
@@ -143,30 +226,33 @@ def criar_ordem():
             print(f"  Qtd Total: {item.get('qtdTotal', 'MISSING')}")
         print("="*60 + "\n")
         
-        # Gerar próximo número automaticamente (por módulo)
+        # Gerar próximo número automaticamente (por módulo + detentora)
         modulo_os = dados.get('modulo') or request.args.get('modulo', 'coffee')
-        numero_os_gerado = gerar_proximo_numero_os(modulo_os)
+        detentora_id = dados.get('detentoraId') or dados.get('detentora_id') or None
+        detentora_id = int(detentora_id) if detentora_id else None
+        if not detentora_id:
+            detentora_id = _resolver_detentora_id(modulo_os, dados.get('grupo'), dados.get('detentora'))
+        numero_os_gerado = gerar_proximo_numero_os(modulo_os, detentora_id)
         print(f"🔢 Número da O.S. gerado automaticamente: {numero_os_gerado}")
         
         # ✅ VALIDAR E OBTER REGIÃO DO GRUPO
         grupo = dados.get('grupo')
         try:
             regiao_estoque = int(grupo) if grupo else None
-            if not regiao_estoque or regiao_estoque < 1 or regiao_estoque > 6:
+            max_grupo = _max_grupo_por_modulo(modulo_os)
+            if not regiao_estoque or regiao_estoque < 1 or regiao_estoque > max_grupo:
                 return jsonify({
-                    'erro': f'Grupo/Região inválida: {grupo}. Deve ser um número entre 1 e 6.'
+                    'erro': f'Grupo/Região inválida: {grupo}. Deve ser um número entre 1 e {max_grupo}.'
                 }), 400
         except (ValueError, TypeError):
             return jsonify({
-                'erro': f'Grupo inválido: {grupo}. Deve ser um número entre 1 e 6.'
+                'erro': f'Grupo inválido: {grupo}. Deve ser um número entre 1 e {_max_grupo_por_modulo(modulo_os)}.'
             }), 400
         
         print(f"🗺️  Região do estoque: {regiao_estoque}")
         
         # Resolver detentora_id: aceita id explícito ou busca pelo nome/grupo
-        detentora_id = dados.get('detentoraId') or dados.get('detentora_id') or None
-        if detentora_id:
-            detentora_id = int(detentora_id)
+        detentora_id = detentora_id or _resolver_detentora_id(modulo_os, grupo, dados.get('detentora'))
 
         # Criar ordem de serviço
         os = OrdemServico(
@@ -187,6 +273,11 @@ def criar_ordem():
             local=dados.get('local'),
             justificativa=dados.get('justificativa'),
             observacoes=dados.get('observacoes'),
+            trajeto_origem=dados.get('trajetoOrigem'),
+            trajeto_destino=dados.get('trajetoDestino'),
+            trajeto_km=dados.get('trajetoKm'),
+            trajeto_tipo=dados.get('trajetoTipo'),
+            qtd_pessoas_atendidas=dados.get('qtdPessoasAtendidas'),
             gestor_contrato=dados.get('gestorContrato'),
             fiscal_contrato=dados.get('fiscalContrato'),
             fiscal_tipo=dados.get('fiscalTipo', 'Fiscal do Contrato'),
@@ -226,7 +317,10 @@ def criar_ordem():
                 diarias=item_os_data.get('diarias') or 1,
                 quantidade_solicitada=item_os_data.get('qtdSolicitada'),
                 quantidade_total=item_os_data['qtdTotal'],
-                valor_unitario=valor_unitario  # ✅ NOVO: Salvar valor unitário
+                valor_unitario=valor_unitario,
+                trajeto_origem=item_os_data.get('trajetoOrigem') or None,
+                trajeto_destino=item_os_data.get('trajetoDestino') or None,
+                trajeto_tipo=item_os_data.get('trajetoTipo') or None,
             )
             db.session.add(item_os)
             itens_os.append(item_os)
@@ -325,15 +419,16 @@ def atualizar_ordem(os_id):
         grupo = dados.get('grupo', os.grupo)
         try:
             regiao_estoque = int(grupo) if grupo else os.regiao_estoque
-            if not regiao_estoque or regiao_estoque < 1 or regiao_estoque > 6:
+            max_grupo = _max_grupo_por_modulo(os.modulo)
+            if not regiao_estoque or regiao_estoque < 1 or regiao_estoque > max_grupo:
                 db.session.rollback()
                 return jsonify({
-                    'erro': f'Grupo/Região inválida: {grupo}. Deve ser um número entre 1 e 6.'
+                    'erro': f'Grupo/Região inválida: {grupo}. Deve ser um número entre 1 e {max_grupo}.'
                 }), 400
         except (ValueError, TypeError):
             db.session.rollback()
             return jsonify({
-                'erro': f'Grupo inválido: {grupo}. Deve ser um número entre 1 e 6.'
+                'erro': f'Grupo inválido: {grupo}. Deve ser um número entre 1 e {_max_grupo_por_modulo(os.modulo)}.'
             }), 400
         
         os.grupo = grupo
@@ -345,6 +440,11 @@ def atualizar_ordem(os_id):
         os.local = dados.get('local', os.local)
         os.justificativa = dados.get('justificativa', os.justificativa)
         os.observacoes = dados.get('observacoes', os.observacoes)
+        os.trajeto_origem = dados.get('trajetoOrigem', os.trajeto_origem)
+        os.trajeto_destino = dados.get('trajetoDestino', os.trajeto_destino)
+        os.trajeto_km = dados.get('trajetoKm', os.trajeto_km)
+        os.trajeto_tipo = dados.get('trajetoTipo', os.trajeto_tipo)
+        os.qtd_pessoas_atendidas = dados.get('qtdPessoasAtendidas', os.qtd_pessoas_atendidas)
         os.gestor_contrato = dados.get('gestorContrato', os.gestor_contrato)
         os.fiscal_contrato = dados.get('fiscalContrato', os.fiscal_contrato)
         os.fiscal_tipo = dados.get('fiscalTipo', os.fiscal_tipo)
@@ -360,6 +460,8 @@ def atualizar_ordem(os_id):
         if 'detentoraId' in dados or 'detentora_id' in dados:
             det_id = dados.get('detentoraId') or dados.get('detentora_id')
             os.detentora_id = int(det_id) if det_id else None
+        elif not os.detentora_id:
+            os.detentora_id = _resolver_detentora_id(os.modulo, os.grupo, os.detentora)
 
         # Adicionar novos itens
         itens_os = []
@@ -387,7 +489,10 @@ def atualizar_ordem(os_id):
                 diarias=item_os_data.get('diarias') or 1,
                 quantidade_solicitada=item_os_data.get('qtdSolicitada'),
                 quantidade_total=item_os_data['qtdTotal'],
-                valor_unitario=valor_unitario  # ✅ NOVO: Salvar valor unitário
+                valor_unitario=valor_unitario,
+                trajeto_origem=item_os_data.get('trajetoOrigem') or None,
+                trajeto_destino=item_os_data.get('trajetoDestino') or None,
+                trajeto_tipo=item_os_data.get('trajetoTipo') or None,
             )
             db.session.add(item_os)
             itens_os.append(item_os)
@@ -570,9 +675,7 @@ def gerar_pdf_ordem(os_id):
         # Gerar PDF
         pdf_buffer = gerar_pdf_os(dados_pdf)
         
-        # Nome do arquivo
-        numero_os_limpo = dados_pdf['numeroOS'].replace('/', '-')
-        filename = f"OS_{numero_os_limpo}.pdf"
+        filename = _nome_arquivo_os(dados_pdf, 'pdf')
         
         # Verificar se é para impressão (inline) ou download
         is_print = request.args.get('print', 'false').lower() == 'true'
@@ -596,6 +699,140 @@ def gerar_pdf_ordem(os_id):
         print(f"❌ Erro ao gerar PDF: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'erro': str(e)}), 500
+
+
+@os_bp.route('/<int:os_id>/png', methods=['GET'])
+@login_requerido
+def baixar_png_os(os_id):
+    """Gera PNG da OS (imagem) para upload e assinatura no SEI."""
+    try:
+        import fitz  # PyMuPDF
+        from io import BytesIO as _BytesIO
+
+        db.session.expire_all()  # garante dados frescos do banco
+        os_obj = db.session.get(OrdemServico, os_id)
+        if os_obj is None:
+            return jsonify({'erro': 'Ordem de Serviço não encontrada'}), 404
+        dados_pdf = os_obj.to_dict(incluir_itens=True)
+        dados_pdf['aceites'] = [a.to_dict() for a in os_obj.aceites]
+        dados_pdf['assinaturas_internas'] = [a.to_dict() for a in os_obj.assinaturas_internas]
+
+        pdf_buffer = gerar_pdf_os(dados_pdf)
+        pdf_bytes = pdf_buffer.read() if hasattr(pdf_buffer, 'read') else pdf_buffer.getvalue()
+
+        from PIL import Image as _PILImage
+
+        doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+        mat = fitz.Matrix(2.0, 2.0)  # 2× zoom → ~144 dpi
+
+        imagens_pil = []
+        for page in doc:
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            img = _PILImage.frombytes('RGB', (pix.width, pix.height), pix.samples)
+            imagens_pil.append(img)
+        doc.close()
+
+        largura = max(i.width for i in imagens_pil)
+        altura_total = sum(i.height for i in imagens_pil)
+        combinado = _PILImage.new('RGB', (largura, altura_total), (255, 255, 255))
+        y_off = 0
+        for img in imagens_pil:
+            combinado.paste(img, (0, y_off))
+            y_off += img.height
+
+        buf_png = _BytesIO()
+        combinado.save(buf_png, format='PNG', optimize=False)
+        buf_png.seek(0)
+        png_bytes = buf_png.read()
+
+        png_filename = _nome_arquivo_os(dados_pdf, 'png')
+        response = send_file(
+            _BytesIO(png_bytes),
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=png_filename
+        )
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': str(e)}), 500
+
+
+@os_bp.route('/<int:os_id>/itens/<int:item_id>/trajeto', methods=['PUT'])
+@login_requerido
+@admin_requerido
+@csrf_protegido
+def atualizar_trajeto_item(os_id, item_id):
+    """Atualiza origem, destino e tipo de trajeto de um item de OS (admin)."""
+    try:
+        from models import ItemOrdemServico
+        item = ItemOrdemServico.query.filter_by(id=item_id, ordem_servico_id=os_id).first()
+        if not item:
+            return jsonify({'erro': 'Item não encontrado nesta OS'}), 404
+
+        dados = request.get_json() or {}
+        if 'trajetoOrigem' in dados:
+            item.trajeto_origem = dados['trajetoOrigem'] or None
+        if 'trajetoDestino' in dados:
+            item.trajeto_destino = dados['trajetoDestino'] or None
+        if 'trajetoTipo' in dados:
+            item.trajeto_tipo = dados['trajetoTipo'] or None
+
+        db.session.commit()
+        registrar_auditoria(
+            'UPDATE', 'OS',
+            f'Atualizou trajeto do item #{item_id} da OS #{os_id}',
+            entidade_tipo='itens_ordem_servico',
+            entidade_id=item_id,
+            dados_depois={'trajetoOrigem': item.trajeto_origem,
+                          'trajetoDestino': item.trajeto_destino,
+                          'trajetoTipo': item.trajeto_tipo}
+        )
+        return jsonify({'sucesso': True, 'item': item.to_dict()}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
+
+
+@os_bp.route('/<int:os_id>/pagamento', methods=['PUT'])
+@login_requerido
+@csrf_protegido
+def atualizar_pagamento(os_id):
+    """Atualiza dados de pagamento da O.S. (vencimento e pago)."""
+    try:
+        os_obj = OrdemServico.query.get_or_404(os_id)
+        dados = request.get_json() or {}
+
+        vencimento = (dados.get('pagamentoVencimento') or '').strip() or None
+        pago = dados.get('pagamentoPago')
+
+        os_obj.pagamento_vencimento = vencimento
+        if pago is not None:
+            os_obj.pagamento_pago = bool(pago)
+
+        db.session.commit()
+
+        registrar_auditoria(
+            'UPDATE',
+            'OS',
+            f'Atualizou pagamento da O.S. #{os_obj.numero_os}',
+            entidade_tipo='ordens_servico',
+            entidade_id=os_obj.id,
+            dados_depois={
+                'pagamentoVencimento': os_obj.pagamento_vencimento,
+                'pagamentoPago': os_obj.pagamento_pago
+            }
+        )
+
+        return jsonify({'sucesso': True, 'os': os_obj.to_dict()}), 200
+
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'erro': str(e)}), 500
 
 

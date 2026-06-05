@@ -173,6 +173,11 @@
                         <datalist id="lista-observacoes"></datalist>
                     </div>
 
+                    <div class="form-group" id="campo-qtd-pessoas" style="display:none;">
+                        <label for="os-qtd-pessoas">Qtd. Pessoas Atendidas <small style="color:#6c757d;">(opcional)</small></label>
+                        <input type="number" id="os-qtd-pessoas" min="0" placeholder="0" style="max-width:180px;">
+                    </div>
+
                     <h3>Signatários da O.S.</h3>
                     <div id="signatarios-container">
                         <!-- Linhas dinâmicas de signatários (preenchidas via JS) -->
@@ -250,8 +255,11 @@
                     <h2>📋 Ordens de Serviço Emitidas</h2>
                 </div>
 
-                <div class="filter-section">
-                    <input type="text" id="filtro-os" placeholder="Buscar O.S..." onkeyup="filtrarOS()" style="max-width: 480px">
+                <div class="filter-section" style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
+                    <input type="text" id="filtro-os" placeholder="Buscar O.S..." onkeyup="filtrarOS()" style="max-width: 320px">
+                    <select id="filtro-grupo" onchange="filtrarOS()" style="padding:.5rem .75rem;border:1px solid #ccc;border-radius:6px;font-size:.9rem;min-width:150px;">
+                        <option value="">Todos os grupos</option>
+                    </select>
                 </div>
 
                 <div id="lista-ordens-servico" class="cards-grid"></div>
@@ -480,7 +488,12 @@
 
                         <div id="resultado-rel-top" class="relatorio-resultado" style="display: none;">
                             <h4>Resultados:</h4>
-                            <div id="tabela-rel-top"></div>
+                            <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start;">
+                                <div style="flex:1;min-width:260px;max-width:400px;">
+                                    <canvas id="grafico-pizza-itens"></canvas>
+                                </div>
+                                <div style="flex:2;min-width:260px;" id="tabela-rel-top"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -808,16 +821,16 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="{{ url_for('static', filename='js/api-client.js') }}?v=2.4"></script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.12"></script>
-    <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.9"></script>
-    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.9"></script>
-    <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.4"></script>
-    <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.5"></script>
-    <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.8"></script>
-    <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.3"></script>
-    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.2"></script>
-    <script src="{{ url_for('static', filename='js/init.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/api-client.js') }}?v=2.5"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.4"></script>
+    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.14"></script>
+    <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.12"></script>
+    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.13"></script>
+    <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.10"></script>
+    <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.7"></script>
+    <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.9"></script>
+    <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.4"></script>
+    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/init.js') }}?v=2.5"></script>
 {% endblock %}
