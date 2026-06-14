@@ -3,7 +3,16 @@
     "allow": [
       "Bash(git rm:*)",
       "Bash(xargs grep -l \"relatorio\\\\|report\" -i)",
-      "Bash(Get-ChildItem backend\\\\routes)"
+      "Bash(Get-ChildItem backend\\\\routes)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "PowerShell(python -c \"import playwright; print\\('playwright ok'\\)\" 2>&1)",
+      "PowerShell(Get-Command chromium -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command chrome -ErrorAction SilentlyContinue)",
+      "PowerShell(pip install playwright -q 2>&1)",
+      "PowerShell(python -m playwright install chromium 2>&1)",
+      "Read(//tmp/**)",
+      "Read(//c/tmp/**)"
     ]
   }
 }

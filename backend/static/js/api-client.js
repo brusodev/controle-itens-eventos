@@ -218,6 +218,13 @@ class APIClient {
             body: motivo ? JSON.stringify(body) : undefined
         });
     }
+
+    static async reordenarOS(modulo, grupo, ordem) {
+        return this.request('/ordens-servico/reordenar', {
+            method: 'PUT',
+            body: JSON.stringify({ modulo, grupo, ordem })
+        });
+    }
     
     static async estatisticasOS() {
         return this.request('/ordens-servico/estatisticas');

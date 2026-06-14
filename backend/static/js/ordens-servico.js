@@ -23,6 +23,7 @@ async function _popularFiltroGrupo() {
             select.appendChild(opt);
         });
         if (valorAtual) select.value = valorAtual;
+        _atualizarBtnReordenar();
     } catch (e) {
         console.warn('Não foi possível carregar grupos:', e);
     }
@@ -1568,5 +1569,146 @@ async function salvarTrajetos(osId) {
         alert('Erro de conexão: ' + e.message);
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Trajetos'; }
+    }
+}
+
+// ========================================
+// REORDENAÇÃO DE OS POR DRAG-AND-DROP
+// ========================================
+
+// Mostra/oculta o botão Reordenar conforme grupo selecionado
+function _atualizarBtnReordenar() {
+    const filtroGrupo = document.getElementById('filtro-grupo');
+    const btnReordenar = document.getElementById('btn-reordenar-os');
+    if (filtroGrupo && btnReordenar) {
+        btnReordenar.style.display = filtroGrupo.value ? 'inline-block' : 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const filtroGrupo = document.getElementById('filtro-grupo');
+    if (filtroGrupo) {
+        filtroGrupo.addEventListener('change', _atualizarBtnReordenar);
+        _atualizarBtnReordenar();
+    }
+});
+
+let _reordenarDragSrcIdx = null;
+
+async function abrirModalReordenarOS() {
+    const grupo = document.getElementById('filtro-grupo')?.value;
+    const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+    if (!grupo) {
+        alert('Selecione um grupo antes de reordenar.');
+        return;
+    }
+
+    const modal = document.getElementById('modal-reordenar-os');
+    const info = document.getElementById('reordenar-os-info');
+    const tbody = document.getElementById('reordenar-os-tbody');
+
+    info.textContent = 'Carregando...';
+    tbody.innerHTML = '';
+    modal.style.display = 'flex';
+
+    try {
+        const cfg = typeof getModuleConfig === 'function' ? getModuleConfig() : {};
+        const grupoLabel = cfg.grupoLabel || 'Grupo';
+        const lista = await APIClient.listarOrdensServico('', grupo, '');
+
+        if (!lista || lista.length === 0) {
+            info.textContent = 'Nenhuma OS encontrada neste grupo.';
+            return;
+        }
+
+        info.textContent = `Módulo: ${modulo.toUpperCase()} — ${grupoLabel} ${grupo} — ${lista.length} OS`;
+
+        lista.forEach((os, idx) => {
+            const tr = document.createElement('tr');
+            tr.dataset.osId = os.id;
+            tr.dataset.idx = idx;
+            tr.draggable = true;
+            tr.style.cssText = 'border-bottom:1px solid #eee;cursor:grab;';
+
+            const dataEmissao = os.dataEmissao
+                ? new Date(os.dataEmissao).toLocaleDateString('pt-BR')
+                : '—';
+
+            tr.innerHTML = `
+                <td style="padding:.5rem .4rem;color:#aaa;font-size:1.1rem;text-align:center;user-select:none;">⠿</td>
+                <td style="padding:.5rem .75rem;font-weight:700;color:#1a237e;" class="novo-numero">OS-${String(idx + 1).padStart(3, '0')}</td>
+                <td style="padding:.5rem .75rem;color:#555;">${os.numeroOS}</td>
+                <td style="padding:.5rem .75rem;">${os.evento || '—'}</td>
+                <td style="padding:.5rem .75rem;color:#777;font-size:.85rem;">${dataEmissao}</td>
+            `;
+
+            tr.addEventListener('dragstart', (e) => {
+                _reordenarDragSrcIdx = idx;
+                tr.style.opacity = '0.4';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            tr.addEventListener('dragend', () => { tr.style.opacity = ''; });
+            tr.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                tr.style.background = '#e3f2fd';
+            });
+            tr.addEventListener('dragleave', () => { tr.style.background = ''; });
+            tr.addEventListener('drop', (e) => {
+                e.preventDefault();
+                tr.style.background = '';
+                const trs = [...tbody.querySelectorAll('tr')];
+                const srcIdx = _reordenarDragSrcIdx;
+                const dstIdx = trs.indexOf(tr);
+                if (srcIdx === null || srcIdx === dstIdx) return;
+
+                const srcEl = trs[srcIdx];
+                if (srcIdx < dstIdx) {
+                    tbody.insertBefore(srcEl, tr.nextSibling);
+                } else {
+                    tbody.insertBefore(srcEl, tr);
+                }
+                _atualizarPreviewNumeracao();
+            });
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (e) {
+        info.textContent = 'Erro ao carregar OS: ' + e.message;
+    }
+}
+
+function _atualizarPreviewNumeracao() {
+    const tbody = document.getElementById('reordenar-os-tbody');
+    if (!tbody) return;
+    [...tbody.querySelectorAll('tr')].forEach((tr, idx) => {
+        const cell = tr.querySelector('.novo-numero');
+        if (cell) cell.textContent = `OS-${String(idx + 1).padStart(3, '0')}`;
+    });
+}
+
+function fecharModalReordenarOS() {
+    const modal = document.getElementById('modal-reordenar-os');
+    if (modal) modal.style.display = 'none';
+}
+
+async function salvarReordenacaoOS() {
+    const grupo = document.getElementById('filtro-grupo')?.value;
+    const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+    const tbody = document.getElementById('reordenar-os-tbody');
+    if (!tbody || !grupo) return;
+
+    const ordem = [...tbody.querySelectorAll('tr')].map(tr => parseInt(tr.dataset.osId));
+
+    if (!confirm(`Confirma a renumeração de ${ordem.length} OS do grupo ${grupo}?\nEssa ação não pode ser desfeita.`)) return;
+
+    try {
+        const resultado = await APIClient.reordenarOS(modulo, grupo, ordem);
+        fecharModalReordenarOS();
+        alert(`✅ ${resultado.mensagem || 'OS renumeradas com sucesso!'}`);
+        await filtrarOS();
+    } catch (e) {
+        alert('Erro ao reordenar: ' + e.message);
     }
 }

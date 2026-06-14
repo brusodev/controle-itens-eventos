@@ -699,11 +699,15 @@ async function visualizarOS() {
     });
     console.log('='.repeat(60) + '\n');
 
-    // 🔢 Buscar próximo número do backend se for nova O.S.
+    // 🔢 Buscar próximo número do backend se for nova O.S. (sequência por módulo+grupo)
     if (!osEditandoId) {
         try {
             const moduloAtualOS = localStorage.getItem('modulo_atual') || 'coffee';
-            const response = await fetch(`/api/ordens-servico/proximo-numero?modulo=${moduloAtualOS}`);
+            const grupoSelect = document.getElementById('os-grupo-select');
+            const grupoAtualOS = grupoSelect ? grupoSelect.value : (document.getElementById('os-grupo')?.value || '');
+            const params = new URLSearchParams({ modulo: moduloAtualOS });
+            if (grupoAtualOS) params.append('grupo', grupoAtualOS);
+            const response = await fetch(`/api/ordens-servico/proximo-numero?${params}`);
             const data = await response.json();
             dadosOS.numeroOS = data.proximoNumero;
             console.log('🔢 Próximo número obtido do backend:', dadosOS.numeroOS);

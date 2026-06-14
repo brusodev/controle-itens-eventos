@@ -190,7 +190,7 @@ class OrdemServico(db.Model):
     """Ordens de Serviço emitidas"""
     __tablename__ = 'ordens_servico'
     __table_args__ = (
-        db.UniqueConstraint('numero_os', 'modulo', 'detentora_id', name='_numero_os_modulo_detentora_uc'),
+        db.UniqueConstraint('numero_os', 'modulo', 'grupo', name='_numero_os_modulo_grupo_uc'),
     )
 
     id = db.Column(db.Integer, primary_key=True)

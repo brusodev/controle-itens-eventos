@@ -265,6 +265,41 @@
                         <option value="vencidas">⚠️ Vencidas</option>
                         <option value="pagas">✅ Pagas</option>
                     </select>
+                    {% if usuario_perfil == 'admin' %}
+                    <button id="btn-reordenar-os" onclick="abrirModalReordenarOS()" style="display:none;padding:.5rem 1rem;background:#37474f;color:#fff;border:none;border-radius:6px;font-size:.9rem;cursor:pointer;font-weight:600;">
+                        ⇅ Reordenar OS
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Modal Reordenar OS -->
+                <div id="modal-reordenar-os" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:10px;width:min(680px,95vw);max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.3);">
+                        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;">
+                            <h3 style="margin:0;font-size:1.1rem;color:#1a237e">⇅ Reordenar Numeração das OS</h3>
+                            <button onclick="fecharModalReordenarOS()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#555;line-height:1;">&times;</button>
+                        </div>
+                        <div id="reordenar-os-info" style="padding:.75rem 1.5rem;background:#e8f4fd;font-size:.85rem;color:#1565c0;border-bottom:1px solid #ddd;"></div>
+                        <div style="padding:1rem 1.5rem;overflow-y:auto;flex:1;">
+                            <p style="margin:0 0 .75rem;font-size:.85rem;color:#555;">Arraste as linhas para definir a nova ordem. O número será reatribuído automaticamente (OS-001 para a 1ª posição, etc.).</p>
+                            <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+                                <thead>
+                                    <tr style="background:#f5f5f5;text-align:left;">
+                                        <th style="padding:.6rem .5rem;width:32px;"></th>
+                                        <th style="padding:.6rem .75rem;">Novo nº</th>
+                                        <th style="padding:.6rem .75rem;">Atual</th>
+                                        <th style="padding:.6rem .75rem;">Evento</th>
+                                        <th style="padding:.6rem .75rem;">Data Emissão</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reordenar-os-tbody"></tbody>
+                            </table>
+                        </div>
+                        <div style="padding:1rem 1.5rem;border-top:1px solid #e0e0e0;display:flex;gap:.75rem;justify-content:flex-end;">
+                            <button onclick="fecharModalReordenarOS()" style="padding:.55rem 1.2rem;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer;font-size:.9rem;">Cancelar</button>
+                            <button onclick="salvarReordenacaoOS()" style="padding:.55rem 1.4rem;background:#1a237e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;">Salvar Ordem</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="lista-ordens-servico" class="cards-grid"></div>

@@ -101,12 +101,14 @@ def _nome_arquivo_os(dados_pdf, extensao='pdf'):
     return '_'.join(partes) + f'.{extensao}'
 
 
-def gerar_proximo_numero_os(modulo=None, detentora_id=None):
-    """Gera automaticamente o próximo número de O.S. (OS-001) por módulo.
-    A constraint UNIQUE é em (numero_os, modulo), portanto ignora detentora_id ao buscar o máximo."""
+def gerar_proximo_numero_os(modulo=None, grupo=None, detentora_id=None):
+    """Gera o próximo número de O.S. (OS-001) por módulo+grupo.
+    Cada grupo/lote tem sequência própria: Grupo 1 OS-001, Grupo 2 OS-001..."""
     query = OrdemServico.query
     if modulo:
         query = query.filter(OrdemServico.modulo == modulo)
+    if grupo:
+        query = query.filter(OrdemServico.grupo == str(grupo).strip())
 
     todas_os = query.with_entities(OrdemServico.numero_os).all()
     numeros = [_extrair_numero_os(row[0]) for row in todas_os]
@@ -143,11 +145,12 @@ def _resolver_detentora_id(modulo, grupo, detentora_nome, detentora_id=None):
 @os_bp.route('/proximo-numero', methods=['GET'])
 @login_requerido
 def obter_proximo_numero():
-    """Retorna o próximo número de O.S. disponível para o módulo"""
+    """Retorna o próximo número de O.S. disponível para o módulo+grupo"""
     try:
         modulo = request.args.get('modulo', 'coffee')
+        grupo = request.args.get('grupo')
         detentora_id = request.args.get('detentora_id')
-        proximo_numero = gerar_proximo_numero_os(modulo, int(detentora_id) if detentora_id else None)
+        proximo_numero = gerar_proximo_numero_os(modulo, grupo, int(detentora_id) if detentora_id else None)
         return jsonify({'proximoNumero': proximo_numero}), 200
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
@@ -191,7 +194,7 @@ def listar_ordens():
             query = query.filter(OrdemServico.pagamento_pago == True)
 
         ordens = query.order_by(
-            OrdemServico.id.desc()
+            db.func.cast(db.func.substr(OrdemServico.numero_os, 4), db.Integer).desc()
         ).all()
         return jsonify([os.to_dict() for os in ordens]), 200
     
@@ -236,13 +239,14 @@ def criar_ordem():
             print(f"  Qtd Total: {item.get('qtdTotal', 'MISSING')}")
         print("="*60 + "\n")
         
-        # Gerar próximo número automaticamente (por módulo + detentora)
+        # Gerar próximo número automaticamente (por módulo + grupo)
         modulo_os = dados.get('modulo') or request.args.get('modulo', 'coffee')
+        grupo_os = dados.get('grupo')
         detentora_id = dados.get('detentoraId') or dados.get('detentora_id') or None
         detentora_id = int(detentora_id) if detentora_id else None
         if not detentora_id:
-            detentora_id = _resolver_detentora_id(modulo_os, dados.get('grupo'), dados.get('detentora'))
-        numero_os_gerado = gerar_proximo_numero_os(modulo_os, detentora_id)
+            detentora_id = _resolver_detentora_id(modulo_os, grupo_os, dados.get('detentora'))
+        numero_os_gerado = gerar_proximo_numero_os(modulo_os, grupo_os, detentora_id)
         print(f"🔢 Número da O.S. gerado automaticamente: {numero_os_gerado}")
         
         # ✅ VALIDAR E OBTER REGIÃO DO GRUPO
@@ -616,6 +620,69 @@ def deletar_ordem(os_id):
     except Exception as e:
         db.session.rollback()
         print(f"❌ ERRO ao deletar O.S.: {str(e)}")
+        return jsonify({'erro': str(e)}), 500
+
+
+@os_bp.route('/reordenar', methods=['PUT'])
+@login_requerido
+@admin_requerido
+def reordenar_ordens():
+    """Reordena OS de um grupo/módulo atribuindo nova numeração sequencial.
+    Body: { modulo, grupo, ordem: [id1, id2, id3, ...] }
+    As OS serão renumeradas OS-001, OS-002... conforme a ordem recebida.
+    """
+    try:
+        dados = request.get_json()
+        modulo = dados.get('modulo')
+        grupo = dados.get('grupo')
+        ordem = dados.get('ordem', [])
+
+        if not modulo or not grupo or not ordem:
+            return jsonify({'erro': 'modulo, grupo e ordem são obrigatórios'}), 400
+
+        # Buscar todas as OS do grupo para validação
+        os_do_grupo = OrdemServico.query.filter_by(modulo=modulo, grupo=str(grupo)).all()
+        ids_do_grupo = {os_obj.id for os_obj in os_do_grupo}
+
+        # Validar que todos os IDs recebidos pertencem ao grupo
+        ids_recebidos = [int(i) for i in ordem]
+        ids_invalidos = set(ids_recebidos) - ids_do_grupo
+        if ids_invalidos:
+            return jsonify({'erro': f'IDs não pertencem ao grupo {grupo}: {ids_invalidos}'}), 400
+        if len(ids_recebidos) != len(ids_do_grupo):
+            return jsonify({'erro': f'A ordem deve conter todos os {len(ids_do_grupo)} IDs do grupo'}), 400
+        if len(set(ids_recebidos)) != len(ids_recebidos):
+            return jsonify({'erro': 'IDs duplicados na ordem recebida'}), 400
+
+        mapa_os = {os_obj.id: os_obj for os_obj in os_do_grupo}
+
+        # Fase 1: nomes temporários para evitar conflito de unique constraint
+        for os_obj in os_do_grupo:
+            os_obj.numero_os = f'OS-TEMP-{os_obj.id}'
+        db.session.flush()
+
+        # Fase 2: numeração final na ordem solicitada
+        novos_numeros = {}
+        for posicao, os_id in enumerate(ids_recebidos, start=1):
+            novo_numero = f'OS-{posicao:03d}'
+            mapa_os[os_id].numero_os = novo_numero
+            novos_numeros[os_id] = novo_numero
+
+        db.session.commit()
+
+        registrar_auditoria(
+            'REORDENAR', 'OS',
+            f'Reordenação de {len(ids_recebidos)} OS no módulo {modulo} grupo {grupo}',
+            dados_depois={'modulo': modulo, 'grupo': grupo, 'novos_numeros': novos_numeros}
+        )
+
+        return jsonify({
+            'mensagem': f'{len(ids_recebidos)} OS renumeradas com sucesso',
+            'novosNumeros': {str(k): v for k, v in novos_numeros.items()}
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'erro': str(e)}), 500
 
 
