@@ -76,28 +76,36 @@ def main():
             print("Operação cancelada.")
             return
 
-        # FASE 1: renomear todas para temporários (garante zero conflito na fase 2)
-        print("\nFase 1: nomes temporários...")
-        for os_obj in todas_os:
-            os_obj.numero_os = f"OS-T-{os_obj.id}"
-        db.session.flush()
-
-        # FASE 2: renumerar por grupo
-        print("Fase 2: renumeração por grupo...")
-        alteracoes = []
-        for (modulo, grupo), lista in sorted(grupos.items()):
-            for seq, os_obj in enumerate(lista, start=1):
-                novo = f"OS-{seq:03d}"
-                os_obj.numero_os = novo
-                alteracoes.append((os_obj.id, modulo, grupo, novo))
-
-        db.session.commit()
-        print(f"✅ {len(alteracoes)} OS renumeradas.\n")
-
-        # FASE 3: recriar constraint no SQLite
-        print("Fase 3: atualizando UniqueConstraint no banco...")
+        # FASE 1: recriar tabela com nova constraint (numero_os, modulo, grupo)
+        # Deve vir primeiro para que as fases seguintes não esbarrem na constraint antiga
+        print("\nFase 1: atualizando UniqueConstraint no banco...")
         _recriar_constraint(db)
         print("✅ Constraint atualizada para (numero_os, modulo, grupo).\n")
+
+        # FASE 2: renomear todas para temporários via SQL puro (evita autoflush do ORM)
+        print("Fase 2: nomes temporários...")
+        with db.engine.connect() as conn:
+            for os_obj in todas_os:
+                conn.execute(
+                    text("UPDATE ordens_servico SET numero_os = :tmp WHERE id = :id"),
+                    {"tmp": f"OS-T-{os_obj.id}", "id": os_obj.id}
+                )
+            conn.commit()
+
+        # FASE 3: renumerar por grupo via SQL puro
+        print("Fase 3: renumeração por grupo...")
+        alteracoes = []
+        with db.engine.connect() as conn:
+            for (modulo, grupo), lista in sorted(grupos.items()):
+                for seq, os_obj in enumerate(lista, start=1):
+                    novo = f"OS-{seq:03d}"
+                    conn.execute(
+                        text("UPDATE ordens_servico SET numero_os = :num WHERE id = :id"),
+                        {"num": novo, "id": os_obj.id}
+                    )
+                    alteracoes.append((os_obj.id, modulo, grupo, novo))
+            conn.commit()
+        print(f"✅ {len(alteracoes)} OS renumeradas.\n")
 
         print("Resumo final:")
         print(f"{'ID':>5}  {'Módulo':<14} {'Grupo':<6} {'Número'}")
