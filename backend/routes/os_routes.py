@@ -278,6 +278,7 @@ def criar_ordem():
             trajeto_km=dados.get('trajetoKm'),
             trajeto_tipo=dados.get('trajetoTipo'),
             qtd_pessoas_atendidas=dados.get('qtdPessoasAtendidas'),
+            setor_solicitante=dados.get('setorSolicitante'),
             gestor_contrato=dados.get('gestorContrato'),
             fiscal_contrato=dados.get('fiscalContrato'),
             fiscal_tipo=dados.get('fiscalTipo', 'Fiscal do Contrato'),
@@ -433,6 +434,7 @@ def atualizar_ordem(os_id):
         os.trajeto_km = dados.get('trajetoKm', os.trajeto_km)
         os.trajeto_tipo = dados.get('trajetoTipo', os.trajeto_tipo)
         os.qtd_pessoas_atendidas = dados.get('qtdPessoasAtendidas', os.qtd_pessoas_atendidas)
+        os.setor_solicitante = dados.get('setorSolicitante', os.setor_solicitante)
         os.gestor_contrato = dados.get('gestorContrato', os.gestor_contrato)
         os.fiscal_contrato = dados.get('fiscalContrato', os.fiscal_contrato)
         os.fiscal_tipo = dados.get('fiscalTipo', os.fiscal_tipo)

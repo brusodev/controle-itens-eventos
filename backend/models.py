@@ -226,6 +226,9 @@ class OrdemServico(db.Model):
 
     # Organização (opcional)
     qtd_pessoas_atendidas = db.Column(db.Integer)
+
+    # Transporte: setor que solicitou a O.S.
+    setor_solicitante = db.Column(db.String(200))
     
     # Responsáveis
     gestor_contrato = db.Column(db.String(200))
@@ -305,6 +308,7 @@ class OrdemServico(db.Model):
             'trajetoKm': self.trajeto_km,
             'trajetoTipo': self.trajeto_tipo,
             'qtdPessoasAtendidas': self.qtd_pessoas_atendidas,
+            'setorSolicitante': self.setor_solicitante,
             'gestorContrato': self.gestor_contrato,
             'fiscalContrato': self.fiscal_contrato,
             'fiscalTipo': self.fiscal_tipo,  # ✅ Adicionar tipo de fiscal

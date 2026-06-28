@@ -33,7 +33,10 @@ async function carregarCategoriasRelatorio() {
 document.addEventListener('DOMContentLoaded', function() {
     const tabRelatorios = document.querySelector('[data-tab="relatorios"]');
     if (tabRelatorios) {
-        tabRelatorios.addEventListener('click', carregarCategoriasRelatorio);
+        tabRelatorios.addEventListener('click', () => {
+            carregarCategoriasRelatorio();
+            atualizarVisibilidadeRelatoriosPorModulo();
+        });
     }
 });
 
@@ -749,6 +752,149 @@ async function gerarRelatorioOrgEventos() {
 function exportarOrgEventosExcel() {
     const params = _getOrgParams();
     window.open(`/api/relatorios/organizacao/excel?${params}`, '_blank');
+}
+
+// ────────────────────────────────────────────────────
+// Relatório de Transporte por Setor Solicitante
+// ────────────────────────────────────────────────────
+function _getTranspParams() {
+    const params = new URLSearchParams();
+    const setor  = document.getElementById('rel-transp-setor').value;
+    const status = document.getElementById('rel-transp-status').value;
+    const inicio = document.getElementById('rel-transp-data-inicio').value;
+    const fim    = document.getElementById('rel-transp-data-fim').value;
+    const emp    = document.getElementById('rel-transp-empresa').value;
+    if (setor)  params.append('setor', setor);
+    if (status) params.append('status', status);
+    if (inicio) params.append('data_inicio', inicio);
+    if (fim)    params.append('data_fim', fim);
+    if (emp)    params.append('empresa', emp);
+    return params;
+}
+
+async function gerarRelatorioTransporteSetores() {
+    const params = _getTranspParams();
+    try {
+        const response = await fetch(`/api/relatorios/transporte/setores?${params}`);
+        const data = await response.json();
+        if (!data.success) { alert('Erro: ' + data.error); return; }
+
+        const resultado = document.getElementById('resultado-rel-transp');
+        const statsDiv  = document.getElementById('stats-rel-transp');
+        const tabelaDiv = document.getElementById('tabela-rel-transp');
+        const btnExcel  = document.getElementById('btn-excel-transp');
+
+        resultado.style.display = 'block';
+        btnExcel.style.display  = 'inline-flex';
+
+        const e = data.estatisticas;
+
+        statsDiv.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${e.total_os}</div>
+                <div class="stat-label">Ordens de Serviço</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #3B82F6;">
+                <div class="stat-value">${e.total_setores}</div>
+                <div class="stat-label">Setores Solicitantes</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #10B981;">
+                <div class="stat-value" style="font-size:1rem;">R$&nbsp;${_fmtBRL(e.valor_total_geral)}</div>
+                <div class="stat-label">Valor Total Geral</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #8B5CF6;">
+                <div class="stat-value" style="font-size:1rem;">R$&nbsp;${_fmtBRL(e.valor_medio_os)}</div>
+                <div class="stat-label">Valor Médio / O.S.</div>
+            </div>
+        `;
+
+        if (data.ordens.length === 0) {
+            tabelaDiv.innerHTML = '<p style="color:#6c757d;padding:1rem 0;">Nenhuma O.S. de transporte encontrada para os filtros selecionados.</p>';
+            return;
+        }
+
+        // Tabela 1: resumo por setor
+        let html = `
+            <h4 style="margin-top:1rem;">Resumo por Setor</h4>
+            <div class="relatorio-tabela" style="overflow-x:auto;">
+                <table style="min-width:480px;">
+                    <thead>
+                        <tr>
+                            <th>Setor Solicitante</th>
+                            <th style="text-align:right;">Qtd. O.S.</th>
+                            <th style="text-align:right;background:#EEF2FF;font-weight:700;">Valor Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        data.setores.forEach(s => {
+            html += `
+                <tr>
+                    <td><strong>${s.setor}</strong></td>
+                    <td style="text-align:right;">${s.qtdOS}</td>
+                    <td style="text-align:right;background:#EEF2FF;font-weight:700;">R$ ${_fmtBRL(s.valorTotal)}</td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+
+        // Tabela 2: detalhamento das O.S.
+        html += `
+            <h4 style="margin-top:1.5rem;">Detalhamento das O.S.</h4>
+            <div class="relatorio-tabela" style="overflow-x:auto;">
+                <table style="min-width:900px;">
+                    <thead>
+                        <tr>
+                            <th>Nº O.S.</th>
+                            <th>Setor</th>
+                            <th>Evento</th>
+                            <th>Data Evento</th>
+                            <th>Empresa</th>
+                            <th>Status</th>
+                            <th style="text-align:right;">Itens</th>
+                            <th style="text-align:right;background:#EEF2FF;font-weight:700;">Valor Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        data.ordens.forEach(o => {
+            const stCfg = ORG_STATUS_CFG[o.status] || { texto: o.status, cor: '#555', bg: '#eee' };
+            const badge = `<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:600;background:${stCfg.bg};color:${stCfg.cor};">${stCfg.texto}</span>`;
+            html += `
+                <tr>
+                    <td><strong>${o.numeroOS}</strong></td>
+                    <td>${o.setor}</td>
+                    <td title="${o.evento}">${o.evento.length > 30 ? o.evento.substring(0, 28) + '…' : o.evento}</td>
+                    <td>${o.dataEvento}</td>
+                    <td title="${o.empresa}">${o.empresa.length > 28 ? o.empresa.substring(0, 26) + '…' : o.empresa}</td>
+                    <td>${badge}</td>
+                    <td style="text-align:right;">${o.totalItens}</td>
+                    <td style="text-align:right;background:#EEF2FF;font-weight:700;">R$ ${_fmtBRL(o.valorTotal)}</td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+        tabelaDiv.innerHTML = html;
+
+    } catch (err) {
+        console.error('Erro:', err);
+        alert('Erro ao gerar relatório de transporte por setor');
+    }
+}
+
+function exportarTransporteSetoresExcel() {
+    const params = _getTranspParams();
+    window.open(`/api/relatorios/transporte/excel?${params}`, '_blank');
+}
+
+/**
+ * Mostra/oculta cards de relatório específicos de cada módulo,
+ * conforme o módulo atualmente selecionado.
+ */
+function atualizarVisibilidadeRelatoriosPorModulo() {
+    const modulo = localStorage.getItem('modulo_atual') || 'coffee';
+    const cardTransp = document.getElementById('card-rel-transporte');
+    if (cardTransp) cardTransp.style.display = modulo === 'transporte' ? '' : 'none';
 }
 
 // ────────────────────────────────────────────────────

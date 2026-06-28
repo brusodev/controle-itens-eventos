@@ -1169,6 +1169,221 @@ def exportar_organizacao_excel():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _parse_valor_br(s):
+    """Converte valor (string BR ou numérico) para float."""
+    try:
+        v = str(s or '0').strip()
+        if v in ('', '0', '__'):
+            return 0.0
+        if ',' in v:
+            # Formato BR "1.234,56": ponto é milhar, vírgula é decimal
+            v = v.replace('.', '').replace(',', '.')
+        return float(v)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _valor_total_os_itens(os):
+    """Soma (quantidade_total × valor_unitário) de todos os itens da O.S."""
+    return round(sum(
+        (float(i.quantidade_total or 0)) * _parse_valor_br(i.valor_unitario)
+        for i in os.itens
+    ), 2)
+
+
+def _query_transporte(args):
+    """Monta a query de O.S. de Transporte aplicando os filtros recebidos."""
+    setor       = args.get('setor', '')
+    status      = args.get('status', '')
+    data_inicio = args.get('data_inicio', '')
+    data_fim    = args.get('data_fim', '')
+    empresa     = args.get('empresa', '')
+
+    query = OrdemServico.query.filter_by(modulo='transporte')
+
+    if setor:
+        query = query.filter(OrdemServico.setor_solicitante.ilike(f'%{setor}%'))
+    if status:
+        query = query.filter(OrdemServico.status == status)
+    if data_inicio:
+        query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
+    if data_fim:
+        dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        query = query.filter(OrdemServico.data_emissao <= dt_fim)
+    if empresa:
+        query = query.filter(OrdemServico.detentora.ilike(f'%{empresa}%'))
+
+    return query.order_by(OrdemServico.data_emissao.desc())
+
+
+@relatorios_bp.route('/api/relatorios/transporte/setores', methods=['GET'])
+@login_requerido
+def relatorio_transporte_setores():
+    """Relatório de O.S. de Transporte, com totais agrupados por Setor Solicitante."""
+    try:
+        ordens = _query_transporte(request.args).all()
+
+        SEM_SETOR = 'Não informado'
+        ordens_json = []
+        setores = {}          # nome -> {qtd_os, valor_total}
+        valor_total_geral = 0.0
+
+        for os in ordens:
+            valor = _valor_total_os_itens(os)
+            setor = (os.setor_solicitante or '').strip() or SEM_SETOR
+
+            valor_total_geral += valor
+            agg = setores.setdefault(setor, {'setor': setor, 'qtdOS': 0, 'valorTotal': 0.0})
+            agg['qtdOS'] += 1
+            agg['valorTotal'] = round(agg['valorTotal'] + valor, 2)
+
+            ordens_json.append({
+                'id': os.id,
+                'numeroOS': os.numero_os,
+                'setor': setor,
+                'evento': os.evento or '-',
+                'dataEvento': os.data or '-',
+                'empresa': os.detentora or '-',
+                'status': os.status or 'emitida',
+                'dataEmissao': os.data_emissao.strftime('%d/%m/%Y') if os.data_emissao else '-',
+                'totalItens': len(os.itens),
+                'valorTotal': valor,
+            })
+
+        resumo_setores = sorted(
+            setores.values(), key=lambda x: x['valorTotal'], reverse=True
+        )
+
+        return jsonify({
+            'success': True,
+            'ordens': ordens_json,
+            'setores': resumo_setores,
+            'estatisticas': {
+                'total_os': len(ordens_json),
+                'total_setores': len(setores),
+                'valor_total_geral': round(valor_total_geral, 2),
+                'valor_medio_os': round(valor_total_geral / len(ordens_json), 2) if ordens_json else 0.0,
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@relatorios_bp.route('/api/relatorios/transporte/excel', methods=['GET'])
+@login_requerido
+def exportar_transporte_excel():
+    """Exporta o relatório de Transporte por Setor Solicitante em Excel."""
+    try:
+        ordens = _query_transporte(request.args).all()
+
+        STATUS_LABELS_PT = {
+            'emitida': 'Emitida', 'enviada_empresa': 'Ag. Empresa',
+            'em_revisao': 'Em Revisão', 'aceita': 'Aceita',
+            'em_execucao': 'Em Execução', 'executada': 'Executada',
+            'recusada': 'Recusada', 'cancelada': 'Cancelada',
+        }
+        SEM_SETOR = 'Não informado'
+
+        COR_H = 'FF1E3A5F'   # azul escuro
+        thin = Side(style='thin', color='FFCCCCCC')
+        borda = Border(left=thin, right=thin, top=thin, bottom=thin)
+        fmt_moeda = 'R$ #,##0.00'
+        fonte_h = Font(bold=True, color='FFFFFFFF', size=11)
+        fill_h = PatternFill('solid', fgColor=COR_H)
+
+        wb = openpyxl.Workbook()
+
+        # ── Aba 1: Resumo por Setor ──────────────────────
+        ws = wb.active
+        ws.title = 'Por Setor'
+        cab = ['Setor Solicitante', 'Qtd. O.S.', 'Valor Total']
+        for ci, titulo in enumerate(cab, 1):
+            c = ws.cell(row=1, column=ci, value=titulo)
+            c.font = fonte_h
+            c.fill = fill_h
+            c.border = borda
+            c.alignment = Alignment(horizontal='center', vertical='center')
+
+        setores = {}
+        valor_total_geral = 0.0
+        for os in ordens:
+            valor = _valor_total_os_itens(os)
+            setor = (os.setor_solicitante or '').strip() or SEM_SETOR
+            valor_total_geral += valor
+            agg = setores.setdefault(setor, {'qtd': 0, 'valor': 0.0})
+            agg['qtd'] += 1
+            agg['valor'] = round(agg['valor'] + valor, 2)
+
+        for setor, agg in sorted(setores.items(), key=lambda x: x[1]['valor'], reverse=True):
+            ws.append([setor, agg['qtd'], agg['valor']])
+            ri = ws.max_row
+            for ci in range(1, 4):
+                ws.cell(row=ri, column=ci).border = borda
+            ws.cell(row=ri, column=3).number_format = fmt_moeda
+
+        # Linha de total
+        ws.append(['TOTAL GERAL',
+                   sum(a['qtd'] for a in setores.values()),
+                   round(valor_total_geral, 2)])
+        ri = ws.max_row
+        for ci in range(1, 4):
+            cell = ws.cell(row=ri, column=ci)
+            cell.font = Font(bold=True)
+            cell.border = borda
+        ws.cell(row=ri, column=3).number_format = fmt_moeda
+
+        for ci, w in enumerate([40, 12, 18], 1):
+            ws.column_dimensions[get_column_letter(ci)].width = w
+        ws.freeze_panes = 'A2'
+
+        # ── Aba 2: Detalhamento das O.S. ─────────────────
+        ws2 = wb.create_sheet('Ordens de Serviço')
+        cab2 = ['Nº O.S.', 'Setor Solicitante', 'Evento', 'Data Evento',
+                'Empresa', 'Status', 'Data Emissão', 'Itens', 'Valor Total']
+        for ci, titulo in enumerate(cab2, 1):
+            c = ws2.cell(row=1, column=ci, value=titulo)
+            c.font = fonte_h
+            c.fill = fill_h
+            c.border = borda
+            c.alignment = Alignment(horizontal='center', vertical='center')
+
+        for os in ordens:
+            valor = _valor_total_os_itens(os)
+            setor = (os.setor_solicitante or '').strip() or SEM_SETOR
+            ws2.append([
+                os.numero_os,
+                setor,
+                os.evento or '-',
+                os.data or '-',
+                os.detentora or '-',
+                STATUS_LABELS_PT.get(os.status, os.status or 'emitida'),
+                os.data_emissao.strftime('%d/%m/%Y') if os.data_emissao else '-',
+                len(os.itens),
+                valor,
+            ])
+            ri = ws2.max_row
+            for ci in range(1, len(cab2) + 1):
+                ws2.cell(row=ri, column=ci).border = borda
+            ws2.cell(row=ri, column=9).number_format = fmt_moeda
+
+        for ci, w in enumerate([12, 28, 35, 18, 28, 14, 14, 8, 18], 1):
+            ws2.column_dimensions[get_column_letter(ci)].width = w
+        ws2.freeze_panes = 'A2'
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        return send_file(
+            buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'relatorio_transporte_setores_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @relatorios_bp.route('/api/relatorios/pdf/estoque', methods=['GET'])
 @login_requerido
 def gerar_pdf_estoque():

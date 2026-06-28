@@ -273,6 +273,7 @@ function normalizarDadosOS(os) {
         responsavel: os.responsavel || '',
         justificativa: os.justificativa || '',
         observacoes: os.observacoes || '',
+        setorSolicitante: os.setorSolicitante || '',
         gestor: os.gestorContrato || os.gestor || '',
         fiscal: os.fiscalContrato || os.fiscal || '',
         fiscalTipo: os.fiscalTipo || 'Fiscal do Contrato',
@@ -758,6 +759,8 @@ async function restaurarOSParaEdicao() {
         document.getElementById('os-responsavel').value = os.responsavel || '';
         const _qtdPEl = document.getElementById('os-qtd-pessoas');
         if (_qtdPEl) _qtdPEl.value = os.qtdPessoasAtendidas || '';
+        const _setorEl = document.getElementById('os-setor-solicitante');
+        if (_setorEl) _setorEl.value = os.setorSolicitante || '';
 
         // Carregar signatários dinâmicos
         if (os.signatarios && os.signatarios.length > 0) {
@@ -916,6 +919,7 @@ async function salvarEFecharOS() {
             justificativa: dadosOS.justificativa,
             observacoes: dadosOS.observacoes,
             qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
+            setorSolicitante: dadosOS.setorSolicitante || null,
             dataEmissao: dadosOS.dataEmissao,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
@@ -1010,6 +1014,7 @@ async function salvarEContinuarOS() {
             justificativa: dadosOS.justificativa,
             observacoes: dadosOS.observacoes,
             qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
+            setorSolicitante: dadosOS.setorSolicitante || null,
             dataEmissao: dadosOS.dataEmissao,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,

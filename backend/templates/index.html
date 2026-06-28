@@ -178,6 +178,12 @@
                         <input type="number" id="os-qtd-pessoas" min="0" placeholder="0" style="max-width:180px;">
                     </div>
 
+                    <div class="form-group" id="campo-setor-solicitante" style="display:none;">
+                        <label for="os-setor-solicitante">Setor Solicitante *</label>
+                        <input type="text" id="os-setor-solicitante" placeholder="Ex: Gabinete, Logística, RH..." list="lista-setores-solicitantes">
+                        <datalist id="lista-setores-solicitantes"></datalist>
+                    </div>
+
                     <h3>Signatários da O.S.</h3>
                     <div id="signatarios-container">
                         <!-- Linhas dinâmicas de signatários (preenchidas via JS) -->
@@ -614,6 +620,59 @@
                         </div>
                     </div>
 
+                    <!-- Relatório de Transporte por Setor Solicitante -->
+                    <div class="relatorio-card" id="card-rel-transporte" style="grid-column: 1 / -1; display: none;">
+                        <div class="relatorio-header">
+                            <h3>🚚 Transportes — por Setor Solicitante</h3>
+                            <p>Valores das O.S. de transporte agrupados pelo setor que solicitou o serviço</p>
+                        </div>
+
+                        <div class="relatorio-filtros" style="display:flex;flex-wrap:wrap;gap:1rem;">
+                            <div class="form-group">
+                                <label>Setor:</label>
+                                <input type="text" id="rel-transp-setor" class="form-control" placeholder="Nome do setor">
+                            </div>
+                            <div class="form-group">
+                                <label>Status:</label>
+                                <select id="rel-transp-status" class="form-control">
+                                    <option value="">Todos</option>
+                                    <option value="emitida">Emitida</option>
+                                    <option value="aceita">Aceita</option>
+                                    <option value="em_execucao">Em Execução</option>
+                                    <option value="executada">Executada</option>
+                                    <option value="cancelada">Cancelada</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Data Emissão De:</label>
+                                <input type="date" id="rel-transp-data-inicio" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Data Emissão Até:</label>
+                                <input type="date" id="rel-transp-data-fim" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Empresa:</label>
+                                <input type="text" id="rel-transp-empresa" class="form-control" placeholder="Nome da empresa">
+                            </div>
+                        </div>
+
+                        <div class="relatorio-acoes">
+                            <button class="btn-small btn-primary" onclick="gerarRelatorioTransporteSetores()">
+                                📊 Gerar Relatório
+                            </button>
+                            <button class="btn-small btn-success" onclick="exportarTransporteSetoresExcel()" id="btn-excel-transp" style="display:none;">
+                                📥 Exportar Excel
+                            </button>
+                        </div>
+
+                        <div id="resultado-rel-transp" class="relatorio-resultado" style="display: none;">
+                            <h4>Resultados:</h4>
+                            <div id="stats-rel-transp" class="stats-grid"></div>
+                            <div id="tabela-rel-transp"></div>
+                        </div>
+                    </div>
+
                     <!-- Relatório de Controle de Pagamentos -->
                     <div class="relatorio-card" style="grid-column: 1 / -1;">
                         <div class="relatorio-header">
@@ -1001,12 +1060,12 @@
     <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.14"></script>
     <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.12"></script>
-    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.14"></script>
-    <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.11"></script>
+    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.15"></script>
+    <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.12"></script>
     <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.7"></script>
     <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.9"></script>
     <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.4"></script>
-    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.3"></script>
+    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}?v=2.5"></script>
 {% endblock %}

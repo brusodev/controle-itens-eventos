@@ -119,6 +119,38 @@ function _atualizarLabelsFormulario(cfg) {
         const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
         campoQtdPessoas.style.display = moduloAtual === 'organizacao' ? '' : 'none';
     }
+
+    // Mostrar campo "Setor Solicitante" somente para módulo transporte
+    const campoSetor = document.getElementById('campo-setor-solicitante');
+    if (campoSetor) {
+        const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+        const isTransporte = moduloAtual === 'transporte';
+        campoSetor.style.display = isTransporte ? '' : 'none';
+        const inputSetor = document.getElementById('os-setor-solicitante');
+        if (inputSetor) inputSetor.required = isTransporte;
+        if (isTransporte) carregarSetoresSolicitantes();
+    }
+}
+
+/**
+ * Preenche o datalist de Setores Solicitantes com os setores já usados
+ * em O.S. de transporte (autocompletar).
+ */
+async function carregarSetoresSolicitantes() {
+    const datalist = document.getElementById('lista-setores-solicitantes');
+    if (!datalist || datalist.dataset.carregado) return;
+    try {
+        const resp = await fetch('/api/relatorios/transporte/setores');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const setores = (data.setores || [])
+            .map(s => s.setor)
+            .filter(s => s && s !== 'Não informado');
+        datalist.innerHTML = setores.map(s => `<option value="${s}">`).join('');
+        datalist.dataset.carregado = '1';
+    } catch (e) {
+        // Datalist é apenas sugestão; falha não bloqueia a emissão.
+    }
 }
 
 function _criarDropdownDetentora() {
@@ -805,6 +837,7 @@ function coletarDadosOS() {
             const v = document.getElementById('os-qtd-pessoas')?.value;
             return (v && parseInt(v) > 0) ? parseInt(v) : null;
         })(),
+        setorSolicitante: document.getElementById('os-setor-solicitante')?.value.trim() || null,
         signatarios: signatariosOS.filter(s => s.nome.trim() !== ''),
         gestor: signatariosOS[0]?.nome || '',
         fiscal: signatariosOS[1]?.nome || '',
@@ -1029,6 +1062,7 @@ async function confirmarEmissaoOS() {
             justificativa: dadosOS.justificativa,
             observacoes: dadosOS.observacoes,
             qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
+            setorSolicitante: dadosOS.setorSolicitante || null,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
             fiscalTipo: dadosOS.fiscalTipo,
@@ -1225,7 +1259,8 @@ function salvarRascunhoOS() {
         'os-contrato-num', 'os-data-assinatura', 'os-prazo-vigencia',
         'os-detentora', 'os-cnpj', 'os-servico', 'os-grupo',
         'os-evento', 'os-data-evento', 'os-horario', 'os-local',
-        'os-justificativa', 'os-observacoes', 'os-responsavel', 'os-qtd-pessoas'
+        'os-justificativa', 'os-observacoes', 'os-responsavel', 'os-qtd-pessoas',
+        'os-setor-solicitante'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
