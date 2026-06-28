@@ -1623,7 +1623,15 @@ async function abrirModalReordenarOS() {
 
         info.textContent = `Módulo: ${modulo.toUpperCase()} — ${grupoLabel} ${grupo} — ${lista.length} OS`;
 
-        lista.forEach((os, idx) => {
+        // A listagem vem em ordem decrescente; aqui exibimos na ordem atual
+        // (crescente pela numeração) para que a sugestão preserve a ordem vigente.
+        const numeroOS = (os) => {
+            const n = parseInt(String(os.numeroOS || '').replace(/\D/g, ''), 10);
+            return Number.isNaN(n) ? Infinity : n;
+        };
+        const listaOrdenada = [...lista].sort((a, b) => numeroOS(a) - numeroOS(b));
+
+        listaOrdenada.forEach((os, idx) => {
             const tr = document.createElement('tr');
             tr.dataset.osId = os.id;
             tr.dataset.idx = idx;

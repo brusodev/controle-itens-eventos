@@ -58,7 +58,11 @@
       "Bash(systemctl list-units *)",
       "Bash(sudo systemctl restart controle-itens.service)",
       "Bash(sudo systemctl status controle-itens.service --no-pager)",
-      "Bash(systemctl is-active *)"
+      "Bash(systemctl is-active *)",
+      "Bash(git -C /var/www/controle-itens-eventos log --oneline --diff-filter=A -- 'backend/migrations/*')",
+      "Bash(git -C /var/www/controle-itens-eventos status)",
+      "Bash(git -C /var/www/controle-itens-eventos diff)",
+      "Bash(git *)"
     ]
   }
 }
