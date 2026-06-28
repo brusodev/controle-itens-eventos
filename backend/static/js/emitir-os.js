@@ -945,6 +945,11 @@ function gerarPreviewOS(dados) {
                         <td><strong>RESPONSÁVEL:</strong></td>
                         <td colspan="3">${dados.responsavel || ''}</td>
                     </tr>
+                    ${modulo === 'transporte' && dados.setorSolicitante ? `
+                    <tr>
+                        <td><strong>SETOR SOLICITANTE:</strong></td>
+                        <td colspan="3">${dados.setorSolicitante}</td>
+                    </tr>` : ''}
                 </table>
             </div>
 

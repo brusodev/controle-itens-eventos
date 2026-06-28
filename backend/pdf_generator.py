@@ -398,6 +398,14 @@ class PDFOrdemServico:
                 Paragraph(qtd_pessoas_str, self.styles['CustomNormal']), '', ''
             ])
 
+        modulo = self._get_safe(dados, 'modulo', 'coffee')
+        setor_solicitante = dados.get('setorSolicitante')
+        if modulo == 'transporte' and setor_solicitante:
+            data.append([
+                Paragraph('<b>SETOR SOLICITANTE:</b>', self.styles['CustomLabel']),
+                Paragraph(self._get_safe(dados, 'setorSolicitante'), self.styles['CustomNormal']), '', ''
+            ])
+
         n_rows = len(data)
         span_rules = [('SPAN', (1, i), (3, i)) for i in range(n_rows)]
 

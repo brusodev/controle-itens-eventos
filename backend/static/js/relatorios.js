@@ -31,6 +31,10 @@ async function carregarCategoriasRelatorio() {
 
 // Carregar categorias quando abrir aba de relatórios
 document.addEventListener('DOMContentLoaded', function() {
+    // A navegação de Relatórios é por link (recarrega a página), então aplicamos
+    // a visibilidade dos cards específicos de módulo direto no carregamento.
+    atualizarVisibilidadeRelatoriosPorModulo();
+
     const tabRelatorios = document.querySelector('[data-tab="relatorios"]');
     if (tabRelatorios) {
         tabRelatorios.addEventListener('click', () => {
