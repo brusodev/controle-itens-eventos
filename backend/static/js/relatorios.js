@@ -713,7 +713,7 @@ async function gerarRelatorioOrgEventos() {
                             <th style="text-align:right;">Rec. Humanos</th>
                             <th style="text-align:right;">Equip. TI</th>
                             <th style="text-align:right;">Mat. Gráfico</th>
-                            <th style="text-align:right;background:#EEF2FF;font-weight:700;">CUSTO TOTAL</th>
+                            <th class="col-destaque" style="text-align:right;">CUSTO TOTAL</th>
                             <th style="text-align:right;">Custo/Pessoa</th>
                         </tr>
                     </thead>
@@ -738,7 +738,7 @@ async function gerarRelatorioOrgEventos() {
                     <td style="text-align:right;">${fmtV(ev.custoRH)}</td>
                     <td style="text-align:right;">${fmtV(ev.custoTI)}</td>
                     <td style="text-align:right;">${fmtV(ev.custoGrafico)}</td>
-                    <td style="text-align:right;background:#EEF2FF;font-weight:700;">${fmtV(ev.custoTotal)}</td>
+                    <td class="col-destaque" style="text-align:right;">${fmtV(ev.custoTotal)}</td>
                     <td style="text-align:right;">${fmtV(ev.custoPorPessoa)}</td>
                 </tr>
             `;
@@ -826,7 +826,7 @@ async function gerarRelatorioTransporteSetores() {
                         <tr>
                             <th>Setor Solicitante</th>
                             <th style="text-align:right;">Qtd. O.S.</th>
-                            <th style="text-align:right;background:#EEF2FF;font-weight:700;">Valor Total</th>
+                            <th class="col-destaque" style="text-align:right;">Valor Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -836,10 +836,17 @@ async function gerarRelatorioTransporteSetores() {
                 <tr>
                     <td><strong>${s.setor}</strong></td>
                     <td style="text-align:right;">${s.qtdOS}</td>
-                    <td style="text-align:right;background:#EEF2FF;font-weight:700;">R$ ${_fmtBRL(s.valorTotal)}</td>
+                    <td class="col-destaque" style="text-align:right;">R$ ${_fmtBRL(s.valorTotal)}</td>
                 </tr>
             `;
         });
+        html += `
+                <tr class="linha-total">
+                    <td>TOTAL GERAL</td>
+                    <td style="text-align:right;">${e.total_os}</td>
+                    <td style="text-align:right;">R$ ${_fmtBRL(e.valor_total_geral)}</td>
+                </tr>
+        `;
         html += '</tbody></table></div>';
 
         // Tabela 2: detalhamento das O.S.
@@ -856,7 +863,7 @@ async function gerarRelatorioTransporteSetores() {
                             <th>Empresa</th>
                             <th>Status</th>
                             <th style="text-align:right;">Itens</th>
-                            <th style="text-align:right;background:#EEF2FF;font-weight:700;">Valor Total</th>
+                            <th class="col-destaque" style="text-align:right;">Valor Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -873,7 +880,7 @@ async function gerarRelatorioTransporteSetores() {
                     <td title="${o.empresa}">${o.empresa.length > 28 ? o.empresa.substring(0, 26) + '…' : o.empresa}</td>
                     <td>${badge}</td>
                     <td style="text-align:right;">${o.totalItens}</td>
-                    <td style="text-align:right;background:#EEF2FF;font-weight:700;">R$ ${_fmtBRL(o.valorTotal)}</td>
+                    <td class="col-destaque" style="text-align:right;">R$ ${_fmtBRL(o.valorTotal)}</td>
                 </tr>
             `;
         });
