@@ -563,7 +563,7 @@
                     </div>
 
                     <!-- Relatório de Eventos - Organização -->
-                    <div class="relatorio-card" style="grid-column: 1 / -1;">
+                    <div class="relatorio-card" id="card-rel-organizacao" style="grid-column: 1 / -1; display: none;">
                         <div class="relatorio-header">
                             <h3>📋 Eventos — Módulo Organização</h3>
                             <p>Custo por categoria, pessoas atendidas e detalhamento de itens por evento</p>
@@ -1065,7 +1065,7 @@
     <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.7"></script>
     <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.9"></script>
     <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.4"></script>
-    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.6"></script>
+    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.7"></script>
     <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}?v=2.5"></script>
 {% endblock %}

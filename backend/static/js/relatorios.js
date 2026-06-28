@@ -904,8 +904,17 @@ function exportarTransporteSetoresExcel() {
  */
 function atualizarVisibilidadeRelatoriosPorModulo() {
     const modulo = localStorage.getItem('modulo_atual') || 'coffee';
-    const cardTransp = document.getElementById('card-rel-transporte');
-    if (cardTransp) cardTransp.style.display = modulo === 'transporte' ? '' : 'none';
+
+    // Cards específicos de módulo: id do card -> módulo em que aparece
+    const cardsPorModulo = {
+        'card-rel-transporte': 'transporte',
+        'card-rel-organizacao': 'organizacao',
+    };
+
+    Object.entries(cardsPorModulo).forEach(([cardId, moduloAlvo]) => {
+        const card = document.getElementById(cardId);
+        if (card) card.style.display = modulo === moduloAlvo ? '' : 'none';
+    });
 }
 
 // ────────────────────────────────────────────────────
