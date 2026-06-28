@@ -576,7 +576,10 @@ def _calcular_valor_total_os(os):
             qtd = float(item.quantidade_total or 0)
             val_str = str(item.valor_unitario or '0').strip()
             if val_str and val_str not in ('0', '__', ''):
-                val_str = val_str.replace('.', '').replace(',', '.')
+                if ',' in val_str:
+                    # Formato BR "1.234,56": ponto é milhar, vírgula é decimal
+                    val_str = val_str.replace('.', '').replace(',', '.')
+                # Sem vírgula (ex: "1234.56"): ponto já é o separador decimal
                 val = float(val_str)
             else:
                 val = 0.0
@@ -842,7 +845,13 @@ def relatorio_organizacao_eventos():
         def parse_valor(s):
             try:
                 v = str(s or '0').strip()
-                return float(v.replace('.', '').replace(',', '.')) if v not in ('', '0', '__') else 0.0
+                if v in ('', '0', '__'):
+                    return 0.0
+                if ',' in v:
+                    # Formato BR "1.234,56": ponto é milhar, vírgula é decimal
+                    v = v.replace('.', '').replace(',', '.')
+                # Sem vírgula (ex: "1234.56"): ponto já é o separador decimal
+                return float(v)
             except (ValueError, TypeError):
                 return 0.0
 
@@ -939,7 +948,13 @@ def exportar_organizacao_excel():
         def parse_valor(s):
             try:
                 v = str(s or '0').strip()
-                return float(v.replace('.', '').replace(',', '.')) if v not in ('', '0', '__') else 0.0
+                if v in ('', '0', '__'):
+                    return 0.0
+                if ',' in v:
+                    # Formato BR "1.234,56": ponto é milhar, vírgula é decimal
+                    v = v.replace('.', '').replace(',', '.')
+                # Sem vírgula (ex: "1234.56"): ponto já é o separador decimal
+                return float(v)
             except (ValueError, TypeError):
                 return 0.0
 

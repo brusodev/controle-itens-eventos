@@ -316,9 +316,7 @@ def criar_ordem():
             valor_unitario = item_os_data.get('valorUnit', item_os_data.get('valorUnit', '0'))
             if isinstance(valor_unitario, (int, float)):
                 valor_unitario = str(valor_unitario)
-            
-            print(f"💰 Item {item_os_data['descricao']}: valorUnit = {valor_unitario} (tipo: {type(valor_unitario).__name__})")
-            
+
             # Criar registro do item na O.S.
             item_os = ItemOrdemServico(
                 ordem_servico_id=os.id,
