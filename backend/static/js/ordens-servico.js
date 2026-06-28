@@ -922,7 +922,13 @@ async function salvarEFecharOS() {
                 itemBec: item.itemBec,
                 descricao: item.descricao,
                 unidade: item.unidade,
-                qtdTotal: item.qtdTotal
+                diarias: item.diarias,
+                qtdSolicitada: item.qtdSolicitada,
+                qtdTotal: item.qtdTotal,
+                valorUnit: item.valorUnit,
+                trajetoOrigem: item.trajetoOrigem || null,
+                trajetoDestino: item.trajetoDestino || null,
+                trajetoTipo: item.trajetoTipo || null,
             }))
         };
 
@@ -1004,7 +1010,13 @@ async function salvarEContinuarOS() {
                 itemBec: item.itemBec,
                 descricao: item.descricao,
                 unidade: item.unidade,
-                qtdTotal: item.qtdTotal
+                diarias: item.diarias,
+                qtdSolicitada: item.qtdSolicitada,
+                qtdTotal: item.qtdTotal,
+                valorUnit: item.valorUnit,
+                trajetoOrigem: item.trajetoOrigem || null,
+                trajetoDestino: item.trajetoDestino || null,
+                trajetoTipo: item.trajetoTipo || null,
             }))
         };
 

@@ -13,16 +13,19 @@ import sys
 import os
 import json
 import re
+import logging
 
 # Adicionar o diretório utils ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'utils'))
 from controle_estoque import (
-    processar_baixas_os, 
-    reverter_baixa_estoque, 
-    ErroEstoqueInsuficiente, 
+    processar_baixas_os,
+    reverter_baixa_estoque,
+    ErroEstoqueInsuficiente,
     ErroRegiaoInvalida,
     obter_relatorio_estoque_por_regiao
 )
+
+logger = logging.getLogger(__name__)
 
 os_bp = Blueprint('ordens_servico', __name__)
 
@@ -225,20 +228,6 @@ def criar_ordem():
     try:
         dados = request.json
         
-        # DEBUG: Imprimir dados recebidos
-        print("\n" + "="*60)
-        print("📥 DADOS RECEBIDOS NA API - POST /ordens-servico/")
-        print("="*60)
-        print(f"Grupo: {dados.get('grupo')}")
-        print(f"Itens recebidos: {len(dados.get('itens', []))}")
-        for idx, item in enumerate(dados.get('itens', []), 1):
-            print(f"\nItem {idx}:")
-            print(f"  Descrição: {item.get('descricao', 'N/A')}")
-            print(f"  Diárias: {item.get('diarias', 'MISSING')}")
-            print(f"  Qtd Solicitada: {item.get('qtdSolicitada', 'MISSING')}")
-            print(f"  Qtd Total: {item.get('qtdTotal', 'MISSING')}")
-        print("="*60 + "\n")
-        
         # Gerar próximo número automaticamente (por módulo + grupo)
         modulo_os = dados.get('modulo') or request.args.get('modulo', 'coffee')
         grupo_os = dados.get('grupo')
@@ -247,8 +236,7 @@ def criar_ordem():
         if not detentora_id:
             detentora_id = _resolver_detentora_id(modulo_os, grupo_os, dados.get('detentora'))
         numero_os_gerado = gerar_proximo_numero_os(modulo_os, grupo_os, detentora_id)
-        print(f"🔢 Número da O.S. gerado automaticamente: {numero_os_gerado}")
-        
+
         # ✅ VALIDAR E OBTER REGIÃO DO GRUPO
         grupo = dados.get('grupo')
         try:
@@ -262,8 +250,6 @@ def criar_ordem():
             return jsonify({
                 'erro': f'Grupo inválido: {grupo}. Deve ser um número entre 1 e {_max_grupo_por_modulo(modulo_os)}.'
             }), 400
-        
-        print(f"🗺️  Região do estoque: {regiao_estoque}")
         
         # Resolver detentora_id: aceita id explícito ou busca pelo nome/grupo
         detentora_id = detentora_id or _resolver_detentora_id(modulo_os, grupo, dados.get('detentora'))
@@ -341,22 +327,19 @@ def criar_ordem():
         
         # ✅ PROCESSAR BAIXAS DE ESTOQUE COM VALIDAÇÃO
         try:
-            print(f"\n📦 Processando baixas de estoque para região {regiao_estoque}...")
             movimentacoes = processar_baixas_os(
                 ordem_servico_id=os.id,
                 itens_os=itens_os,
                 regiao_numero=regiao_estoque,
                 numero_os=numero_os_gerado
             )
-            print(f"✅ {len(movimentacoes)} movimentações de estoque registradas com sucesso!")
-            
+
         except (ErroEstoqueInsuficiente, ErroRegiaoInvalida) as e:
             db.session.rollback()
-            print(f"❌ ERRO de estoque: {str(e)}")
             return jsonify({'erro': str(e)}), 400
-        
+
         db.session.commit()
-        
+
         # Registrar auditoria
         registrar_auditoria(
             'CREATE',
@@ -366,15 +349,12 @@ def criar_ordem():
             entidade_id=os.id,
             dados_depois=os.to_dict()
         )
-        
-        print(f"✅ O.S. {numero_os_gerado} criada com sucesso!\n")
+
         return jsonify(os.to_dict()), 201
-    
+
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERRO ao criar O.S.: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception('Erro ao criar O.S.')
         return jsonify({'erro': str(e)}), 500
 
 
@@ -404,14 +384,10 @@ def atualizar_ordem(os_id):
 
         # Salvar dados antes para auditoria (com itens)
         dados_antes = os.to_dict(incluir_itens=True)
-        
-        print(f"\n🔄 Editando O.S. {os.numero_os}...")
-        
+
         # ✅ REVERTER ESTOQUE DOS ITENS ANTIGOS
-        print(f"↩️  Revertendo estoque da O.S. {os_id}...")
-        total_revertido = reverter_baixa_estoque(os_id)
-        print(f"   ✅ {total_revertido} movimentações revertidas!")
-        
+        reverter_baixa_estoque(os_id)
+
         # Deletar itens antigos
         for item_os in os.itens:
             db.session.delete(item_os)
@@ -513,22 +489,19 @@ def atualizar_ordem(os_id):
 
         # ✅ PROCESSAR NOVAS BAIXAS DE ESTOQUE
         try:
-            print(f"📦 Processando novas baixas de estoque para região {regiao_estoque}...")
             movimentacoes = processar_baixas_os(
                 ordem_servico_id=os.id,
                 itens_os=itens_os,
                 regiao_numero=regiao_estoque,
                 numero_os=os.numero_os
             )
-            print(f"✅ {len(movimentacoes)} novas movimentações registradas!")
-            
+
         except (ErroEstoqueInsuficiente, ErroRegiaoInvalida) as e:
             db.session.rollback()
-            print(f"❌ ERRO de estoque: {str(e)}")
             return jsonify({'erro': str(e)}), 400
-        
+
         db.session.commit()
-        
+
         # Registrar auditoria com dados completos
         registrar_auditoria(
             'UPDATE',
@@ -539,15 +512,12 @@ def atualizar_ordem(os_id):
             dados_antes=dados_antes,
             dados_depois=os.to_dict(incluir_itens=True)
         )
-        
-        print(f"✅ O.S. {os.numero_os} atualizada com sucesso!\n")
+
         return jsonify(os.to_dict()), 200
-        
+
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERRO ao atualizar O.S.: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception('Erro ao atualizar O.S.')
         return jsonify({'erro': str(e)}), 500
 
 
@@ -581,15 +551,10 @@ def deletar_ordem(os_id):
         
         # Salvar dados antes de deletar
         dados_antes = os.to_dict()
-        
-        print(f"\n🗑️  Deletando O.S. {numero_os}...")
-        print(f"   Motivo: {motivo_exclusao}")
-        
+
         # ✅ REVERTER ESTOQUE ANTES DE DELETAR
-        print(f"↩️  Revertendo estoque da O.S. {os_id}...")
-        total_revertido = reverter_baixa_estoque(os_id)
-        print(f"   ✅ {total_revertido} movimentações revertidas!")
-        
+        reverter_baixa_estoque(os_id)
+
         # ✅ Registrar motivo e data de exclusão antes de deletar
         os.motivo_exclusao = motivo_exclusao
         os.data_exclusao = get_datetime_br()
@@ -608,16 +573,15 @@ def deletar_ordem(os_id):
             dados_antes=dados_antes
         )
         
-        print(f"✅ O.S. {numero_os} deletada com sucesso!\n")
         return jsonify({
             'mensagem': f'O.S. {numero_os} deletada com sucesso',
             'numeroOS': numero_os,
             'motivo': motivo_exclusao
         }), 200
-    
+
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERRO ao deletar O.S.: {str(e)}")
+        logger.exception('Erro ao deletar O.S.')
         return jsonify({'erro': str(e)}), 500
 
 
@@ -769,9 +733,7 @@ def gerar_pdf_ordem(os_id):
         return response
     
     except Exception as e:
-        print(f"❌ Erro ao gerar PDF: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception('Erro ao gerar PDF')
         return jsonify({'erro': str(e)}), 500
 
 
@@ -829,8 +791,7 @@ def baixar_png_os(os_id):
         return response
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception('Erro ao gerar PNG da O.S.')
         return jsonify({'erro': str(e)}), 500
 
 

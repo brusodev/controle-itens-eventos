@@ -76,7 +76,7 @@ class TestIsolamento:
         sessao_empresa(client, usuario_empresa_alpha, detentora_alpha)
         resp = client.get('/api/empresa/inbox')
         assert resp.status_code == 200
-        ids = [o['id'] for o in resp.get_json()]
+        ids = [o['id'] for o in resp.get_json()['ordens']]
         with app.app_context():
             assert os_enviada_alpha in ids
             assert os_enviada_beta not in ids
@@ -513,6 +513,7 @@ class TestMonitoramento:
     def test_enviar_para_empresa_muda_status(
         self, client, app,
         usuario_admin,
+        usuario_empresa_alpha,  # detentora precisa de usuário ativo no portal
         os_emitida_alpha
     ):
         token = sessao_admin(client, usuario_admin)

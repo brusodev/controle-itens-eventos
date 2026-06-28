@@ -74,7 +74,7 @@ class TestRegistro:
         sessao_admin(client, usuario_admin)
         resp = client.post(
             '/auth/registro',
-            json={'nome': 'Novo Comum', 'email': 'novo@test.com', 'senha': 'senha123', 'perfil': 'comum'}
+            json={'nome': 'Novo Comum', 'email': 'novo@test.com', 'senha': 'senha-valida-123', 'perfil': 'comum'}
         )
         assert resp.status_code == 201
 
@@ -86,7 +86,7 @@ class TestRegistro:
             '/auth/registro',
             json={
                 'nome': 'Novo Empresa', 'email': 'empresa2@test.com',
-                'senha': 'senha123', 'perfil': 'empresa',
+                'senha': 'senha-valida-123', 'perfil': 'empresa',
                 'detentora_id': detentora_alpha
             }
         )
@@ -104,7 +104,7 @@ class TestRegistro:
             '/auth/registro',
             json={
                 'nome': 'Sem Det', 'email': 'semdet2@test.com',
-                'senha': 'senha123', 'perfil': 'empresa'
+                'senha': 'senha-valida-123', 'perfil': 'empresa'
                 # detentora_id ausente
             }
         )
@@ -116,7 +116,7 @@ class TestRegistro:
         sessao_empresa(client, usuario_empresa_alpha, detentora_alpha)
         resp = client.post(
             '/auth/registro',
-            json={'nome': 'Intruso', 'email': 'x@test.com', 'senha': '123456', 'perfil': 'comum'}
+            json={'nome': 'Intruso', 'email': 'x@test.com', 'senha': 'senha-valida-123', 'perfil': 'comum'}
         )
         assert resp.status_code == 403
 
@@ -124,7 +124,7 @@ class TestRegistro:
         sessao_admin(client, usuario_admin)
         resp = client.post(
             '/auth/registro',
-            json={'nome': 'X', 'email': 'x2@test.com', 'senha': '123456', 'perfil': 'superadmin'}
+            json={'nome': 'X', 'email': 'x2@test.com', 'senha': 'senha-valida-123', 'perfil': 'superadmin'}
         )
         assert resp.status_code == 400
 

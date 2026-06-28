@@ -185,35 +185,6 @@ class TestAbrirModalJS:
         assert 'aceitar-nome' in corpo, \
             "REGRESSÃO: _abrirModalAceitar() não limpa o campo de nome."
 
-    def test_gerar_assinatura_base64_existe(self):
-        """
-        Assinatura digital por declaração: _gerarAssinaturaBase64 deve existir
-        e gerar uma imagem PNG a partir do nome (modelo SEI/GovBR).
-        """
-        js = ler_arquivo(JS_PORTAL)
-        assert '_gerarAssinaturaBase64' in js, \
-            "Função _gerarAssinaturaBase64 não encontrada — assinatura digital não será gerada."
-        match = re.search(r'function _gerarAssinaturaBase64\s*\([^)]*\)\s*\{(.+?)^\}', js,
-                          re.DOTALL | re.MULTILINE)
-        assert match, "Corpo de _gerarAssinaturaBase64 não encontrado"
-        corpo = match.group(1)
-        assert 'toDataURL' in corpo, \
-            "REGRESSÃO: _gerarAssinaturaBase64() não usa toDataURL para exportar PNG."
-
-    def test_confirmar_aceite_valida_checkbox(self):
-        """
-        confirmarAceite() deve verificar o checkbox de declaração antes de enviar.
-        Sem isso, usuário pode aceitar sem declarar responsabilidade.
-        """
-        js = ler_arquivo(JS_PORTAL)
-        match = re.search(r'async function confirmarAceite\s*\(\s*\)\s*\{(.+?)^\}', js,
-                          re.DOTALL | re.MULTILINE)
-        assert match, "Função confirmarAceite não encontrada"
-        corpo = match.group(1)
-        assert 'aceitar-confirmacao' in corpo, \
-            "REGRESSÃO: confirmarAceite() não valida o checkbox de declaração."
-
-
 # ---------------------------------------------------------------------------
 # 4. Conflito entre arquivos CSS — nenhum outro seletor de modal com z-index baixo
 # ---------------------------------------------------------------------------

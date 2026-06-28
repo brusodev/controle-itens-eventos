@@ -41,7 +41,9 @@ class TestDetentoraIdNaOS:
                 assert os_obj.detentora_id == detentora_alpha
 
     def test_enviar_empresa_funciona_apos_vincular_detentora(
-        self, client, app, usuario_admin, detentora_alpha, os_emitida_alpha
+        self, client, app, usuario_admin, detentora_alpha,
+        usuario_empresa_alpha,  # detentora precisa de usuário ativo no portal
+        os_emitida_alpha
     ):
         """O.S. com detentora_id vinculada pode ser enviada para empresa."""
         token = sessao_admin(client, usuario_admin)
