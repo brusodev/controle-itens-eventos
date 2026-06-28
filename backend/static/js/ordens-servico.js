@@ -914,6 +914,9 @@ async function salvarEFecharOS() {
             local: dadosOS.local,
             responsavel: dadosOS.responsavel,
             justificativa: dadosOS.justificativa,
+            observacoes: dadosOS.observacoes,
+            qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
+            dataEmissao: dadosOS.dataEmissao,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
             fiscalTipo: dadosOS.fiscalTipo,
@@ -937,6 +940,9 @@ async function salvarEFecharOS() {
         // Atualizar O.S. existente
         await APIClient.atualizarOrdemServico(osEditandoId, dadosAPI);
         alert('✅ O.S. atualizada com sucesso! Estoque recalculado.');
+
+        // Salvo com sucesso: não avisar "alterações não salvas" ao redirecionar
+        if (typeof marcarFormularioSalvo === 'function') marcarFormularioSalvo();
 
         // Limpar estado de edição
         osEditandoId = null;
@@ -1002,6 +1008,9 @@ async function salvarEContinuarOS() {
             local: dadosOS.local,
             responsavel: dadosOS.responsavel,
             justificativa: dadosOS.justificativa,
+            observacoes: dadosOS.observacoes,
+            qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
+            dataEmissao: dadosOS.dataEmissao,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
             fiscalTipo: dadosOS.fiscalTipo,

@@ -1092,6 +1092,9 @@ async function confirmarEmissaoOS() {
             alert('O.S. emitida com sucesso! Estoque atualizado.');
         }
 
+        // Salvo com sucesso: não avisar "alterações não salvas" ao redirecionar
+        if (typeof marcarFormularioSalvo === 'function') marcarFormularioSalvo();
+
         // Limpar formulário e fechar modal
         descartarRascunhoOS();
         document.getElementById('form-emitir-os').reset();

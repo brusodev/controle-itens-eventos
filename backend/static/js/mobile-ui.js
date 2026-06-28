@@ -296,6 +296,12 @@ function monitorarFormulario() {
     });
 }
 
+// Permite que fluxos que salvam sem submit (ex: "Salvar e Fechar" da edição)
+// limpem o aviso de "alterações não salvas" antes de redirecionar.
+window.marcarFormularioSalvo = function () {
+    formularioModificado = false;
+};
+
 window.addEventListener('beforeunload', function(e) {
     if (formularioModificado) {
         e.preventDefault();
