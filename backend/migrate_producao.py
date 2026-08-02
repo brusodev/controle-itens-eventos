@@ -63,6 +63,10 @@ def main():
         add_column(cur, 'ordens_servico', 'data_exclusao',    "DATETIME")
         add_column(cur, 'ordens_servico', 'signatarios_json', "TEXT")
         add_column(cur, 'ordens_servico', 'fiscal_tipo',      "VARCHAR(50) DEFAULT 'Fiscal do Contrato'")
+        # Modulo Servicos Graficos (pedidos pontuais)
+        add_column(cur, 'ordens_servico', 'setor_solicitante', "VARCHAR(200)")
+        add_column(cur, 'ordens_servico', 'data_pedido',        "VARCHAR(20)")
+        add_column(cur, 'ordens_servico', 'data_entrega',       "VARCHAR(20)")
 
         print("\n-- usuarios --------------------------------------------------------")
         add_column(cur, 'usuarios', 'detentora_id',  "INTEGER REFERENCES detentoras(id)")

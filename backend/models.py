@@ -229,7 +229,11 @@ class OrdemServico(db.Model):
 
     # Transporte: setor que solicitou a O.S.
     setor_solicitante = db.Column(db.String(200))
-    
+
+    # Serviços Gráficos (pedidos pontuais): datas opcionais
+    data_pedido = db.Column(db.String(20))
+    data_entrega = db.Column(db.String(20))
+
     # Responsáveis
     gestor_contrato = db.Column(db.String(200))
     fiscal_contrato = db.Column(db.String(200))
@@ -309,6 +313,8 @@ class OrdemServico(db.Model):
             'trajetoTipo': self.trajeto_tipo,
             'qtdPessoasAtendidas': self.qtd_pessoas_atendidas,
             'setorSolicitante': self.setor_solicitante,
+            'dataPedido': self.data_pedido,
+            'dataEntrega': self.data_entrega,
             'gestorContrato': self.gestor_contrato,
             'fiscalContrato': self.fiscal_contrato,
             'fiscalTipo': self.fiscal_tipo,  # ✅ Adicionar tipo de fiscal

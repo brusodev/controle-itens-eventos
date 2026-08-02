@@ -43,7 +43,13 @@ def run_seed(seed_file):
         elif seed_file == 'seed_detentoras_transporte.py':
             from seed_detentoras_transporte import seed_detentoras
             seed_detentoras()
-        
+        elif seed_file == 'seed_servicos_graficos.py':
+            from seed_servicos_graficos import seed_servicos_graficos
+            seed_servicos_graficos()
+        elif seed_file == 'seed_detentoras_servicos_graficos.py':
+            from seed_detentoras_servicos_graficos import seed_detentoras_servicos_graficos
+            seed_detentoras_servicos_graficos()
+
         print(f"✅ {seed_file} concluído com sucesso!")
         return True
     except Exception as e:
@@ -86,6 +92,10 @@ def seed_all():
         # 4. Transporte
         'seed_transportes.py',
         'seed_detentoras_transporte.py',
+
+        # 5. Serviços Gráficos
+        'seed_servicos_graficos.py',
+        'seed_detentoras_servicos_graficos.py',
     ]
     
     resultados = []

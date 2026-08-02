@@ -120,16 +120,38 @@ function _atualizarLabelsFormulario(cfg) {
         campoQtdPessoas.style.display = moduloAtual === 'organizacao' ? '' : 'none';
     }
 
-    // Mostrar campo "Setor Solicitante" somente para módulo transporte
+    // Mostrar campo "Setor Solicitante" para Transporte e Serviços Gráficos
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
+    const isGrafico = moduloAtual === 'servicos_graficos';
+    const exigeSetor = moduloAtual === 'transporte' || isGrafico;
+
     const campoSetor = document.getElementById('campo-setor-solicitante');
     if (campoSetor) {
-        const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
-        const isTransporte = moduloAtual === 'transporte';
-        campoSetor.style.display = isTransporte ? '' : 'none';
+        campoSetor.style.display = exigeSetor ? '' : 'none';
         const inputSetor = document.getElementById('os-setor-solicitante');
-        if (inputSetor) inputSetor.required = isTransporte;
-        if (isTransporte) carregarSetoresSolicitantes();
+        if (inputSetor) inputSetor.required = exigeSetor;
+        if (exigeSetor) carregarSetoresSolicitantes();
     }
+
+    // Serviços Gráficos: pedidos pontuais. Os campos de evento continuam visíveis,
+    // mas deixam de ser obrigatórios (aparecem na O.S. apenas quando preenchidos).
+    const camposEvento = [
+        { label: 'os-evento-label', input: 'os-evento', texto: 'Evento' },
+        { label: 'os-data-evento-label', input: 'os-data-evento', texto: 'Data do Evento' },
+        { label: 'os-horario-label', input: 'os-horario', texto: 'Horário do Evento' },
+        { label: 'os-local-label', input: 'os-local', texto: 'Local do Evento' },
+    ];
+    camposEvento.forEach(({ label, input, texto }) => {
+        const el = document.getElementById(input);
+        if (el) el.required = !isGrafico;
+        const lbl = document.getElementById(label);
+        if (lbl) lbl.textContent = isGrafico ? texto : `${texto} *`;
+    });
+
+    const campoDataPedido = document.getElementById('campo-data-pedido');
+    if (campoDataPedido) campoDataPedido.style.display = isGrafico ? '' : 'none';
+    const campoDataEntrega = document.getElementById('campo-data-entrega');
+    if (campoDataEntrega) campoDataEntrega.style.display = isGrafico ? '' : 'none';
 }
 
 /**
@@ -548,7 +570,7 @@ function renderizarTabelaItensOS() {
                 <th style="width: 80px;">Total</th>
                 <th style="width: 45px;"></th>
             `;
-        } else {
+        } else if (cfg.usaTrajeto) {
             // Transporte: inclui colunas de trajeto por item
             thead.innerHTML = `
                 <th style="width: 35px;">#</th>
@@ -559,6 +581,16 @@ function renderizarTabelaItensOS() {
                 <th style="width: 140px;">Destino</th>
                 <th style="width: 90px;">Ida/Volta</th>
                 <th style="width: 75px;" title="➕ duplicar linha | ✕ remover"></th>
+            `;
+        } else {
+            // Sem diárias e sem trajeto (ex.: Serviços Gráficos): tabela simples
+            thead.innerHTML = `
+                <th style="width: 35px;">#</th>
+                <th>${cfg.descLabel === 'ESPECIFICAÇÃO' ? 'Especificação' : 'Descrição'}</th>
+                <th style="width: 130px;">Categoria</th>
+                <th style="width: 100px;">${cfg.colunaQtdCompacta}</th>
+                <th style="width: 80px;">Total</th>
+                <th style="width: 45px;"></th>
             `;
         }
     }
@@ -593,7 +625,7 @@ function renderizarTabelaItensOS() {
                 <td class="td-total">${total}</td>
                 <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
             `;
-        } else {
+        } else if (cfg.usaTrajeto) {
             // Transporte: sem diárias, com campos de trajeto por item
             const origem = item.trajetoOrigem || '';
             const destino = item.trajetoDestino || '';
@@ -621,6 +653,16 @@ function renderizarTabelaItensOS() {
                         style="background:#1565c0;color:#fff;border:none;border-radius:4px;padding:3px 7px;font-size:1rem;cursor:pointer;margin-right:3px;">➕</button>
                     <button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button>
                 </td>
+            `;
+        } else {
+            // Sem diárias e sem trajeto (ex.: Serviços Gráficos): Qtd direta + total
+            tr.innerHTML = `
+                <td style="text-align: center; color: #888;">${idx + 1}</td>
+                <td class="item-descricao">${item.descricao}</td>
+                <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
+                <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
+                <td class="td-total">${total}</td>
+                <td><button type="button" class="btn-remover-item" onclick="removerItemOS(${idx})" title="Remover item">✕</button></td>
             `;
         }
 
@@ -838,6 +880,8 @@ function coletarDadosOS() {
             return (v && parseInt(v) > 0) ? parseInt(v) : null;
         })(),
         setorSolicitante: document.getElementById('os-setor-solicitante')?.value.trim() || null,
+        dataPedido: document.getElementById('os-data-pedido')?.value || null,
+        dataEntrega: document.getElementById('os-data-entrega')?.value || null,
         signatarios: signatariosOS.filter(s => s.nome.trim() !== ''),
         gestor: signatariosOS[0]?.nome || '',
         fiscal: signatariosOS[1]?.nome || '',
@@ -925,30 +969,44 @@ function gerarPreviewOS(dados) {
 
             <div class="os-section">
                 <table class="os-table">
+                    ${dados.evento ? `
                     <tr>
                         <td style="width: 30%;"><strong>EVENTO:</strong></td>
                         <td colspan="3">${dados.evento}</td>
-                    </tr>
+                    </tr>` : ''}
+                    ${dados.dataEvento ? `
                     <tr>
-                        <td><strong>${cfg.osDataLabel}:</strong></td>
+                        <td style="width: 30%;"><strong>${cfg.osDataLabel}:</strong></td>
                         <td colspan="3">${dados.dataEvento}</td>
-                    </tr>
+                    </tr>` : ''}
+                    ${dados.horario ? `
                     <tr>
-                        <td><strong>${cfg.osHorarioLabel}:</strong></td>
-                        <td colspan="3">${dados.horario || ''}</td>
-                    </tr>
+                        <td style="width: 30%;"><strong>${cfg.osHorarioLabel}:</strong></td>
+                        <td colspan="3">${dados.horario}</td>
+                    </tr>` : ''}
+                    ${dados.local ? `
                     <tr>
-                        <td><strong>${cfg.osLocalLabel}:</strong></td>
+                        <td style="width: 30%;"><strong>${cfg.osLocalLabel}:</strong></td>
                         <td colspan="3">${dados.local}</td>
-                    </tr>
+                    </tr>` : ''}
                     <tr>
-                        <td><strong>RESPONSÁVEL:</strong></td>
+                        <td style="width: 30%;"><strong>RESPONSÁVEL:</strong></td>
                         <td colspan="3">${dados.responsavel || ''}</td>
                     </tr>
-                    ${modulo === 'transporte' && dados.setorSolicitante ? `
+                    ${(modulo === 'transporte' || modulo === 'servicos_graficos') && dados.setorSolicitante ? `
                     <tr>
                         <td><strong>SETOR SOLICITANTE:</strong></td>
                         <td colspan="3">${dados.setorSolicitante}</td>
+                    </tr>` : ''}
+                    ${modulo === 'servicos_graficos' && dados.dataPedido ? `
+                    <tr>
+                        <td><strong>DATA DO PEDIDO:</strong></td>
+                        <td colspan="3">${formatarDataSimples(dados.dataPedido)}</td>
+                    </tr>` : ''}
+                    ${modulo === 'servicos_graficos' && dados.dataEntrega ? `
+                    <tr>
+                        <td><strong>DATA DE ENTREGA:</strong></td>
+                        <td colspan="3">${formatarDataSimples(dados.dataEntrega)}</td>
                     </tr>` : ''}
                 </table>
             </div>
@@ -1068,6 +1126,8 @@ async function confirmarEmissaoOS() {
             observacoes: dadosOS.observacoes,
             qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
             setorSolicitante: dadosOS.setorSolicitante || null,
+            dataPedido: dadosOS.dataPedido || null,
+            dataEntrega: dadosOS.dataEntrega || null,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
             fiscalTipo: dadosOS.fiscalTipo,
@@ -1265,7 +1325,7 @@ function salvarRascunhoOS() {
         'os-detentora', 'os-cnpj', 'os-servico', 'os-grupo',
         'os-evento', 'os-data-evento', 'os-horario', 'os-local',
         'os-justificativa', 'os-observacoes', 'os-responsavel', 'os-qtd-pessoas',
-        'os-setor-solicitante'
+        'os-setor-solicitante', 'os-data-pedido', 'os-data-entrega'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);

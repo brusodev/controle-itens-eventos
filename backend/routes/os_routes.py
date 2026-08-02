@@ -128,6 +128,8 @@ def _max_grupo_por_modulo(modulo):
         return 1
     if modulo == 'trofeus':
         return 2
+    if modulo == 'servicos_graficos':
+        return 1
     return 6
 
 
@@ -279,6 +281,8 @@ def criar_ordem():
             trajeto_tipo=dados.get('trajetoTipo'),
             qtd_pessoas_atendidas=dados.get('qtdPessoasAtendidas'),
             setor_solicitante=dados.get('setorSolicitante'),
+            data_pedido=dados.get('dataPedido'),
+            data_entrega=dados.get('dataEntrega'),
             gestor_contrato=dados.get('gestorContrato'),
             fiscal_contrato=dados.get('fiscalContrato'),
             fiscal_tipo=dados.get('fiscalTipo', 'Fiscal do Contrato'),
@@ -435,6 +439,8 @@ def atualizar_ordem(os_id):
         os.trajeto_tipo = dados.get('trajetoTipo', os.trajeto_tipo)
         os.qtd_pessoas_atendidas = dados.get('qtdPessoasAtendidas', os.qtd_pessoas_atendidas)
         os.setor_solicitante = dados.get('setorSolicitante', os.setor_solicitante)
+        os.data_pedido = dados.get('dataPedido', os.data_pedido)
+        os.data_entrega = dados.get('dataEntrega', os.data_entrega)
         os.gestor_contrato = dados.get('gestorContrato', os.gestor_contrato)
         os.fiscal_contrato = dados.get('fiscalContrato', os.fiscal_contrato)
         os.fiscal_tipo = dados.get('fiscalTipo', os.fiscal_tipo)

@@ -132,25 +132,25 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="os-evento">Evento *</label>
+                        <label for="os-evento" id="os-evento-label">Evento *</label>
                         <input type="text" id="os-evento" required placeholder="Orientação técnica para a APEOESP..." list="lista-eventos">
                         <datalist id="lista-eventos"></datalist>
                     </div>
 
                     <div class="form-group">
-                        <label for="os-data-evento">Data do Evento *</label>
+                        <label for="os-data-evento" id="os-data-evento-label">Data do Evento *</label>
                         <input type="text" id="os-data-evento" required placeholder="Ex: 25 à 28/08/2025" list="lista-datas">
                         <datalist id="lista-datas"></datalist>
                     </div>
 
                     <div class="form-group">
-                        <label for="os-horario">Horário do Evento *</label>
+                        <label for="os-horario" id="os-horario-label">Horário do Evento *</label>
                         <textarea id="os-horario" rows="4" required placeholder="Ex: 08:00 às 17:00 Hrs&#10;Manhã: 08:00&#10;Tarde: 14:30" list="lista-horarios"></textarea>
                         <datalist id="lista-horarios"></datalist>
                     </div>
 
                     <div class="form-group">
-                        <label for="os-local">Local do Evento *</label>
+                        <label for="os-local" id="os-local-label">Local do Evento *</label>
                         <textarea id="os-local" rows="2" required placeholder="CGRH – Largo do Arouche, 302..." list="lista-locais"></textarea>
                         <datalist id="lista-locais"></datalist>
                     </div>
@@ -182,6 +182,16 @@
                         <label for="os-setor-solicitante">Setor Solicitante *</label>
                         <input type="text" id="os-setor-solicitante" placeholder="Ex: Gabinete, Logística, RH..." list="lista-setores-solicitantes">
                         <datalist id="lista-setores-solicitantes"></datalist>
+                    </div>
+
+                    <div class="form-group" id="campo-data-pedido" style="display:none;">
+                        <label for="os-data-pedido">Data do Pedido <small style="color:#6c757d;">(opcional)</small></label>
+                        <input type="date" id="os-data-pedido" style="max-width:220px;">
+                    </div>
+
+                    <div class="form-group" id="campo-data-entrega" style="display:none;">
+                        <label for="os-data-entrega">Data de Entrega <small style="color:#6c757d;">(opcional)</small></label>
+                        <input type="date" id="os-data-entrega" style="max-width:220px;">
                     </div>
 
                     <h3>Signatários da O.S.</h3>
@@ -708,6 +718,7 @@
                                     <option value="organizacao">Organização</option>
                                     <option value="hospedagem">Hospedagem</option>
                                     <option value="trofeus">Troféus</option>
+                                    <option value="servicos_graficos">Serviços Gráficos</option>
                                 </select>
                             </div>
                             <div class="form-group">

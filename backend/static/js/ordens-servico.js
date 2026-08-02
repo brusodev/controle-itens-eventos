@@ -274,6 +274,8 @@ function normalizarDadosOS(os) {
         justificativa: os.justificativa || '',
         observacoes: os.observacoes || '',
         setorSolicitante: os.setorSolicitante || '',
+        dataPedido: os.dataPedido || '',
+        dataEntrega: os.dataEntrega || '',
         gestor: os.gestorContrato || os.gestor || '',
         fiscal: os.fiscalContrato || os.fiscal || '',
         fiscalTipo: os.fiscalTipo || 'Fiscal do Contrato',
@@ -696,6 +698,13 @@ async function restaurarOSParaEdicao() {
         osEditandoId = parseInt(osIdParaEditar);
         console.log('✏️ Modo edição ativado para O.S.:', osEditandoId);
 
+        // Garantir que os campos condicionais do módulo (datas de pedido/entrega,
+        // setor solicitante, obrigatoriedade de evento) estejam no estado correto,
+        // para que os valores preenchidos abaixo fiquem visíveis e editáveis.
+        if (typeof _atualizarLabelsFormulario === 'function' && typeof getModuleConfig === 'function') {
+            _atualizarLabelsFormulario(getModuleConfig());
+        }
+
         // Função auxiliar para converter data pt-BR para formato input date (YYYY-MM-DD)
         const converterDataParaInput = (dataBR) => {
             if (!dataBR) return '';
@@ -761,6 +770,10 @@ async function restaurarOSParaEdicao() {
         if (_qtdPEl) _qtdPEl.value = os.qtdPessoasAtendidas || '';
         const _setorEl = document.getElementById('os-setor-solicitante');
         if (_setorEl) _setorEl.value = os.setorSolicitante || '';
+        const _dtPedEl = document.getElementById('os-data-pedido');
+        if (_dtPedEl) _dtPedEl.value = converterDataParaInput(os.dataPedido) || '';
+        const _dtEntEl = document.getElementById('os-data-entrega');
+        if (_dtEntEl) _dtEntEl.value = converterDataParaInput(os.dataEntrega) || '';
 
         // Carregar signatários dinâmicos
         if (os.signatarios && os.signatarios.length > 0) {
@@ -920,6 +933,8 @@ async function salvarEFecharOS() {
             observacoes: dadosOS.observacoes,
             qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
             setorSolicitante: dadosOS.setorSolicitante || null,
+            dataPedido: dadosOS.dataPedido || null,
+            dataEntrega: dadosOS.dataEntrega || null,
             dataEmissao: dadosOS.dataEmissao,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,
@@ -1015,6 +1030,8 @@ async function salvarEContinuarOS() {
             observacoes: dadosOS.observacoes,
             qtdPessoasAtendidas: dadosOS.qtdPessoasAtendidas || null,
             setorSolicitante: dadosOS.setorSolicitante || null,
+            dataPedido: dadosOS.dataPedido || null,
+            dataEntrega: dadosOS.dataEntrega || null,
             dataEmissao: dadosOS.dataEmissao,
             gestorContrato: dadosOS.gestor,
             fiscalContrato: dadosOS.fiscal,

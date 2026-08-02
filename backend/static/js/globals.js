@@ -90,6 +90,7 @@ const MODULE_CONFIG = {
         itemCodeLabel: 'CATSER',   itemCodeLabelUpper: 'CATSER',
         descLabel: 'ESPECIFICAÇÃO',
         usaDiarias: false,
+        usaTrajeto: true,
         colunaQtd: 'QTDE KM',                 colunaQtdCompacta: 'Qtd KM',
         colunaQtdTotal: null,   // sem coluna separada de total
         colunaValorUnit: 'VALOR UNIT.<br/>DO KM',
@@ -128,6 +129,27 @@ const MODULE_CONFIG = {
             tipoLabelPlural: 'Grupos',
             quantidade: 2,
             nomes: { 1: 'Grupo 1', 2: 'Grupo 2' }
+        }
+    },
+    servicos_graficos: {
+        titulo: 'Serviços Gráficos', emoji: '🖨️', itemLabel: 'Itens Gráficos',
+        grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
+        itemCodeLabel: 'CATSER', itemCodeLabelUpper: 'CATSER',
+        descLabel: 'DESCRIÇÃO',
+        usaDiarias: false,
+        colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',
+        colunaQtdTotal: 'QTDE<br/>SOLICITADA<br/>TOTAL',
+        colunaValorUnit: 'VALOR UNIT.',
+        // Labels de Ordem de Serviço (pedidos pontuais, não eventos)
+        osDataLabel: 'DATA',
+        osHorarioLabel: 'HORÁRIO',
+        osLocalLabel: 'LOCAL',
+        regioes: {
+            tipo: 'grupo',
+            tipoLabel: 'Grupo',
+            tipoLabelPlural: 'Grupos',
+            quantidade: 1,
+            nomes: { 1: 'Único' }
         }
     }
 };

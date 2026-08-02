@@ -66,6 +66,11 @@ class PDFOrdemServico:
             'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.',
             'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
         },
+        'servicos_graficos': {
+            'grupo': 'GRUPO',  'item_code': 'CATSER',    'desc': 'DESCRIÇÃO',     'usa_diarias': False,
+            'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.',
+            'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL'
+        },
     }
     
     def _get_labels(self, dados):
@@ -375,36 +380,50 @@ class PDFOrdemServico:
         qtd_pessoas = dados.get('qtdPessoasAtendidas')
         qtd_pessoas_str = str(int(qtd_pessoas)) if qtd_pessoas else ''
 
-        data = [
-            [Paragraph('<b>EVENTO:</b>', self.styles['CustomLabel']),
-             Paragraph(self._get_safe(dados, 'evento'), self.styles['CustomNormal']), '', ''],
+        def _linha(label, valor):
+            return [
+                Paragraph(f'<b>{label}</b>', self.styles['CustomLabel']),
+                Paragraph(valor, self.styles['CustomNormal']), '', ''
+            ]
 
-            [Paragraph(f"<b>{labels.get('os_data_label', 'DATA')}:</b>", self.styles['CustomLabel']),
-             Paragraph(self._get_safe(dados, 'data'), self.styles['CustomNormal']), '', ''],
+        data = []
 
-            [Paragraph(f"<b>{labels.get('os_horario_label', 'HORÁRIO')}:</b>", self.styles['CustomLabel']),
-             Paragraph(horario_html, self.styles['CustomNormal']), '', ''],
+        # EVENTO / DATA / HORÁRIO / LOCAL aparecem apenas quando preenchidos
+        # (em Serviços Gráficos são opcionais; nos demais módulos são sempre informados).
+        evento = self._get_safe(dados, 'evento')
+        if evento:
+            data.append(_linha('EVENTO:', evento))
 
-            [Paragraph(f"<b>{labels.get('os_local_label', 'LOCAL DO EVENTO')}:</b>", self.styles['CustomLabel']),
-             Paragraph(self._get_safe(dados, 'local'), self.styles['CustomNormal']), '', ''],
+        data_evento = self._get_safe(dados, 'data')
+        if data_evento:
+            data.append(_linha(f"{labels.get('os_data_label', 'DATA')}:", data_evento))
 
-            [Paragraph('<b>RESPONSÁVEL:</b>', self.styles['CustomLabel']),
-             Paragraph(self._get_safe(dados, 'responsavel'), self.styles['CustomNormal']), '', ''],
-        ]
+        if horario_html:
+            data.append(_linha(f"{labels.get('os_horario_label', 'HORÁRIO')}:", horario_html))
 
-        if qtd_pessoas_str:
-            data.append([
-                Paragraph('<b>Nº DE PARTICIPANTES:</b>', self.styles['CustomLabel']),
-                Paragraph(qtd_pessoas_str, self.styles['CustomNormal']), '', ''
-            ])
+        local = self._get_safe(dados, 'local')
+        if local:
+            data.append(_linha(f"{labels.get('os_local_label', 'LOCAL DO EVENTO')}:", local))
 
         modulo = self._get_safe(dados, 'modulo', 'coffee')
+
+        # Serviços Gráficos (pedidos pontuais): datas de pedido e entrega, quando preenchidas
+        if modulo == 'servicos_graficos':
+            data_pedido = self._get_safe(dados, 'dataPedido')
+            if data_pedido:
+                data.append(_linha('DATA DO PEDIDO:', self._formatar_data(data_pedido)))
+            data_entrega = self._get_safe(dados, 'dataEntrega')
+            if data_entrega:
+                data.append(_linha('DATA DE ENTREGA:', self._formatar_data(data_entrega)))
+
+        data.append(_linha('RESPONSÁVEL:', self._get_safe(dados, 'responsavel')))
+
+        if qtd_pessoas_str:
+            data.append(_linha('Nº DE PARTICIPANTES:', qtd_pessoas_str))
+
         setor_solicitante = dados.get('setorSolicitante')
-        if modulo == 'transporte' and setor_solicitante:
-            data.append([
-                Paragraph('<b>SETOR SOLICITANTE:</b>', self.styles['CustomLabel']),
-                Paragraph(self._get_safe(dados, 'setorSolicitante'), self.styles['CustomNormal']), '', ''
-            ])
+        if modulo in ('transporte', 'servicos_graficos') and setor_solicitante:
+            data.append(_linha('SETOR SOLICITANTE:', self._get_safe(dados, 'setorSolicitante')))
 
         n_rows = len(data)
         span_rules = [('SPAN', (1, i), (3, i)) for i in range(n_rows)]
@@ -499,7 +518,7 @@ class PDFOrdemServico:
                     Paragraph(str(diarias), self.styles['CustomNormal']),
                     Paragraph(qtd_sol_fmt, self.styles['CustomNormal']),
                     Paragraph(qtd_total_fmt, self.styles['CustomNormal']),
-                    Paragraph(f'R$ {valor_unit:.2f}', self.styles['CustomNormal']),
+                    Paragraph(f'R$ {valor_unit:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal']),
                     Paragraph(f'R$ {total_item:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal'])
                 ]
             else:
@@ -519,7 +538,7 @@ class PDFOrdemServico:
                     Paragraph(desc_texto, self.styles['CustomNormal']),
                     Paragraph(str(item.get('itemBec', '')), self.styles['CustomNormal']),
                     Paragraph(qtd_total_fmt, self.styles['CustomNormal']),
-                    Paragraph(f'R$ {valor_unit:.2f}', self.styles['CustomNormal']),
+                    Paragraph(f'R$ {valor_unit:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal']),
                     Paragraph(f'R$ {total_item:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'), self.styles['CustomNormal'])
                 ]
             data.append(row)
