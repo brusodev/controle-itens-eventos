@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
+r"""
 Backup Automático do Banco de Dados
 ====================================
 
@@ -20,7 +20,7 @@ WINDOWS TASK SCHEDULER (diário às 2h):
 
 import os
 import sys
-import shutil
+import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -64,9 +64,18 @@ def criar_backup():
     backup_file = BACKUP_DIR / f"controle_itens_{timestamp}.db"
     
     try:
-        # Copiar banco
-        shutil.copy2(DB_PATH, backup_file)
-        
+        # Backup online consistente do SQLite (seguro com a aplicação rodando).
+        # A API .backup() garante um snapshot íntegro, ao contrário de uma cópia
+        # bruta do arquivo, que pode corromper se houver escrita simultânea.
+        src = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+        dst = sqlite3.connect(str(backup_file))
+        try:
+            with dst:
+                src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+
         # Tamanho
         size_mb = backup_file.stat().st_size / (1024 * 1024)
         
