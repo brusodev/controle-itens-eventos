@@ -98,6 +98,19 @@ function removerMascaraNumero(valor) {
     return valor.toString().replace(/\D/g, '') || '0';
 }
 
+// Escapa texto vindo do banco antes de interpolar em innerHTML.
+// Usar sempre que o conteúdo for dado do usuário (evento, setor, descrição de
+// item...) — sem isso, um valor como "<img src=x onerror=alert(1)>" executa.
+function escaparHtml(valor) {
+    if (valor === null || valor === undefined) return '';
+    return String(valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Auxiliar para formatar nome da categoria (snake_case para Título)
 function formatarNomeCategoria(nome) {
     return nome

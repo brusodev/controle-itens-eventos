@@ -22,68 +22,310 @@ from routes.auth_routes import login_requerido
 relatorios_bp = Blueprint('relatorios', __name__)
 
 
+def _parse_valor_br(s):
+    """Converte valor (string BR ou numérico) para float."""
+    try:
+        v = str(s or '0').strip()
+        if v in ('', '0', '__'):
+            return 0.0
+        if ',' in v:
+            # Formato BR "1.234,56": ponto é milhar, vírgula é decimal
+            v = v.replace('.', '').replace(',', '.')
+        return float(v)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _valor_total_os_itens(os):
+    """Soma (quantidade_total × valor_unitário) de todos os itens da O.S."""
+    return round(sum(
+        (float(i.quantidade_total or 0)) * _parse_valor_br(i.valor_unitario)
+        for i in os.itens
+    ), 2)
+
+
+def _periodo_mes_vigente():
+    """Primeiro dia do mês corrente e hoje, em ISO (YYYY-MM-DD)."""
+    hoje = datetime.now()
+    return hoje.replace(day=1).strftime('%Y-%m-%d'), hoje.strftime('%Y-%m-%d')
+
+
+def _texto_seguro_excel(v):
+    """
+    Neutraliza fórmulas em células de TEXTO do Excel.
+
+    Um valor vindo do banco como "=cmd|' /C calc'!A0" seria interpretado como
+    fórmula ao abrir a planilha. Prefixar com apóstrofo faz o Excel tratar o
+    conteúdo como texto literal (o apóstrofo não aparece na célula).
+
+    Aplicar somente em colunas de texto — nunca em Quantidade/Valor, que
+    precisam continuar numéricas para o usuário somar e ajustar.
+    """
+    if not isinstance(v, str) or not v:
+        return v
+    # "-" sozinho é o placeholder de campo vazio do relatório, e "-5" / "+10"
+    # são valores negativos/positivos legítimos: nenhum deles vira fórmula.
+    if v[0] in ('-', '+') and (len(v) == 1 or v[1:].lstrip('0123456789.,') == ''):
+        return v
+    if v[0] in ('=', '+', '-', '@'):
+        return "'" + v
+    return v
+
+
+def _query_ordens_servico(args):
+    """
+    Monta a query do relatório de O.S. aplicando os filtros recebidos.
+    Compartilhada entre o endpoint JSON e o de exportação Excel, para que a
+    tela e a planilha nunca divirjam.
+
+    Quando nenhuma data é informada, aplica o mês vigente como padrão para
+    evitar varredura da tabela inteira.
+    """
+    modulo     = args.get('modulo', 'coffee')
+    data_inicio = args.get('data_inicio')
+    data_fim    = args.get('data_fim')
+    regiao      = args.get('regiao')
+    contratada  = args.get('contratada')
+    servico     = args.get('servico')
+
+    if not data_inicio and not data_fim:
+        data_inicio, data_fim = _periodo_mes_vigente()
+
+    query = OrdemServico.query.filter_by(modulo=modulo)
+
+    if data_inicio:
+        query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
+    if data_fim:
+        # ✅ Ajustar para o final do dia (23:59:59) para incluir registros de hoje
+        dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+        query = query.filter(OrdemServico.data_emissao <= dt_fim)
+    if regiao:
+        query = query.filter(OrdemServico.regiao_estoque == int(regiao))
+    if contratada:
+        query = query.filter(OrdemServico.detentora.ilike(f'%{contratada}%'))
+    if servico:
+        query = query.filter(OrdemServico.servico.ilike(f'%{servico}%'))
+
+    return query.order_by(OrdemServico.data_emissao.desc()), (data_inicio, data_fim)
+
+
+def _linhas_relatorio_os(ordens):
+    """
+    Expande as O.S. em uma linha por item (tipo/quantidade/valor vêm do item).
+    O.S. sem itens entram com uma linha zerada para não sumirem do relatório.
+    """
+    linhas = []
+    for os in ordens:
+        base = {
+            'numeroOS': os.numero_os,
+            'dataEmissao': os.data_emissao.strftime('%d/%m/%Y') if os.data_emissao else '-',
+            'solicitante': (os.setor_solicitante or '').strip() or '-',
+            'dataEvento': os.data or '-',
+            'evento': os.evento or '-',
+            'status': os.status or 'emitida',
+        }
+
+        if not os.itens:
+            linhas.append({**base, 'tipo': '-', 'quantidade': 0.0, 'valor': 0.0})
+            continue
+
+        for item in os.itens:
+            qtd = float(item.quantidade_total or 0)
+            linhas.append({
+                **base,
+                'tipo': item.descricao or item.categoria or '-',
+                'quantidade': qtd,
+                'valor': round(qtd * _parse_valor_br(item.valor_unitario), 2),
+            })
+
+    return linhas
+
+
 @relatorios_bp.route('/api/relatorios/ordens-servico', methods=['GET'])
 @login_requerido
 def relatorio_ordens_servico():
     """
     Relatório de Ordens de Serviço com filtros opcionais:
-    - data_inicio, data_fim
+    - data_inicio, data_fim (padrão: mês vigente)
     - regiao (1-6)
     - contratada
     - servico
     - modulo
+
+    Retorna uma linha por item da O.S. em `linhas`.
     """
     try:
-        modulo = request.args.get('modulo', 'coffee')
-        query = OrdemServico.query.filter_by(modulo=modulo)
-        
-        # Filtros
-        data_inicio = request.args.get('data_inicio')
-        data_fim = request.args.get('data_fim')
-        regiao = request.args.get('regiao')
-        contratada = request.args.get('contratada')
-        servico = request.args.get('servico')
-        
-        if data_inicio:
-            query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
-        if data_fim:
-            # ✅ Ajustar para o final do dia (23:59:59) para incluir registros de hoje
-            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
-            query = query.filter(OrdemServico.data_emissao <= dt_fim)
-        if regiao:
-            query = query.filter(OrdemServico.regiao_estoque == int(regiao))
-        if contratada:
-            query = query.filter(OrdemServico.detentora.ilike(f'%{contratada}%'))
-        if servico:
-            query = query.filter(OrdemServico.servico.ilike(f'%{servico}%'))
-        
-        ordens = query.order_by(OrdemServico.data_emissao.desc()).all()
-        
+        query, _ = _query_ordens_servico(request.args)
+        ordens = query.all()
+
+        linhas = _linhas_relatorio_os(ordens)
+
         # Estatísticas
         total_os = len(ordens)
         regioes_atendidas = len(set([os.regiao_estoque for os in ordens if os.regiao_estoque]))
-        
+
         # Contagem por serviço
         servicos = {}
         for os in ordens:
             servicos[os.servico] = servicos.get(os.servico, 0) + 1
-        
+
         # Contagem por contratada
         contratadas = {}
         for os in ordens:
             contratadas[os.detentora] = contratadas.get(os.detentora, 0) + 1
-        
+
         return jsonify({
             'success': True,
+            'linhas': linhas,
             'ordens': [os.to_dict() for os in ordens],
             'estatisticas': {
                 'total_os': total_os,
+                'total_itens': len(linhas),
                 'regioes_atendidas': regioes_atendidas,
+                'valor_total': round(sum(l['valor'] for l in linhas), 2),
                 'por_servico': servicos,
                 'por_contratada': contratadas
             }
         })
-        
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@relatorios_bp.route('/api/relatorios/ordens-servico/excel', methods=['GET'])
+@login_requerido
+def exportar_ordens_servico_excel():
+    """Exporta o relatório de O.S. em Excel, honrando todos os filtros da tela."""
+    try:
+        query, (data_inicio, data_fim) = _query_ordens_servico(request.args)
+        linhas = _linhas_relatorio_os(query.all())
+
+        COR_HEADER = 'FF4F46E5'
+        COR_PAR    = 'FFF5F3FF'
+        COR_IMPAR  = 'FFFFFFFF'
+
+        thin  = Side(style='thin', color='FFCCCCCC')
+        borda = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        headers = ['Nº O.S.', 'Data Emissão', 'Solicitante', 'Data do Evento',
+                   'Evento', 'Tipo', 'Quantidade', 'Valor']
+        NUM_COLS = len(headers)
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Ordens de Serviço'
+
+        # Linha 1 — Título
+        ws.merge_cells(f'A1:{get_column_letter(NUM_COLS)}1')
+        c = ws['A1']
+        c.value = '📋 Relatório — Ordens de Serviço'
+        c.font = Font(bold=True, size=14, color='FFFFFFFF')
+        c.fill = PatternFill('solid', fgColor=COR_HEADER)
+        c.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 30
+
+        # Linha 2 — Filtros aplicados
+        filtros_txt = [f"Período: {data_inicio or '...'} → {data_fim or '...'}"]
+        if request.args.get('regiao'):
+            filtros_txt.append(f"Região: {request.args.get('regiao')}")
+        if request.args.get('contratada'):
+            filtros_txt.append(f"Contratada: {request.args.get('contratada')}")
+        if request.args.get('servico'):
+            filtros_txt.append(f"Serviço: {request.args.get('servico')}")
+
+        ws.merge_cells(f'A2:{get_column_letter(NUM_COLS)}2')
+        c2 = ws['A2']
+        c2.value = '  |  '.join(filtros_txt)
+        c2.font = Font(italic=True, size=10, color='FF6B7280')
+        c2.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[2].height = 18
+
+        # Linha 3 — Data de geração
+        ws.merge_cells(f'A3:{get_column_letter(NUM_COLS)}3')
+        c3 = ws['A3']
+        c3.value = f'Gerado em: {datetime.now().strftime("%d/%m/%Y às %H:%M")}'
+        c3.font = Font(italic=True, size=9, color='FF9CA3AF')
+        c3.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[3].height = 16
+
+        ws.append([])  # linha em branco
+
+        # Cabeçalhos
+        ws.append(headers)
+        header_row = ws.max_row
+        for col_idx in range(1, NUM_COLS + 1):
+            cell = ws.cell(row=header_row, column=col_idx)
+            cell.font = Font(bold=True, color='FFFFFFFF', size=11)
+            cell.fill = PatternFill('solid', fgColor=COR_HEADER)
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = borda
+        ws.row_dimensions[header_row].height = 22
+
+        # Dados — colunas de texto passam por _texto_seguro_excel (anti-fórmula);
+        # quantidade e valor seguem numéricos, para o usuário somar/ajustar.
+        for idx, linha in enumerate(linhas):
+            ws.append([
+                _texto_seguro_excel(linha['numeroOS']),
+                _texto_seguro_excel(linha['dataEmissao']),
+                _texto_seguro_excel(linha['solicitante']),
+                _texto_seguro_excel(linha['dataEvento']),
+                _texto_seguro_excel(linha['evento']),
+                _texto_seguro_excel(linha['tipo']),
+                linha['quantidade'],
+                linha['valor'],
+            ])
+            ri = ws.max_row
+            fill = PatternFill('solid', fgColor=COR_PAR if idx % 2 == 0 else COR_IMPAR)
+            for ci in range(1, NUM_COLS + 1):
+                cell = ws.cell(row=ri, column=ci)
+                cell.border = borda
+                cell.fill = fill
+            ws.cell(row=ri, column=7).number_format = '#,##0.00'
+            ws.cell(row=ri, column=8).number_format = 'R$ #,##0.00'
+
+        # Linha de total
+        ws.append(['TOTAL GERAL', '', '', '', '', '',
+                   round(sum(l['quantidade'] for l in linhas), 2),
+                   round(sum(l['valor'] for l in linhas), 2)])
+        ri = ws.max_row
+        for ci in range(1, NUM_COLS + 1):
+            cell = ws.cell(row=ri, column=ci)
+            cell.font = Font(bold=True)
+            cell.border = borda
+        ws.cell(row=ri, column=7).number_format = '#,##0.00'
+        ws.cell(row=ri, column=8).number_format = 'R$ #,##0.00'
+
+        for ci, w in enumerate([14, 14, 28, 20, 35, 35, 14, 16], 1):
+            ws.column_dimensions[get_column_letter(ci)].width = w
+        ws.freeze_panes = f'A{header_row + 1}'
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        return send_file(
+            buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'relatorio_os_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@relatorios_bp.route('/api/relatorios/setores-solicitantes', methods=['GET'])
+@login_requerido
+def listar_setores_solicitantes():
+    """Setores solicitantes já usados no módulo — alimenta a datalist de sugestões."""
+    try:
+        modulo = request.args.get('modulo', 'coffee')
+        rows = db.session.query(OrdemServico.setor_solicitante)\
+            .filter(OrdemServico.modulo == modulo)\
+            .filter(OrdemServico.setor_solicitante.isnot(None))\
+            .distinct().all()
+
+        setores = sorted({(r[0] or '').strip() for r in rows} - {''})
+        return jsonify({'success': True, 'setores': setores})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1169,28 +1411,6 @@ def exportar_organizacao_excel():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def _parse_valor_br(s):
-    """Converte valor (string BR ou numérico) para float."""
-    try:
-        v = str(s or '0').strip()
-        if v in ('', '0', '__'):
-            return 0.0
-        if ',' in v:
-            # Formato BR "1.234,56": ponto é milhar, vírgula é decimal
-            v = v.replace('.', '').replace(',', '.')
-        return float(v)
-    except (ValueError, TypeError):
-        return 0.0
-
-
-def _valor_total_os_itens(os):
-    """Soma (quantidade_total × valor_unitário) de todos os itens da O.S."""
-    return round(sum(
-        (float(i.quantidade_total or 0)) * _parse_valor_br(i.valor_unitario)
-        for i in os.itens
-    ), 2)
-
-
 def _query_transporte(args):
     """Monta a query de O.S. de Transporte aplicando os filtros recebidos."""
     setor       = args.get('setor', '')
@@ -1520,101 +1740,6 @@ def gerar_pdf_estoque():
             mimetype='application/pdf',
             as_attachment=True,
             download_name=f'relatorio_estoque_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
-        )
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@relatorios_bp.route('/api/relatorios/pdf/ordens-servico', methods=['GET'])
-@login_requerido
-def gerar_pdf_ordens_servico():
-    """
-    Gera PDF do relatório de Ordens de Serviço
-    """
-    try:
-        modulo = request.args.get('modulo', 'coffee')
-        data_inicio = request.args.get('data_inicio')
-        data_fim = request.args.get('data_fim')
-        regiao = request.args.get('regiao')
-        
-        query = OrdemServico.query.filter_by(modulo=modulo)
-        
-        if data_inicio:
-            query = query.filter(OrdemServico.data_emissao >= datetime.strptime(data_inicio, '%Y-%m-%d'))
-        if data_fim:
-            # ✅ Ajustar para o final do dia (23:59:59)
-            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
-            query = query.filter(OrdemServico.data_emissao <= dt_fim)
-        if regiao:
-            query = query.filter(OrdemServico.regiao_estoque == int(regiao))
-        
-        ordens = query.order_by(OrdemServico.data_emissao.desc()).all()
-        
-        # Criar PDF
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), topMargin=1.5*cm, bottomMargin=1.5*cm)
-        elementos = []
-        styles = getSampleStyleSheet()
-        
-        # Título
-        titulo_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=16,
-            textColor=colors.HexColor('#1a202c'),
-            spaceAfter=20,
-            alignment=1
-        )
-        
-        titulo = "Relatório de Ordens de Serviço"
-        if data_inicio and data_fim:
-            titulo += f" ({data_inicio} a {data_fim})"
-        elementos.append(Paragraph(titulo, titulo_style))
-        elementos.append(Spacer(1, 0.5*cm))
-        
-        # Resumo
-        elementos.append(Paragraph(f"Total de O.S.: {len(ordens)}", styles['Normal']))
-        elementos.append(Spacer(1, 0.3*cm))
-        
-        # Tabela
-        dados_tabela = [['Nº O.S.', 'Data Emissão', 'Serviço', 'Evento', 'Contratada', 'Região', 'Itens']]
-        
-        for os in ordens:
-            total_itens = len(os.itens)
-            data_emissao = os.data_emissao.strftime('%d/%m/%Y') if os.data_emissao else '-'
-            
-            dados_tabela.append([
-                os.numero_os,
-                data_emissao,
-                os.servico[:25] if os.servico else '-',
-                os.evento[:25] if os.evento else '-',
-                os.detentora[:25] if os.detentora else '-',
-                str(os.regiao_estoque) if os.regiao_estoque else '-',
-                str(total_itens)
-            ])
-        
-        tabela = Table(dados_tabela, colWidths=[2.5*cm, 2.5*cm, 4*cm, 4*cm, 4*cm, 1.5*cm, 1.5*cm])
-        tabela.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ]))
-        
-        elementos.append(tabela)
-        doc.build(elementos)
-        
-        buffer.seek(0)
-        return send_file(
-            buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f'relatorio_os_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
         )
         
     except Exception as e:

@@ -179,7 +179,7 @@
                     </div>
 
                     <div class="form-group" id="campo-setor-solicitante" style="display:none;">
-                        <label for="os-setor-solicitante">Setor Solicitante *</label>
+                        <label for="os-setor-solicitante" id="os-setor-solicitante-label">Setor Solicitante</label>
                         <input type="text" id="os-setor-solicitante" placeholder="Ex: Gabinete, Logística, RH..." list="lista-setores-solicitantes">
                         <datalist id="lista-setores-solicitantes"></datalist>
                     </div>
@@ -371,8 +371,8 @@
                             <button class="btn-small btn-primary" onclick="gerarRelatorioOS()">
                                 📊 Gerar Relatório
                             </button>
-                            <button class="btn-small btn-success" onclick="gerarPDFRelatorioOS()">
-                                📄 Exportar PDF
+                            <button class="btn-small btn-success" onclick="exportarRelatorioOSExcel()">
+                                📥 Exportar Excel
                             </button>
                         </div>
 
@@ -573,7 +573,7 @@
                     </div>
 
                     <!-- Relatório de Eventos - Organização -->
-                    <div class="relatorio-card" id="card-rel-organizacao" style="grid-column: 1 / -1; display: none;">
+                    <div class="relatorio-card" id="card-rel-organizacao" style="display: none;">
                         <div class="relatorio-header">
                             <h3>📋 Eventos — Módulo Organização</h3>
                             <p>Custo por categoria, pessoas atendidas e detalhamento de itens por evento</p>
@@ -631,7 +631,7 @@
                     </div>
 
                     <!-- Relatório de Transporte por Setor Solicitante -->
-                    <div class="relatorio-card" id="card-rel-transporte" style="grid-column: 1 / -1; display: none;">
+                    <div class="relatorio-card" id="card-rel-transporte" style="display: none;">
                         <div class="relatorio-header">
                             <h3>🚚 Transportes — por Setor Solicitante</h3>
                             <p>Valores das O.S. de transporte agrupados pelo setor que solicitou o serviço</p>
@@ -684,7 +684,7 @@
                     </div>
 
                     <!-- Relatório de Controle de Pagamentos -->
-                    <div class="relatorio-card" style="grid-column: 1 / -1;">
+                    <div class="relatorio-card">
                         <div class="relatorio-header">
                             <h3>💰 Controle de Pagamentos</h3>
                             <p>Acompanhe prazos de vencimento das notas e visualize as O.S. pagas, pendentes e vencidas</p>
@@ -1068,15 +1068,15 @@
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/api-client.js') }}?v=2.5"></script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.4"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.5"></script>
     <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.14"></script>
     <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.12"></script>
-    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.16"></script>
+    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.17"></script>
     <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.12"></script>
     <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.7"></script>
     <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.9"></script>
     <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.4"></script>
-    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.7"></script>
+    <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.8"></script>
     <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}?v=2.5"></script>
 {% endblock %}

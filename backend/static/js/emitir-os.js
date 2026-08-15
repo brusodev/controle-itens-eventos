@@ -120,17 +120,20 @@ function _atualizarLabelsFormulario(cfg) {
         campoQtdPessoas.style.display = moduloAtual === 'organizacao' ? '' : 'none';
     }
 
-    // Mostrar campo "Setor Solicitante" para Transporte e Serviços Gráficos
+    // Campo "Setor Solicitante": visível em todos os módulos; obrigatório
+    // apenas em Transporte e Serviços Gráficos, como já era.
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
     const isGrafico = moduloAtual === 'servicos_graficos';
     const exigeSetor = moduloAtual === 'transporte' || isGrafico;
 
     const campoSetor = document.getElementById('campo-setor-solicitante');
     if (campoSetor) {
-        campoSetor.style.display = exigeSetor ? '' : 'none';
+        campoSetor.style.display = '';
         const inputSetor = document.getElementById('os-setor-solicitante');
         if (inputSetor) inputSetor.required = exigeSetor;
-        if (exigeSetor) carregarSetoresSolicitantes();
+        const labelSetor = document.getElementById('os-setor-solicitante-label');
+        if (labelSetor) labelSetor.textContent = exigeSetor ? 'Setor Solicitante *' : 'Setor Solicitante';
+        carregarSetoresSolicitantes(moduloAtual);
     }
 
     // Serviços Gráficos: pedidos pontuais. Os campos de evento continuam visíveis,
@@ -156,20 +159,18 @@ function _atualizarLabelsFormulario(cfg) {
 
 /**
  * Preenche o datalist de Setores Solicitantes com os setores já usados
- * em O.S. de transporte (autocompletar).
+ * no módulo atual (autocompletar). Recarrega ao trocar de módulo.
  */
-async function carregarSetoresSolicitantes() {
+async function carregarSetoresSolicitantes(modulo) {
     const datalist = document.getElementById('lista-setores-solicitantes');
-    if (!datalist || datalist.dataset.carregado) return;
+    if (!datalist || datalist.dataset.carregadoPara === modulo) return;
     try {
-        const resp = await fetch('/api/relatorios/transporte/setores');
+        const resp = await fetch(`/api/relatorios/setores-solicitantes?modulo=${encodeURIComponent(modulo)}`);
         if (!resp.ok) return;
         const data = await resp.json();
-        const setores = (data.setores || [])
-            .map(s => s.setor)
-            .filter(s => s && s !== 'Não informado');
+        const setores = data.setores || [];
         datalist.innerHTML = setores.map(s => `<option value="${s}">`).join('');
-        datalist.dataset.carregado = '1';
+        datalist.dataset.carregadoPara = modulo;
     } catch (e) {
         // Datalist é apenas sugestão; falha não bloqueia a emissão.
     }

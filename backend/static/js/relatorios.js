@@ -29,17 +29,39 @@ async function carregarCategoriasRelatorio() {
     }
 }
 
+/**
+ * Preenche o período padrão (mês vigente) nos filtros de data que estiverem
+ * vazios, para evitar varrer a tabela inteira de O.S. sem necessidade.
+ * O usuário continua livre para ampliar o período manualmente.
+ */
+function aplicarPeriodoPadraoRelatorios() {
+    const hoje = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const isoLocal = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+    [
+        ['rel-os-data-inicio', isoLocal(primeiroDia)],
+        ['rel-os-data-fim', isoLocal(hoje)],
+    ].forEach(([id, valor]) => {
+        const el = document.getElementById(id);
+        if (el && !el.value) el.value = valor;
+    });
+}
+
 // Carregar categorias quando abrir aba de relatórios
 document.addEventListener('DOMContentLoaded', function() {
     // A navegação de Relatórios é por link (recarrega a página), então aplicamos
     // a visibilidade dos cards específicos de módulo direto no carregamento.
     atualizarVisibilidadeRelatoriosPorModulo();
+    aplicarPeriodoPadraoRelatorios();
 
     const tabRelatorios = document.querySelector('[data-tab="relatorios"]');
     if (tabRelatorios) {
         tabRelatorios.addEventListener('click', () => {
             carregarCategoriasRelatorio();
             atualizarVisibilidadeRelatoriosPorModulo();
+            aplicarPeriodoPadraoRelatorios();
         });
     }
 });
@@ -85,6 +107,9 @@ function exibirResultadoRelatorioOS(data) {
     // Mostrar resultado
     resultado.style.display = 'block';
 
+    const fmtMoeda = v => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const fmtQtd = v => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
     // Estatísticas
     stats.innerHTML = `
         <div class="stat-card">
@@ -100,22 +125,12 @@ function exibirResultadoRelatorioOS(data) {
             <div class="stat-label">Tipos de Serviço</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value">${Object.keys(data.estatisticas.por_contratada).length}</div>
-            <div class="stat-label">Contratadas</div>
+            <div class="stat-value">${fmtMoeda(data.estatisticas.valor_total)}</div>
+            <div class="stat-label">Valor Total</div>
         </div>
     `;
 
-    // Tabela
-    const statusLabelsRel = {
-        'emitida': { texto: 'Emitida', cor: '#1565c0', bg: '#e3f2fd' },
-        'enviada_empresa': { texto: 'Ag. Empresa', cor: '#e65100', bg: '#fff3e0' },
-        'em_revisao': { texto: 'Em Revisão', cor: '#c62828', bg: '#fce4ec' },
-        'aceita': { texto: 'Aceita', cor: '#2e7d32', bg: '#e8f5e9' },
-        'em_execucao': { texto: 'Em Execução', cor: '#283593', bg: '#e8eaf6' },
-        'executada': { texto: 'Executada', cor: '#6a1b9a', bg: '#f3e5f5' },
-        'recusada': { texto: 'Recusada', cor: '#b71c1c', bg: '#ffebee' },
-        'cancelada': { texto: 'Cancelada', cor: '#555', bg: '#eee' },
-    };
+    const linhas = data.linhas || [];
 
     let tabelaHTML = `
         <div class="relatorio-tabela">
@@ -124,37 +139,46 @@ function exibirResultadoRelatorioOS(data) {
                     <tr>
                         <th>Nº O.S.</th>
                         <th>Data Emissão</th>
-                        <th>Status</th>
-                        <th>Serviço</th>
+                        <th>Solicitante</th>
+                        <th>Data do Evento</th>
                         <th>Evento</th>
-                        <th>Contratada</th>
-                        <th>Região</th>
-                        <th>Itens</th>
+                        <th>Tipo</th>
+                        <th>Quantidade</th>
+                        <th>Valor</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
 
-    data.ordens.forEach(os => {
-        const dataEmissao = os.dataEmissao ? new Date(os.dataEmissao).toLocaleDateString('pt-BR') : '-';
-        const stCfg = statusLabelsRel[os.status] || { texto: os.status || '-', cor: '#555', bg: '#eee' };
-        const badgeStatus = `<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:600;background:${stCfg.bg};color:${stCfg.cor}">${stCfg.texto}</span>`;
+    let totalQtd = 0;
+    let totalValor = 0;
+
+    linhas.forEach(linha => {
+        totalQtd += linha.quantidade || 0;
+        totalValor += linha.valor || 0;
         tabelaHTML += `
             <tr>
-                <td><strong>${os.numeroOS}</strong></td>
-                <td>${dataEmissao}</td>
-                <td>${badgeStatus}</td>
-                <td>${os.servico || '-'}</td>
-                <td>${os.evento || '-'}</td>
-                <td>${os.detentora || '-'}</td>
-                <td>${os.regiaoEstoque || '-'}</td>
-                <td>${os.itens ? os.itens.length : 0}</td>
+                <td><strong>${escaparHtml(linha.numeroOS)}</strong></td>
+                <td>${escaparHtml(linha.dataEmissao || '-')}</td>
+                <td>${escaparHtml(linha.solicitante || '-')}</td>
+                <td>${escaparHtml(linha.dataEvento || '-')}</td>
+                <td>${escaparHtml(linha.evento || '-')}</td>
+                <td>${escaparHtml(linha.tipo || '-')}</td>
+                <td>${fmtQtd(linha.quantidade)}</td>
+                <td>${fmtMoeda(linha.valor)}</td>
             </tr>
         `;
     });
 
     tabelaHTML += `
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" style="text-align:right;"><strong>TOTAL GERAL</strong></td>
+                        <td><strong>${fmtQtd(totalQtd)}</strong></td>
+                        <td><strong>${fmtMoeda(totalValor)}</strong></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     `;
@@ -163,20 +187,25 @@ function exibirResultadoRelatorioOS(data) {
 }
 
 /**
- * Gerar PDF do Relatório de O.S.
+ * Exportar Excel do Relatório de O.S.
+ * Envia todos os filtros da tela, para que a planilha nunca divirja da tabela exibida.
  */
-function gerarPDFRelatorioOS() {
+function exportarRelatorioOSExcel() {
     const dataInicio = document.getElementById('rel-os-data-inicio').value;
     const dataFim = document.getElementById('rel-os-data-fim').value;
     const regiao = document.getElementById('rel-os-regiao').value;
+    const contratada = document.getElementById('rel-os-contratada').value;
+    const servico = document.getElementById('rel-os-servico').value;
 
     const params = new URLSearchParams();
     params.append('modulo', localStorage.getItem('modulo_atual') || 'coffee');
     if (dataInicio) params.append('data_inicio', dataInicio);
     if (dataFim) params.append('data_fim', dataFim);
     if (regiao) params.append('regiao', regiao);
+    if (contratada) params.append('contratada', contratada);
+    if (servico) params.append('servico', servico);
 
-    window.open(`/api/relatorios/pdf/ordens-servico?${params}`, '_blank');
+    window.open(`/api/relatorios/ordens-servico/excel?${params}`, '_blank');
 }
 
 /**
