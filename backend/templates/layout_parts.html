@@ -75,6 +75,10 @@
                 <span class="menu-icon">📋</span>
                 <span class="menu-text">Ordens</span>
             </a>
+            <a href="/pedidos-graficos" class="menu-item {{ 'active' if '/pedidos-graficos' in current_path }}" id="menu-pedidos-graficos" title="Pedidos/Orçamentos" style="display:none;">
+                <span class="menu-icon">🧾</span>
+                <span class="menu-text">Pedidos</span>
+            </a>
             <a href="/relatorios" class="menu-item {{ 'active' if '/relatorios' in current_path }}" id="menu-relatorios" title="Relatórios">
                 <span class="menu-icon">📊</span>
                 <span class="menu-text">Relatórios</span>
@@ -190,6 +194,26 @@
                 const textSpan = menuAlimentacao.querySelector('.menu-text');
                 if (iconSpan) iconSpan.textContent = mc.emoji;
                 if (textSpan) textSpan.textContent = mc.itemLabel;
+            }
+
+            // Menu "Pedidos" (Serviços Gráficos): só visível se o módulo ativo for
+            // servicos_graficos E o usuário tiver permissão para esse módulo.
+            // Checagem client-side apenas para UX do menu — a autorização real
+            // acontece no backend em cada rota de /pedidos-graficos.
+            const menuPedidosGraficos = document.getElementById('menu-pedidos-graficos');
+            if (menuPedidosGraficos && modulo === 'servicos_graficos') {
+                fetch('/auth/api/me', { credentials: 'same-origin' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(usuario => {
+                        if (!usuario) return;
+                        const permitidos = usuario.modulosPermitidos || [];
+                        const podeAcessar = usuario.perfil !== 'empresa'
+                            && (usuario.perfil === 'admin'
+                                || permitidos.length === 0
+                                || permitidos.includes('servicos_graficos'));
+                        if (podeAcessar) menuPedidosGraficos.style.display = '';
+                    })
+                    .catch(() => {});
             }
         });
     </script>

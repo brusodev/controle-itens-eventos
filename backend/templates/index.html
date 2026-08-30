@@ -321,6 +321,32 @@
                 <div id="lista-ordens-servico" class="cards-grid"></div>
             </section>
 
+            <!-- Aba: Pedidos/Orçamentos (Serviços Gráficos) -->
+            <section id="tab-pedidos-graficos" class="tab-content {{ 'active' if secao_ativa == 'pedidos-graficos' }}" style="display: {{ 'block' if secao_ativa == 'pedidos-graficos' else 'none' }};">
+                <div class="section-header">
+                    <h2>🧾 Pedidos/Orçamentos</h2>
+                    <button class="btn-small btn-success" onclick="abrirModalPedidoGrafico()">➕ Novo Pedido</button>
+                </div>
+
+                <div id="pedidos-graficos-resumo" style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
+
+                <div class="filter-section" style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
+                    <input type="text" id="filtro-pedido-grafico" placeholder="Buscar por solicitante ou descrição..." onkeyup="renderizarPedidosGraficos()" style="max-width: 320px">
+                    <select id="filtro-pedido-status" onchange="renderizarPedidosGraficos()" style="padding:.5rem .75rem;border:1px solid #ccc;border-radius:6px;font-size:.9rem;min-width:170px;">
+                        <option value="">Todos os status</option>
+                        <option value="pendente">Pendente</option>
+                        <option value="convertido">Convertido em O.S.</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                    <select id="filtro-pedido-atraso" onchange="renderizarPedidosGraficos()" style="padding:.5rem .75rem;border:1px solid #ccc;border-radius:6px;font-size:.9rem;min-width:160px;">
+                        <option value="">Todos os prazos</option>
+                        <option value="sim">⚠️ Atrasados</option>
+                    </select>
+                </div>
+
+                <div id="lista-pedidos-graficos" class="cards-grid"></div>
+            </section>
+
             <!-- Aba: Relatórios -->
             <section id="tab-relatorios" class="tab-content {{ 'active' if secao_ativa == 'relatorios' }}" style="display: {{ 'block' if secao_ativa == 'relatorios' else 'none' }};">
                 <div class="section-header">
@@ -1069,14 +1095,17 @@
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/api-client.js') }}?v=2.5"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}?v=2.5"></script>
-    <script src="{{ url_for('static', filename='js/globals.js') }}?v=2.14"></script>
+    <!-- globals.js já é carregado por base.html (antes deste bloco) — não recarregar aqui:
+         um segundo <script> com `const MODULE_CONFIG` no mesmo escopo global lança
+         "Identifier already declared" e aborta a execução dessa segunda cópia. -->
     <script src="{{ url_for('static', filename='js/estoque.js') }}?v=2.12"></script>
-    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.17"></script>
+    <script src="{{ url_for('static', filename='js/emitir-os.js') }}?v=2.20"></script>
     <script src="{{ url_for('static', filename='js/ordens-servico.js') }}?v=2.12"></script>
+    <script src="{{ url_for('static', filename='js/pedidos-graficos.js') }}?v=1.4"></script>
     <script src="{{ url_for('static', filename='js/categorias.js') }}?v=2.7"></script>
     <script src="{{ url_for('static', filename='js/kits-requisicoes.js') }}?v=2.9"></script>
     <script src="{{ url_for('static', filename='js/kits.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/relatorios.js') }}?v=2.8"></script>
-    <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.4"></script>
+    <script src="{{ url_for('static', filename='js/mobile-ui.js') }}?v=2.5"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}?v=2.5"></script>
 {% endblock %}

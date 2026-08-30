@@ -2,6 +2,11 @@
 // MÓDULO: EMITIR-OS - Emissão de Ordens de Serviço
 // ========================================
 
+// IDs dos pedidos gráficos de origem, quando a emissão foi iniciada a partir da
+// tela de Pedidos/Orçamentos (ver restaurarPedidosParaOS()). Vários pedidos
+// podem ser agrupados numa mesma O.S. — o vínculo é many-to-one.
+let pedidosOrigemIdsAtual = [];
+
 async function renderizarEmitirOS() {
     // Carregar dados e grupos do módulo atual sempre que renderizar
     dadosAlimentacao = await APIClient.listarAlimentacao();
@@ -1189,6 +1194,22 @@ async function confirmarEmissaoOS() {
         } else {
             // Criar nova O.S.
             const novaOS = await APIClient.criarOrdemServico(dadosAPI);
+
+            // Se a emissão partiu de Pedido(s)/Orçamento(s), vincular a O.S. recém-criada
+            // a todos eles numa única transação (tudo ou nada, no backend).
+            // Falha na vinculação não desfaz a O.S. já criada — apenas avisa para vincular manualmente.
+            if (pedidosOrigemIdsAtual.length > 0) {
+                try {
+                    await APIClient.vincularOSAosPedidos(pedidosOrigemIdsAtual, novaOS.id);
+                } catch (erroVinculo) {
+                    console.error('Falha ao vincular pedido(s) à O.S. recém-criada:', erroVinculo);
+                    alert('O.S. emitida, mas houve falha ao vincular ao(s) pedido(s) de origem:\n'
+                        + erroVinculo.message
+                        + '\n\nVincule manualmente na tela de Pedidos.');
+                }
+                _limparPedidosOrigem();
+            }
+
             alert('O.S. emitida com sucesso! Estoque atualizado.');
         }
 
@@ -1461,4 +1482,160 @@ function _verificarRascunhoOS() {
     if (anchor) anchor.insertBefore(banner, anchor.firstChild);
 
     _iniciarAutoSave();
+}
+
+// ========================================
+// PRÉ-PREENCHIMENTO A PARTIR DE UM PEDIDO GRÁFICO
+// ========================================
+// Espelha restaurarOSParaEdicao() (ordens-servico.js), mas preenche o
+// formulário a partir de um Pedido/Orçamento (não de uma O.S. já emitida)
+// e mantém o fluxo de CRIAÇÃO normal (não troca os botões para modo edição).
+
+// Lê os ids da emissão. Formato atual: array em 'pedidosOrigemIds'.
+// Fallback para a chave antiga singular, evitando estado preso de sessão anterior.
+function _lerPedidosOrigemIds() {
+    const bruto = localStorage.getItem('pedidosOrigemIds');
+    if (bruto) {
+        try {
+            const ids = JSON.parse(bruto);
+            if (Array.isArray(ids) && ids.length > 0) return ids.map(Number);
+        } catch (e) { /* formato inválido — cai no fallback */ }
+    }
+    const antigo = localStorage.getItem('pedidoOrigemId');
+    return antigo ? [Number(antigo)] : [];
+}
+
+function _limparPedidosOrigem() {
+    localStorage.removeItem('pedidosOrigemIds');
+    localStorage.removeItem('pedidoOrigemId');
+    pedidosOrigemIdsAtual = [];
+}
+
+// Menor data ISO (YYYY-MM-DD ordena lexicograficamente) entre valores não nulos
+function _menorData(valores) {
+    const validas = valores.filter(Boolean).sort();
+    return validas.length > 0 ? validas[0] : '';
+}
+
+/**
+ * Consolida N pedidos nos campos de uma única O.S.
+ * Itens de mesmo catálogo são SOMADOS numa linha só — além de gerar uma O.S.
+ * mais limpa, evita que processar_baixas_os() valide duas linhas do mesmo item
+ * isoladamente contra o mesmo saldo e estoure no meio da baixa.
+ */
+function _mesclarPedidosParaOS(pedidos) {
+    const setores = [...new Set(pedidos.map(p => (p.setorSolicitante || '').trim()).filter(Boolean))];
+
+    const justificativa = pedidos
+        .map(p => `${p.solicitante}: ${p.descricao}`)
+        .join('\n');
+
+    const observacoes = pedidos
+        .filter(p => (p.observacoes || '').trim())
+        .map(p => `${p.solicitante}: ${p.observacoes.trim()}`)
+        .join('\n');
+
+    const porItem = new Map();
+    pedidos.forEach(p => {
+        (p.itens || []).forEach(item => {
+            const chave = `${item.categoria}:${item.itemId}`;
+            const existente = porItem.get(chave);
+            if (existente) {
+                existente.qtdSolicitada += Number(item.quantidade) || 0;
+                existente.qtdTotal = existente.qtdSolicitada;
+            } else {
+                porItem.set(chave, {
+                    categoria: item.categoria,
+                    itemId: item.itemId,
+                    descricao: item.descricao,
+                    unidade: item.unidade || '',
+                    itemBec: '',
+                    diarias: 1,
+                    qtdSolicitada: Number(item.quantidade) || 0,
+                    qtdTotal: Number(item.quantidade) || 0,
+                });
+            }
+        });
+    });
+
+    return {
+        setorSolicitante: setores.join(' / '),
+        dataPedido: _menorData(pedidos.map(p => p.dataPedido)),
+        // Prazo da O.S. = o mais curto, para que todos os pedidos sejam atendidos
+        prazoEntrega: _menorData(pedidos.map(p => p.prazoEntrega)),
+        justificativa,
+        observacoes,
+        itens: [...porItem.values()],
+    };
+}
+
+async function restaurarPedidosParaOS() {
+    const ids = _lerPedidosOrigemIds();
+    if (ids.length === 0) return;
+
+    // Não conflitar com o fluxo de edição de O.S. existente
+    if (osEditandoId) return;
+
+    const formOS = document.getElementById('form-emitir-os');
+    if (!formOS) return;
+
+    // Só pré-preencher quando a aba de emissão está de fato aberta. O index.html
+    // é uma página única: o formulário de O.S. existe (oculto) também na tela de
+    // Pedidos, e preenchê-lo ali marcaria o formulário como "alterado", fazendo
+    // o navegador pedir confirmação a cada navegação.
+    const secaoEmitir = document.getElementById('tab-emitir-os');
+    if (!secaoEmitir || !secaoEmitir.classList.contains('active')) return;
+
+    try {
+        const resultados = await Promise.all(
+            ids.map(id => APIClient.obterPedidoGrafico(id).catch(() => null))
+        );
+
+        // Descarta o que sumiu ou já saiu de 'pendente' (pode ter mudado noutra aba)
+        const pedidos = resultados.filter(p => p && p.status === 'pendente');
+        if (pedidos.length === 0) {
+            _limparPedidosOrigem();
+            return;
+        }
+        if (pedidos.length < ids.length) {
+            alert(`${ids.length - pedidos.length} pedido(s) não estão mais pendentes e foram ignorados. `
+                + `A O.S. será emitida com ${pedidos.length}.`);
+        }
+
+        pedidosOrigemIdsAtual = pedidos.map(p => p.id);
+        const dados = _mesclarPedidosParaOS(pedidos);
+
+        // Serviços Gráficos tem um único grupo — seleciona e dispara o carregamento da detentora
+        const grupoSelect = document.getElementById('os-grupo-select');
+        if (grupoSelect && !grupoSelect.value) {
+            grupoSelect.value = '1';
+            grupoSelect.dispatchEvent(new Event('change'));
+        }
+
+        // Só preenche campo vazio — não sobrescreve o que o usuário já digitou
+        const setorEl = document.getElementById('os-setor-solicitante');
+        if (setorEl && !setorEl.value) setorEl.value = dados.setorSolicitante;
+        const dataPedidoEl = document.getElementById('os-data-pedido');
+        if (dataPedidoEl && !dataPedidoEl.value) dataPedidoEl.value = dados.dataPedido;
+        const dataEntregaEl = document.getElementById('os-data-entrega');
+        if (dataEntregaEl && !dataEntregaEl.value) dataEntregaEl.value = dados.prazoEntrega;
+        const justificativaEl = document.getElementById('os-justificativa');
+        if (justificativaEl && !justificativaEl.value) justificativaEl.value = dados.justificativa;
+        const observacoesEl = document.getElementById('os-observacoes');
+        if (observacoesEl && !observacoesEl.value && dados.observacoes) observacoesEl.value = dados.observacoes;
+
+        if (dados.itens.length > 0 && itensOSSelecionados.length === 0) {
+            itensOSSelecionados = dados.itens;
+            renderizarTabelaItensOS();
+        }
+
+        // O pré-preenchimento é nosso, não do usuário: sem isto o dispatch de
+        // 'change' acima deixaria o formulário marcado como "alterado" e o
+        // navegador pediria confirmação ao sair, mesmo sem ninguém ter digitado.
+        if (typeof marcarFormularioSalvo === 'function') marcarFormularioSalvo();
+
+        console.log(`✅ ${pedidos.length} pedido(s) gráfico(s) mesclados para emissão de O.S.:`, pedidosOrigemIdsAtual);
+    } catch (error) {
+        console.error('Erro ao restaurar pedidos gráficos para emissão de OS:', error);
+    }
 }

@@ -24,12 +24,15 @@ class APIClient {
             url = `${API_BASE_URL}${endpoint}${separator}modulo=${moduloAtual}`;
         }
         
+        // ✅ `headers` é mesclado por último para não ser sobrescrito pelo spread de `options`
+        // (options também tem a chave `headers`; se viesse antes, o Content-Type default
+        // seria perdido sempre que um caller passasse headers customizados, ex. X-CSRF-Token).
         const config = {
+            ...options,
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
-            },
-            ...options
+            }
         };
         
         try {
@@ -278,6 +281,93 @@ class APIClient {
     static async deletarDetentora(id) {
         return this.request(`/detentoras/${id}`, {
             method: 'DELETE'
+        });
+    }
+
+    // ==================== PEDIDOS GRÁFICOS ====================
+    // Rotas não usam o parâmetro `modulo` da URL (a tabela já é dedicada
+    // ao módulo servicos_graficos), mas exigem CSRF em toda mutação —
+    // buscado explicitamente aqui, igual ao padrão de salvarPagamento().
+
+    static async _csrfToken() {
+        const resp = await fetch('/auth/csrf-token', { credentials: 'same-origin' });
+        const data = await resp.json();
+        return data.csrf_token;
+    }
+
+    static async listarPedidosGraficos(filtros = {}) {
+        const params = new URLSearchParams(filtros).toString();
+        return this.request(`/pedidos-graficos/?${params}`);
+    }
+
+    static async resumoPedidosGraficos() {
+        return this.request('/pedidos-graficos/resumo');
+    }
+
+    static async obterPedidoGrafico(id) {
+        return this.request(`/pedidos-graficos/${id}`);
+    }
+
+    static async criarPedidoGrafico(dados) {
+        const csrf = await this._csrfToken();
+        return this.request('/pedidos-graficos/', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify(dados)
+        });
+    }
+
+    static async atualizarPedidoGrafico(id, dados) {
+        const csrf = await this._csrfToken();
+        return this.request(`/pedidos-graficos/${id}`, {
+            method: 'PUT',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify(dados)
+        });
+    }
+
+    static async marcarEntregaPedido(id, entregue) {
+        const csrf = await this._csrfToken();
+        return this.request(`/pedidos-graficos/${id}/entrega`, {
+            method: 'PUT',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ entregue })
+        });
+    }
+
+    static async vincularOSAoPedido(id, ordemServicoId) {
+        const csrf = await this._csrfToken();
+        return this.request(`/pedidos-graficos/${id}/vincular-os`, {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ ordemServicoId })
+        });
+    }
+
+    // Vincula vários pedidos à MESMA O.S. numa única transação (tudo ou nada).
+    static async vincularOSAosPedidos(pedidoIds, ordemServicoId) {
+        const csrf = await this._csrfToken();
+        return this.request('/pedidos-graficos/vincular-os-lote', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ pedidoIds, ordemServicoId })
+        });
+    }
+
+    static async cancelarPedidoGrafico(id, motivo) {
+        const csrf = await this._csrfToken();
+        return this.request(`/pedidos-graficos/${id}/cancelar`, {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ motivo })
+        });
+    }
+
+    static async deletarPedidoGrafico(id) {
+        const csrf = await this._csrfToken();
+        return this.request(`/pedidos-graficos/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': csrf }
         });
     }
 }

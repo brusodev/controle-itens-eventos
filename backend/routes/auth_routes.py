@@ -4,8 +4,10 @@ Rotas de autenticação e gerenciamento de usuários
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from models import db, Usuario
 from extensions import limiter
+from utils.auditoria import registrar_auditoria
 from datetime import datetime
 from functools import wraps
+import json
 import secrets
 
 auth_bp = Blueprint('auth', __name__)
@@ -87,6 +89,37 @@ def csrf_protegido(f):
 
         return f(*args, **kwargs)
     return verificar_csrf
+
+
+def modulo_permitido_requerido(modulo_getter):
+    """
+    Decorator factory para restringir uma rota de API a um módulo específico.
+    modulo_getter: callable(*args, **kwargs) -> str (nome do módulo).
+    Admin sempre passa. Perfil 'empresa' não é afetado (não usa este decorator).
+
+    Escopo desta entrega: usado apenas nas rotas novas do blueprint de
+    Pedidos/Orçamentos (módulo 'servicos_graficos') — não retrofita as
+    demais rotas de API do sistema (itens, OS, etc. de outros módulos).
+    """
+    def decorator(f):
+        @wraps(f)
+        def verificar(*args, **kwargs):
+            if 'usuario_id' not in session:
+                return jsonify({'erro': 'Não autenticado'}), 401
+            # Contratada externa nunca acessa módulos internos (defesa em
+            # profundidade — Usuario.tem_acesso_modulo já nega, mas esta rota
+            # não deve depender só do model para essa fronteira).
+            if session.get('usuario_perfil') == 'empresa':
+                return jsonify({'erro': 'Acesso negado.'}), 403
+            if session.get('usuario_perfil') == 'admin':
+                return f(*args, **kwargs)
+            usuario = Usuario.query.get(session['usuario_id'])
+            modulo = modulo_getter(*args, **kwargs)
+            if not usuario or not usuario.tem_acesso_modulo(modulo):
+                return jsonify({'erro': f'Acesso negado ao módulo "{modulo}".'}), 403
+            return f(*args, **kwargs)
+        return verificar
+    return decorator
 
 
 # ========================================
@@ -202,19 +235,34 @@ def registro():
     if Usuario.query.filter_by(email=email).first():
         return jsonify({'erro': 'Email já cadastrado'}), 409
 
+    # Módulos permitidos: só relevante para admin/comum. Lista vazia/ausente = sem restrição.
+    modulos_permitidos = dados.get('modulos_permitidos')
+    modulos_permitidos_json = None
+    if perfil != 'empresa' and isinstance(modulos_permitidos, list) and modulos_permitidos:
+        modulos_permitidos_json = json.dumps(modulos_permitidos, ensure_ascii=False)
+
     # Criar novo usuário
     novo_usuario = Usuario(
         nome=nome,
         email=email,
         cargo=cargo or None,
         perfil=perfil,
-        detentora_id=int(detentora_id) if detentora_id else None
+        detentora_id=int(detentora_id) if detentora_id else None,
+        modulos_permitidos=modulos_permitidos_json
     )
     novo_usuario.set_senha(senha)
-    
+
     db.session.add(novo_usuario)
     db.session.commit()
-    
+
+    registrar_auditoria(
+        'CREATE', 'USUARIO',
+        f'Criou usuário {nome} ({email})',
+        entidade_tipo='usuarios',
+        entidade_id=novo_usuario.id,
+        dados_depois=novo_usuario.to_dict()
+    )
+
     return jsonify({
         'sucesso': True,
         'mensagem': 'Usuário criado com sucesso',
@@ -316,7 +364,29 @@ def atualizar_usuario(usuario_id):
         if 'senha' in dados and dados['senha']:
             usuario.set_senha(dados['senha'])
 
+        modulos_alterados = False
+        if 'modulos_permitidos' in dados:
+            # Apenas admin pode alterar módulos permitidos de outros usuários
+            if session.get('usuario_perfil') != 'admin':
+                return jsonify({'erro': 'Apenas administradores podem alterar módulos permitidos'}), 403
+            nova_lista = dados.get('modulos_permitidos') or []
+            if not isinstance(nova_lista, list):
+                return jsonify({'erro': 'modulos_permitidos deve ser uma lista'}), 400
+            novo_json = json.dumps(nova_lista, ensure_ascii=False) if nova_lista else None
+            if novo_json != usuario.modulos_permitidos:
+                usuario.modulos_permitidos = novo_json
+                modulos_alterados = True
+
         db.session.commit()
+
+        if modulos_alterados:
+            registrar_auditoria(
+                'UPDATE', 'USUARIO',
+                f'Atualizou módulos permitidos de {usuario.nome} ({usuario.email})',
+                entidade_tipo='usuarios',
+                entidade_id=usuario.id,
+                dados_depois={'modulosPermitidos': usuario.get_modulos_permitidos()}
+            )
 
         # Se o admin alterou o próprio usuário logado, atualizar sessão
         if session['usuario_id'] == usuario_id:

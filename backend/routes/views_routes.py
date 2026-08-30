@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, abort
 from functools import wraps
+from models import Usuario
 
 views_bp = Blueprint('views', __name__)
 
@@ -34,6 +35,26 @@ def empresa_requerido_view(f):
         return f(*args, **kwargs)
     return verificar
 
+def modulo_permitido_requerido_view(modulo):
+    """Decorator para views HTML restritas a um módulo específico (ver
+    auth_routes.modulo_permitido_requerido, equivalente para rotas de API)."""
+    def decorator(f):
+        @wraps(f)
+        def verificar(*args, **kwargs):
+            if 'usuario_id' not in session:
+                return redirect(url_for('auth.login'))
+            # Contratada externa não vê telas internas — mesmo tratamento que
+            # index() e dashboard() já dão: volta para o Portal da Detentora.
+            if session.get('usuario_perfil') == 'empresa':
+                return redirect(url_for('views.portal_empresa_inbox'))
+            if session.get('usuario_perfil') != 'admin':
+                usuario = Usuario.query.get(session['usuario_id'])
+                if not usuario or not usuario.tem_acesso_modulo(modulo):
+                    abort(403)
+            return f(*args, **kwargs)
+        return verificar
+    return decorator
+
 @views_bp.before_request
 def verificar_autenticacao():
     """Middleware para verificar autenticação em todas as rotas"""
@@ -55,9 +76,18 @@ def dashboard():
     """Painel de seleção de módulos"""
     if session.get('usuario_perfil') == 'empresa':
         return redirect(url_for('views.portal_empresa_inbox'))
+
+    # Acesso ao módulo Serviços Gráficos: admin sempre vê; comum só se permitido
+    # (lista vazia/ausente em modulos_permitidos = sem restrição, mantém padrão atual).
+    pode_acessar_servicos_graficos = True
+    if session.get('usuario_perfil') != 'admin':
+        usuario = Usuario.query.get(session['usuario_id'])
+        pode_acessar_servicos_graficos = bool(usuario and usuario.tem_acesso_modulo('servicos_graficos'))
+
     return render_template('dashboard.html',
                          usuario_nome=session.get('usuario_nome'),
-                         usuario_perfil=session.get('usuario_perfil', 'comum'))
+                         usuario_perfil=session.get('usuario_perfil', 'comum'),
+                         pode_acessar_servicos_graficos=pode_acessar_servicos_graficos)
 
 @views_bp.route('/importar-os')
 @login_requerido
@@ -125,6 +155,16 @@ def ordens_servico():
     """Página de Ordens de Serviço"""
     return render_template('index.html', 
                          secao_ativa='ordens-servico',
+                         usuario_nome=session.get('usuario_nome'),
+                         usuario_perfil=session.get('usuario_perfil', 'comum'))
+
+@views_bp.route('/pedidos-graficos')
+@login_requerido
+@modulo_permitido_requerido_view('servicos_graficos')
+def pedidos_graficos():
+    """Página de Pedidos/Orçamentos de Serviços Gráficos"""
+    return render_template('index.html',
+                         secao_ativa='pedidos-graficos',
                          usuario_nome=session.get('usuario_nome'),
                          usuario_perfil=session.get('usuario_perfil', 'comum'))
 

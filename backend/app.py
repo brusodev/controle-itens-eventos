@@ -81,6 +81,7 @@ def create_app():
     from routes.detentoras_routes import detentoras_bp
     from routes.auditoria_routes import auditoria_bp
     from routes.categorias_routes import categorias_bp
+    from routes.pedidos_graficos_routes import pedidos_graficos_bp
     app.register_blueprint(itens_bp, url_prefix='/api/itens')
     app.register_blueprint(categorias_bp, url_prefix='/api/categorias')
     app.register_blueprint(alimentacao_bp, url_prefix='/api/alimentacao')
@@ -88,6 +89,7 @@ def create_app():
     app.register_blueprint(relatorios_bp)
     app.register_blueprint(detentoras_bp, url_prefix='/api/detentoras')
     app.register_blueprint(auditoria_bp, url_prefix='/api/auditoria')
+    app.register_blueprint(pedidos_graficos_bp, url_prefix='/api/pedidos-graficos')
 
     # Feature flag: Portal da Detentora
     # Ative definindo PORTAL_DETENTORA_ATIVO=true no .env

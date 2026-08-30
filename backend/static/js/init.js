@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const tabId = abaAtiva.id.replace('tab-', '');
         // Aguardar renderização antes de restaurar edição (evita race condition)
         if (tabId === 'emitir-os') await renderizarEmitirOS();
+        if (tabId === 'pedidos-graficos') await renderizarPedidosGraficos();
     }
 
     // ✅ RESTAURAR O.S. PARA EDIÇÃO SE NECESSÁRIO
@@ -40,6 +41,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         await restaurarOSParaEdicao();
     } catch (error) {
         console.error('Erro ao restaurar O.S. para edicao:', error);
+    }
+
+    // ✅ RESTAURAR DADOS DE PEDIDO(S) GRÁFICO(S) PARA PRÉ-PREENCHER A EMISSÃO DE OS
+    // (1 pedido ou vários mesclados numa O.S. única)
+    try {
+        if (typeof restaurarPedidosParaOS === 'function') await restaurarPedidosParaOS();
+    } catch (error) {
+        console.error('Erro ao restaurar pedidos para emissão de OS:', error);
     }
 });
 
@@ -161,6 +170,7 @@ function configurarAbas() {
             if (tabName === 'alimentacao') renderizarAlimentacao();
             if (tabName === 'emitir-os') renderizarEmitirOS();
             if (tabName === 'ordens-servico') renderizarOrdensServico();
+            if (tabName === 'pedidos-graficos') renderizarPedidosGraficos();
             if (tabName === 'kits') renderizarKits();
             if (tabName === 'pendentes') renderizarPendentes();
             if (tabName === 'historico') renderizarHistorico();

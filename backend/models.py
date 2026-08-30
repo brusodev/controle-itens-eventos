@@ -1,3 +1,4 @@
+import json
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -424,6 +425,10 @@ class Usuario(db.Model):
     # Vínculo com detentora (obrigatório para perfil 'empresa', nulo para admin/comum)
     detentora_id = db.Column(db.Integer, db.ForeignKey('detentoras.id'), nullable=True, index=True)
 
+    # Módulos aos quais este usuário (perfil admin/comum) tem acesso.
+    # JSON: ["servicos_graficos", "coffee", ...]. None/vazio = sem restrição (acesso a todos — default retrocompatível).
+    modulos_permitidos = db.Column(db.Text, nullable=True)
+
     # Auditoria
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -446,6 +451,33 @@ class Usuario(db.Model):
     def is_empresa(self):
         return self.perfil == 'empresa'
 
+    def get_modulos_permitidos(self):
+        """Retorna a lista de módulos permitidos, ou [] se sem restrição/erro."""
+        if not self.modulos_permitidos:
+            return []
+        try:
+            lista = json.loads(self.modulos_permitidos)
+            return lista if isinstance(lista, list) else []
+        except (ValueError, TypeError):
+            return []
+
+    def tem_acesso_modulo(self, modulo):
+        """Verifica se o usuário interno pode acessar o módulo informado.
+
+        'empresa' é a conta da contratada EXTERNA: nunca tem acesso aos módulos
+        internos — seu escopo é apenas o Portal da Detentora, restrito às O.S.
+        da própria detentora. Falhar fechado aqui é essencial, pois este método
+        é a única autorização das rotas de Pedidos/Orçamentos.
+        Admin sempre tem acesso. Para 'comum', lista vazia = sem restrição."""
+        if self.perfil == 'empresa':
+            return False
+        if self.perfil == 'admin':
+            return True
+        permitidos = self.get_modulos_permitidos()
+        if not permitidos:
+            return True
+        return modulo in permitidos
+
     def to_dict(self):
         """Converte usuário para dicionário (sem dados sensíveis)"""
         return {
@@ -456,6 +488,7 @@ class Usuario(db.Model):
             'perfil': self.perfil,
             'detentora_id': self.detentora_id,
             'ativo': self.ativo,
+            'modulosPermitidos': self.get_modulos_permitidos(),
             'criado_em': self.criado_em.isoformat() if self.criado_em else None,
             'atualizado_em': self.atualizado_em.isoformat() if self.atualizado_em else None,
             'ultimo_acesso': self.ultimo_acesso.isoformat() if self.ultimo_acesso else None
@@ -695,4 +728,130 @@ class AssinaturaInterna(db.Model):
 
     def __repr__(self):
         return f'<AssinaturaInterna OS#{self.ordem_servico_id} by {self.nome_responsavel}>'
+
+
+# ============================================================
+# PEDIDOS/ORÇAMENTOS — Serviços Gráficos
+# ============================================================
+# Etapa anterior à emissão de O.S.: controla pedidos/orçamentos de serviços
+# gráficos, com estimativa de custo por itens de catálogo e prazo de entrega.
+# Reservado ao módulo 'servicos_graficos' (ver Usuario.tem_acesso_modulo).
+
+PEDIDO_GRAFICO_STATUS_LABELS = {
+    'pendente': 'Pendente',
+    'convertido': 'Convertido em O.S.',
+    'cancelado': 'Cancelado',
+}
+
+
+class PedidoGrafico(db.Model):
+    """Pedido/orçamento de Serviços Gráficos, anterior à emissão de O.S."""
+    __tablename__ = 'pedidos_graficos'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # data_pedido/prazo_entrega/data_entrega_efetiva são db.Date (não string, como
+    # em OrdemServico.data_pedido/data_entrega) — decisão deliberada: alertas de
+    # atraso exigem comparação de datas confiável, não parsing de string livre.
+    data_pedido = db.Column(db.Date, nullable=False)
+    solicitante = db.Column(db.String(200), nullable=False)
+    descricao = db.Column(db.Text, nullable=False)  # "Material/Evento" da planilha original
+    setor_solicitante = db.Column(db.String(200))
+    prazo_entrega = db.Column(db.Date, nullable=True)
+
+    # Estados: pendente | convertido | cancelado
+    status = db.Column(db.String(20), nullable=False, default='pendente', index=True)
+    # Ortogonal ao status: um pedido pode estar 'convertido' (já virou O.S.)
+    # e ainda não ter sido fisicamente entregue — espelha pagamento_pago em OrdemServico.
+    entregue = db.Column(db.Boolean, nullable=False, default=False)
+    data_entrega_efetiva = db.Column(db.Date, nullable=True)
+
+    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id'), nullable=True, index=True)
+    observacoes = db.Column(db.Text)
+    motivo_cancelamento = db.Column(db.Text, nullable=True)
+
+    usuario_criador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    criado_em = db.Column(db.DateTime, default=get_datetime_br)
+    atualizado_em = db.Column(db.DateTime, default=get_datetime_br, onupdate=get_datetime_br)
+
+    itens = db.relationship('ItemPedidoGrafico', backref='pedido', lazy=True, cascade='all, delete-orphan')
+    ordem_servico = db.relationship('OrdemServico', foreign_keys=[ordem_servico_id])
+    usuario_criador = db.relationship('Usuario', foreign_keys=[usuario_criador_id])
+
+    @property
+    def valor_total(self):
+        """Soma quantidade × valor_unitario (string BR) de cada item, defensivo."""
+        total = 0.0
+        for item in self.itens:
+            try:
+                v_str = str(item.valor_unitario or '0').strip()
+                v = float(v_str.replace('.', '').replace(',', '.')) if ',' in v_str else float(v_str)
+                total += v * (item.quantidade or 0)
+            except (ValueError, TypeError):
+                continue
+        return total
+
+    def to_dict(self, incluir_itens=True):
+        # OS vinculada pode ter sido excluída depois — não deixar quebrar a serialização
+        os_vinculada = None
+        if self.ordem_servico_id:
+            os_vinculada = self.ordem_servico or OrdemServico.query.get(self.ordem_servico_id)
+
+        data = {
+            'id': self.id,
+            'dataPedido': self.data_pedido.isoformat() if self.data_pedido else None,
+            'solicitante': self.solicitante,
+            'descricao': self.descricao,
+            'setorSolicitante': self.setor_solicitante,
+            'prazoEntrega': self.prazo_entrega.isoformat() if self.prazo_entrega else None,
+            'status': self.status,
+            'statusLabel': PEDIDO_GRAFICO_STATUS_LABELS.get(self.status, self.status),
+            'entregue': bool(self.entregue),
+            'dataEntregaEfetiva': self.data_entrega_efetiva.isoformat() if self.data_entrega_efetiva else None,
+            'ordemServicoId': self.ordem_servico_id if os_vinculada else None,
+            'numeroOS': os_vinculada.numero_os if os_vinculada else None,
+            'observacoes': self.observacoes,
+            'usuarioCriadorId': self.usuario_criador_id,
+            'criadoEm': self.criado_em.isoformat() if self.criado_em else None,
+            'atualizadoEm': self.atualizado_em.isoformat() if self.atualizado_em else None,
+            'motivoCancelamento': self.motivo_cancelamento,
+            'valorTotal': self.valor_total,
+        }
+        if incluir_itens:
+            data['itens'] = [i.to_dict() for i in self.itens]
+        return data
+
+    def __repr__(self):
+        return f'<PedidoGrafico #{self.id} {self.solicitante} status={self.status}>'
+
+
+class ItemPedidoGrafico(db.Model):
+    """Item de catálogo vinculado a um pedido — snapshot de descrição/preço no momento."""
+    __tablename__ = 'itens_pedido_grafico'
+
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey('pedidos_graficos.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('itens.id'), nullable=False)
+
+    categoria = db.Column(db.String(100))
+    descricao = db.Column(db.String(200))
+    unidade = db.Column(db.String(50))
+    quantidade = db.Column(db.Float, nullable=False)
+    valor_unitario = db.Column(db.String(20), default='0')  # snapshot, mesmo padrão de ItemOrdemServico.valor_unitario
+
+    item = db.relationship('Item')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'itemId': self.item_id,
+            'categoria': self.categoria,
+            'descricao': self.descricao,
+            'unidade': self.unidade,
+            'quantidade': self.quantidade,
+            'valorUnit': self.valor_unitario or '0',
+        }
+
+    def __repr__(self):
+        return f'<ItemPedidoGrafico pedido#{self.pedido_id} item#{self.item_id}>'
 

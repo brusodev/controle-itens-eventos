@@ -479,6 +479,21 @@
                     </small>
                 </div>
 
+                <div class="form-group" id="modulosPermitidosGroup" style="display:none;">
+                    <label>Módulos Permitidos</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 0;">
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:0.9rem;"><input type="checkbox" class="modulo-permitido-cb" value="coffee"> ☕ Coffee Break</label>
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:0.9rem;"><input type="checkbox" class="modulo-permitido-cb" value="transporte"> 🚚 Transporte</label>
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:0.9rem;"><input type="checkbox" class="modulo-permitido-cb" value="organizacao"> 📋 Organização</label>
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:0.9rem;"><input type="checkbox" class="modulo-permitido-cb" value="hospedagem"> 🛏️ Hospedagem</label>
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:0.9rem;"><input type="checkbox" class="modulo-permitido-cb" value="trofeus"> 🏆 Troféus</label>
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:0.9rem;"><input type="checkbox" class="modulo-permitido-cb" value="servicos_graficos"> 🖨️ Serviços Gráficos</label>
+                    </div>
+                    <small style="color: #666; font-size: 0.85rem; margin-top: 4px; display: block;">
+                        Nenhum módulo marcado = acesso a todos (padrão). Marque para restringir o usuário aos módulos selecionados.
+                    </small>
+                </div>
+
                 <div class="form-group" id="senhaGroup">
                     <label for="senha" id="senhaLabel">Senha *</label>
                     <input type="password" id="senha" placeholder="Mínimo 6 caracteres">
@@ -546,14 +561,28 @@
             const perfil = document.getElementById('perfil').value;
             const grupo = document.getElementById('detentoraGroup');
             const sel = document.getElementById('detentora_id');
+            const modulosGroup = document.getElementById('modulosPermitidosGroup');
             if (perfil === 'empresa') {
                 grupo.style.display = 'block';
                 sel.required = true;
+                modulosGroup.style.display = 'none';
             } else {
                 grupo.style.display = 'none';
                 sel.required = false;
                 sel.value = '';
+                modulosGroup.style.display = 'block';
             }
+        }
+
+        function marcarModulosPermitidos(lista) {
+            const marcados = new Set(lista || []);
+            document.querySelectorAll('.modulo-permitido-cb').forEach(cb => {
+                cb.checked = marcados.has(cb.value);
+            });
+        }
+
+        function coletarModulosPermitidos() {
+            return Array.from(document.querySelectorAll('.modulo-permitido-cb:checked')).map(cb => cb.value);
         }
 
         async function carregarUsuarios() {
@@ -663,6 +692,10 @@
             document.getElementById('detentora_id').required = false;
             popularSelectDetentoras();
 
+            // Resetar módulos permitidos (nenhum marcado = sem restrição)
+            document.getElementById('modulosPermitidosGroup').style.display = 'block';
+            marcarModulosPermitidos([]);
+
             document.getElementById('modalUsuario').classList.add('show');
         }
 
@@ -683,10 +716,13 @@
             if (usuario.perfil === 'empresa') {
                 document.getElementById('detentoraGroup').style.display = 'block';
                 document.getElementById('detentora_id').required = true;
+                document.getElementById('modulosPermitidosGroup').style.display = 'none';
             } else {
                 document.getElementById('detentoraGroup').style.display = 'none';
                 document.getElementById('detentora_id').required = false;
+                document.getElementById('modulosPermitidosGroup').style.display = 'block';
             }
+            marcarModulosPermitidos(usuario.modulosPermitidos || []);
 
             // Mostrar campo de senha mas como opcional
             document.getElementById('senhaGroup').style.display = 'block';
@@ -731,6 +767,10 @@
                 ativo: document.getElementById('ativo').value === 'true',
                 detentora_id: detentoraId ? parseInt(detentoraId) : null,
             };
+
+            if (perfilSelecionado !== 'empresa') {
+                dados.modulos_permitidos = coletarModulosPermitidos();
+            }
 
             // Incluir senha se for novo usuário OU se foi preenchida ao editar
             const senhaValue = document.getElementById('senha').value;

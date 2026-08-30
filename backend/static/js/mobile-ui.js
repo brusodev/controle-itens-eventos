@@ -303,11 +303,18 @@ window.marcarFormularioSalvo = function () {
 };
 
 window.addEventListener('beforeunload', function(e) {
-    if (formularioModificado) {
-        e.preventDefault();
-        e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
-        return e.returnValue;
-    }
+    if (!formularioModificado) return;
+
+    // O index.html é uma página única com várias abas, e o formulário de O.S.
+    // existe (oculto) em todas elas. O aviso só faz sentido quando a aba de
+    // emissão está aberta — telas como Pedidos/Orçamentos salvam via API na
+    // hora e não têm rascunho a proteger.
+    const secaoEmitirOS = document.getElementById('tab-emitir-os');
+    if (secaoEmitirOS && !secaoEmitirOS.classList.contains('active')) return;
+
+    e.preventDefault();
+    e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
+    return e.returnValue;
 });
 
 document.addEventListener('DOMContentLoaded', monitorarFormulario);
