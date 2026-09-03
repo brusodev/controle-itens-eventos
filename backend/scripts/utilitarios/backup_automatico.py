@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 r"""
-Backup Automático do Banco de Dados
+Backup Automatico do Banco de Dados
 ====================================
 
-Cria backup diário do banco de dados com rotação de 30 dias.
+Cria backup diario do banco de dados com rotacao de 30 dias.
 
 USO:
     python backup_automatico.py
     
-CRON (diário às 2h da manhã):
+CRON (diario as 2h da manha):
     0 2 * * * cd /seu/projeto/backend && /seu/projeto/venv/bin/python scripts/utilitarios/backup_automatico.py >> /var/log/backup_db.log 2>&1
 
-WINDOWS TASK SCHEDULER (diário às 2h):
-    Ação: python
+WINDOWS TASK SCHEDULER (diario as 2h):
+    Acao: python
     Argumentos: backend\scripts\utilitarios\backup_automatico.py
     Iniciar em: c:\Users\bruno.vargas\Desktop\PROJETOS\controle-itens-eventos
 """
@@ -21,42 +21,45 @@ WINDOWS TASK SCHEDULER (diário às 2h):
 import os
 import sys
 import sqlite3
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# Configuração
+# Configuracao
 BACKEND_DIR = Path(__file__).parent.parent.parent
 DB_PATH = BACKEND_DIR / 'instance' / 'controle_itens.db'
 BACKUP_DIR = BACKEND_DIR / 'instance' / 'backups'
-RETENTION_DAYS = 30  # Manter últimos 30 dias
+RETENTION_DAYS = 30  # Manter ultimos 30 dias
 
-# Cores para terminal
-class Colors:
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    OKCYAN = '\033[96m'
-    ENDC = '\033[0m'
+# Sem emoji: este script roda sob cron/Task Scheduler, onde a saida pode estar
+# em cp1252 e qualquer caractere fora do charmap aborta o backup inteiro.
+logging.basicConfig(level=logging.INFO, format='%(message)s', stream=sys.stdout)
+logger = logging.getLogger('backup')
+
 
 def print_success(msg):
-    print(f"{Colors.OKGREEN}✅ {msg}{Colors.ENDC}")
+    logger.info('[OK] %s', msg)
+
 
 def print_error(msg):
-    print(f"{Colors.FAIL}❌ {msg}{Colors.ENDC}")
+    logger.error('[ERRO] %s', msg)
+
 
 def print_info(msg):
-    print(f"{Colors.OKCYAN}ℹ️  {msg}{Colors.ENDC}")
+    logger.info('[INFO] %s', msg)
+
 
 def print_warning(msg):
-    print(f"{Colors.WARNING}⚠️  {msg}{Colors.ENDC}")
+    logger.warning('[AVISO] %s', msg)
+
 
 def criar_backup():
     """Cria backup do banco"""
     if not DB_PATH.exists():
-        print_error(f"Banco não encontrado: {DB_PATH}")
+        print_error(f"Banco nao encontrado: {DB_PATH}")
         return False
     
-    # Criar diretório de backups
+    # Criar diretorio de backups
     BACKUP_DIR.mkdir(exist_ok=True)
     
     # Nome do backup
@@ -64,9 +67,9 @@ def criar_backup():
     backup_file = BACKUP_DIR / f"controle_itens_{timestamp}.db"
     
     try:
-        # Backup online consistente do SQLite (seguro com a aplicação rodando).
-        # A API .backup() garante um snapshot íntegro, ao contrário de uma cópia
-        # bruta do arquivo, que pode corromper se houver escrita simultânea.
+        # Backup online consistente do SQLite (seguro com a aplicacao rodando).
+        # A API .backup() garante um snapshot integro, ao contrario de uma copia
+        # bruta do arquivo, que pode corromper se houver escrita simultanea.
         src = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
         dst = sqlite3.connect(str(backup_file))
         try:
@@ -113,7 +116,7 @@ def limpar_backups_antigos():
                     print_warning(f"Removido backup antigo: {backup_file.name} ({size_mb:.2f} MB)")
                 
         except (ValueError, IndexError):
-            # Nome de arquivo não segue padrão, ignorar
+            # Nome de arquivo nao segue padrao, ignorar
             pass
     
     if removidos > 0:
@@ -122,7 +125,7 @@ def limpar_backups_antigos():
         print_info("Nenhum backup antigo para remover")
 
 def listar_backups():
-    """Lista backups disponíveis"""
+    """Lista backups disponiveis"""
     if not BACKUP_DIR.exists():
         print_info("Nenhum backup encontrado")
         return
@@ -133,11 +136,11 @@ def listar_backups():
         print_info("Nenhum backup encontrado")
         return
     
-    print(f"\n📊 Backups Disponíveis ({len(backups)}):")
+    print(f"\n Backups Disponiveis ({len(backups)}):")
     print("-" * 70)
     
     total_size = 0
-    for i, backup_file in enumerate(backups[:10], 1):  # Mostrar últimos 10
+    for i, backup_file in enumerate(backups[:10], 1):  # Mostrar ultimos 10
         size_mb = backup_file.stat().st_size / (1024 * 1024)
         total_size += size_mb
         
@@ -158,7 +161,7 @@ def listar_backups():
                 elif delta.days == 1:
                     relative = "ontem"
                 else:
-                    relative = f"{delta.days} dias atrás"
+                    relative = f"{delta.days} dias atras"
                 
                 print(f"{i:2d}. {date_formatted} ({relative:15s}) - {size_mb:6.2f} MB")
             else:
@@ -174,14 +177,14 @@ def listar_backups():
 
 def main():
     print("=" * 70)
-    print("BACKUP AUTOMÁTICO DO BANCO DE DADOS")
+    print("BACKUP AUTOMATICO DO BANCO DE DADOS")
     print("=" * 70)
     print()
     
-    # Informações
+    # Informacoes
     print_info(f"Banco: {DB_PATH}")
     print_info(f"Backups: {BACKUP_DIR}")
-    print_info(f"Retenção: {RETENTION_DAYS} dias")
+    print_info(f"Retencao: {RETENTION_DAYS} dias")
     print()
     
     # Criar backup
@@ -196,7 +199,7 @@ def main():
         listar_backups()
         print()
         
-        print_success("Backup concluído com sucesso!")
+        print_success("Backup concluido com sucesso!")
         return 0
     else:
         print()
@@ -208,7 +211,7 @@ if __name__ == '__main__':
         sys.exit(main())
     except KeyboardInterrupt:
         print("\n")
-        print_warning("Backup interrompido pelo usuário")
+        print_warning("Backup interrompido pelo usuario")
         sys.exit(1)
     except Exception as e:
         print("\n")
