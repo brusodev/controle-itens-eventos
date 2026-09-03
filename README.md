@@ -148,9 +148,15 @@ Crie um `.env` na pasta `backend/`:
 SECRET_KEY=<chave-aleatoria-forte>     # obrigatório em produção
 PORTAL_DETENTORA_ATIVO=false           # true habilita o portal da empresa
 CORS_ORIGIN=http://localhost:5100      # origens permitidas (separadas por vírgula)
+LOG_LEVEL=INFO                         # DEBUG | INFO | WARNING | ERROR
+LOG_FILE=                              # caminho p/ log rotativo (opcional)
 ```
 
 > Sem `SECRET_KEY`, o sistema usa uma chave temporária e as sessões se perdem a cada reinício.
+
+> `LOG_LEVEL=DEBUG` mostra o rastro detalhado das rotas. No padrão (`INFO`) esse
+> rastro fica silencioso. No navegador, o equivalente é
+> `localStorage.setItem('debug', '1')` — depois recarregue a página.
 
 ## 🗂️ Estrutura
 
@@ -259,6 +265,52 @@ cd backend
 ```
 
 Os testes usam SQLite em memória, sem depender do banco local.
+
+Alguns arquivos em `tests/` são scripts manuais que exigem o servidor rodando
+e quebram a coleta do pytest. Para rodar só a suíte real:
+
+```bash
+.venv/Scripts/python.exe -m pytest tests/test_estoque_os.py     tests/test_portal_detentora.py tests/test_regressao_admin.py     tests/test_gaps_backend.py tests/test_repro_edicao_os.py     tests/test_modal_zindex.py -q
+```
+
+### Validação do estoque contra dados reais
+
+`tests/test_estoque_os.py` roda em memória. Para exercitar o cenário de saldo
+sobre dados de verdade (ele **escreve** — use sempre uma cópia):
+
+```bash
+python -c "import sqlite3; s=sqlite3.connect('file:instance/controle_itens.db?mode=ro',uri=True); d=sqlite3.connect('/tmp/copia.db'); d.__enter__(); s.backup(d); d.close(); s.close()"
+.venv/Scripts/python.exe scripts/diagnostico/validar_cenario_estoque.py /tmp/copia.db
+```
+
+## 🚫 print() e emoji no código
+
+O padrão `print()` com emoji já derrubou três coisas neste projeto — entre elas
+a **criação de O.S. com HTTP 500**, porque `registrar_auditoria()` roda dentro
+da rota e o console do Windows usa cp1252, onde um emoji levanta
+`UnicodeEncodeError` e mata a requisição inteira.
+
+Regras aplicadas por um hook de pre-commit:
+
+- emoji em `print()` / `console.*`: proibido em qualquer arquivo
+- `print()` novo no runtime do servidor (`routes/`, `app.py`, `models.py`,
+  `pdf_generator.py`, `utils/auditoria.py`, `utils/controle_estoque.py`):
+  use `logger.debug/info/warning/exception`
+- `console.log` novo em `static/js/`: use `debugLog()` (de `utils.js`)
+- emoji em **texto visível ao usuário** (botões, alerts): permitido — roda no
+  navegador, onde não há cp1252
+
+```bash
+# rodar à mão
+python backend/scripts/utilitarios/verificar_prints.py
+python backend/scripts/utilitarios/verificar_prints.py --strict   # inclui scripts/testes
+
+# pular conscientemente um commit
+git commit --no-verify
+```
+
+O hook fica em `.git/hooks/pre-commit`, que **não é versionado** — ao clonar o
+repositório em outra máquina, recrie-o chamando o script acima com `--staged`.
 
 > ⚠️ Alguns arquivos em `tests/` (`test_api_list.py`, `test_put.py`, `test_criar_os_api.py`, entre outros) dependem de `requests` e de um servidor rodando — são scripts manuais, não testes unitários. Para rodar só a suíte automatizada, use `--ignore` nesses arquivos.
 

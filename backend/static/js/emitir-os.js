@@ -70,7 +70,7 @@ async function carregarGruposDropdown() {
         _criarDropdownDetentora();
     } else {
         try {
-            console.log('📡 [Emitir OS] Carregando grupos disponíveis...');
+            debugLog('[Emitir OS] Carregando grupos disponíveis...');
             const grupos = await APIClient.obterGruposDetentoras();
 
             grupoSelect.innerHTML = `<option value="">-- Selecione o ${cfg.grupoLabel} --</option>`;
@@ -91,7 +91,7 @@ async function carregarGruposDropdown() {
             // Restaurar handler padrão
             grupoSelect.onchange = function() { carregarDadosDetentora(); };
         } catch (error) {
-            console.error('❌ Erro ao carregar grupos:', error);
+            console.error('Erro ao carregar grupos:', error);
         }
     }
 }
@@ -766,18 +766,18 @@ async function visualizarOS() {
     if (!dadosOS) return;
 
     // 🔍 DEBUG: Verificar dados coletados
-    console.log('\n' + '='.repeat(60));
-    console.log('🔍 DEBUG visualizarOS() - Dados coletados do formulário:');
-    console.log('='.repeat(60));
-    console.log('Total de itens:', dadosOS.itens.length);
+    debugLog('\n' + '='.repeat(60));
+    debugLog('DEBUG visualizarOS() - Dados coletados do formulário:');
+    debugLog('='.repeat(60));
+    debugLog('Total de itens:', dadosOS.itens.length);
     dadosOS.itens.forEach((item, idx) => {
-        console.log(`\nItem ${idx + 1}:`);
-        console.log('  Descrição:', item.descricao);
-        console.log('  Diárias:', item.diarias, typeof item.diarias);
-        console.log('  Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
-        console.log('  Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
+        debugLog(`\nItem ${idx + 1}:`);
+        debugLog('Descrição:', item.descricao);
+        debugLog('Diárias:', item.diarias, typeof item.diarias);
+        debugLog('Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
+        debugLog('Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
     });
-    console.log('='.repeat(60) + '\n');
+    debugLog('='.repeat(60) + '\n');
 
     // 🔢 Buscar próximo número do backend se for nova O.S. (sequência por módulo+grupo)
     if (!osEditandoId) {
@@ -790,9 +790,9 @@ async function visualizarOS() {
             const response = await fetch(`/api/ordens-servico/proximo-numero?${params}`);
             const data = await response.json();
             dadosOS.numeroOS = data.proximoNumero;
-            console.log('🔢 Próximo número obtido do backend:', dadosOS.numeroOS);
+            debugLog('Próximo número obtido do backend:', dadosOS.numeroOS);
         } catch (error) {
-            console.error('❌ Erro ao buscar próximo número:', error);
+            console.error('Erro ao buscar próximo número:', error);
             alert('Erro ao buscar número da O.S. Verifique a conexão com o servidor.');
             return;
         }
@@ -918,15 +918,15 @@ function gerarPreviewOS(dados) {
         return sum + (valor * qtd);
     }, 0);
 
-    console.log('💰 gerarPreviewOS - Cálculo do valor total:');
-    console.log('   - Itens:', dados.itens.length);
+    debugLog('gerarPreviewOS - Cálculo do valor total:');
+    debugLog('- Itens:', dados.itens.length);
     dados.itens.forEach((item, idx) => {
         const valor = parseFloat(item.valorUnit) || 0;
         const qtd = parseFloat(item.qtdTotal) || 0;
         const subTotal = valor * qtd;
-        console.log(`   Item ${idx + 1}: R$ ${valor.toFixed(2)} × ${qtd} = R$ ${subTotal.toFixed(2)}`);
+        debugLog(`Item ${idx + 1}: R$ ${valor.toFixed(2)} × ${qtd} = R$ ${subTotal.toFixed(2)}`);
     });
-    console.log('   - TOTAL FINAL: R$', valorTotal.toFixed(2));
+    debugLog('- TOTAL FINAL: R$', valorTotal.toFixed(2));
 
     return `
         <div class="os-document">
@@ -1097,21 +1097,21 @@ async function confirmarEmissaoOS() {
     const dadosOS = coletarDadosOS();
     if (!dadosOS) return;
 
-    console.log('🔍 confirmarEmissaoOS - Modo:', osEditandoId ? 'EDIÇÃO' : 'CRIAÇÃO');
-    console.log('📋 osEditandoId:', osEditandoId);
+    debugLog('confirmarEmissaoOS - Modo:', osEditandoId ? 'EDIÇÃO': 'CRIAÇÃO');
+    debugLog('osEditandoId:', osEditandoId);
 
     // 🔍 DEBUG: Verificar dados ANTES do mapeamento
-    console.log('\n' + '='.repeat(60));
-    console.log('🔍 DEBUG confirmarEmissaoOS() - ANTES do mapeamento:');
-    console.log('='.repeat(60));
+    debugLog('\n' + '='.repeat(60));
+    debugLog('DEBUG confirmarEmissaoOS() - ANTES do mapeamento:');
+    debugLog('='.repeat(60));
     dadosOS.itens.forEach((item, idx) => {
-        console.log(`\nItem ${idx + 1}:`);
-        console.log('  Descrição:', item.descricao);
-        console.log('  Diárias:', item.diarias, typeof item.diarias);
-        console.log('  Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
-        console.log('  Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
+        debugLog(`\nItem ${idx + 1}:`);
+        debugLog('Descrição:', item.descricao);
+        debugLog('Diárias:', item.diarias, typeof item.diarias);
+        debugLog('Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
+        debugLog('Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
     });
-    console.log('='.repeat(60) + '\n');
+    debugLog('='.repeat(60) + '\n');
 
     try {
         // Mapear dados para o formato esperado pela API
@@ -1158,28 +1158,28 @@ async function confirmarEmissaoOS() {
         };
 
         // 🔍 DEBUG: Verificar dados DEPOIS do mapeamento
-        console.log('\n' + '='.repeat(60));
-        console.log('🔍 DEBUG confirmarEmissaoOS() - DEPOIS do mapeamento (dadosAPI):');
-        console.log('='.repeat(60));
+        debugLog('\n' + '='.repeat(60));
+        debugLog('DEBUG confirmarEmissaoOS() - DEPOIS do mapeamento (dadosAPI):');
+        debugLog('='.repeat(60));
         dadosAPI.itens.forEach((item, idx) => {
-            console.log(`\nItem ${idx + 1}:`);
-            console.log('  Descrição:', item.descricao);
-            console.log('  Diárias:', item.diarias, typeof item.diarias);
-            console.log('  Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
-            console.log('  Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
+            debugLog(`\nItem ${idx + 1}:`);
+            debugLog('Descrição:', item.descricao);
+            debugLog('Diárias:', item.diarias, typeof item.diarias);
+            debugLog('Qtd Solicitada:', item.qtdSolicitada, typeof item.qtdSolicitada);
+            debugLog('Qtd Total:', item.qtdTotal, typeof item.qtdTotal);
         });
-        console.log('='.repeat(60) + '\n');
+        debugLog('='.repeat(60) + '\n');
 
-        console.log('🚀 Dados para enviar à API:', dadosAPI);
+        debugLog('Dados para enviar à API:', dadosAPI);
 
         // Verificar se é criação ou atualização
         const eraEdicao = !!osEditandoId; // Guardar estado antes de zerar
 
         if (osEditandoId) {
             // Atualizar O.S. existente (chamado pelo modal de visualização)
-            console.log(`📡 Enviando PUT para /api/ordens-servico/${osEditandoId}`);
+            debugLog(`Enviando PUT para /api/ordens-servico/${osEditandoId}`);
             const osAtualizada = await APIClient.atualizarOrdemServico(osEditandoId, dadosAPI);
-            console.log('✅ Resposta da API:', osAtualizada);
+            debugLog('Resposta da API:', osAtualizada);
             alert('O.S. atualizada com sucesso! Estoque recalculado.');
 
             // Limpar estado de edição
@@ -1224,11 +1224,11 @@ async function confirmarEmissaoOS() {
         limparCamposDetentora(); // Limpar campos da Detentora também
 
         // Recarregar dados ANTES de fechar modal
-        console.log('🔄 Recarregando alimentação...');
+        debugLog('Recarregando alimentação...');
         await renderizarAlimentacao();
-        console.log('🔄 Recarregando lista de O.S. do banco...');
+        debugLog('Recarregando lista de O.S. do banco...');
         await renderizarOrdensServico();
-        console.log('✅ Listas recarregadas com dados atualizados do banco!');
+        debugLog('Listas recarregadas com dados atualizados do banco!');
 
         // Agora sim fechar modal
         fecharModalVisualizarOS();
@@ -1236,7 +1236,7 @@ async function confirmarEmissaoOS() {
 
         // Se criou nova O.S. (não edição), redirecionar para página de O.S.
         if (!eraEdicao) {
-            console.log('📂 Nova O.S. criada - redirecionando para lista de Ordens de Serviço');
+            debugLog('Nova O.S. criada - redirecionando para lista de Ordens de Serviço');
             // Pequeno delay para garantir que o formulário foi limpo antes de redirecionar
             setTimeout(() => {
                 window.location.href = '/ordens-servico';
@@ -1244,7 +1244,7 @@ async function confirmarEmissaoOS() {
         }
 
     } catch (error) {
-        console.error('❌ Erro ao emitir O.S.:', error);
+        console.error('Erro ao emitir O.S.:', error);
         alert('Erro ao emitir O.S.: ' + error.message);
     }
 }
@@ -1634,7 +1634,7 @@ async function restaurarPedidosParaOS() {
         // navegador pediria confirmação ao sair, mesmo sem ninguém ter digitado.
         if (typeof marcarFormularioSalvo === 'function') marcarFormularioSalvo();
 
-        console.log(`✅ ${pedidos.length} pedido(s) gráfico(s) mesclados para emissão de O.S.:`, pedidosOrigemIdsAtual);
+        debugLog(`${pedidos.length} pedido(s) gráfico(s) mesclados para emissão de O.S.:`, pedidosOrigemIdsAtual);
     } catch (error) {
         console.error('Erro ao restaurar pedidos gráficos para emissão de OS:', error);
     }

@@ -70,21 +70,21 @@ function filtrarEstoque() {
 
 async function renderizarAlimentacao() {
     try {
-        console.log('🔄 [ALIMENTAÇÃO] Buscando dados atualizados da API...');
+        debugLog('[ALIMENTAÇÃO] Buscando dados atualizados da API...');
         dadosAlimentacao = await APIClient.listarAlimentacao();
-        console.log('✅ [ALIMENTAÇÃO] Dados recebidos:', dadosAlimentacao);
+        debugLog('[ALIMENTAÇÃO] Dados recebidos:', dadosAlimentacao);
 
         if (!dadosAlimentacao || Object.keys(dadosAlimentacao).length === 0) {
-            console.warn('⚠️ [ALIMENTAÇÃO] Nenhum dado retornado da API.');
+            console.warn('[ALIMENTAÇÃO] Nenhum dado retornado da API.');
         }
 
         // Salvar no localStorage com campo preco
         localStorage.setItem('dadosAlimentacao', JSON.stringify(dadosAlimentacao));
-        console.log('💾 [ALIMENTAÇÃO] Dados salvos no cache');
+        debugLog('[ALIMENTAÇÃO] Dados salvos no cache');
 
         renderizarItensAlimentacao();
     } catch (error) {
-        console.error('❌ [ALIMENTAÇÃO] Erro ao carregar dados:', error);
+        console.error('[ALIMENTAÇÃO] Erro ao carregar dados:', error);
         // Evitar alert repetitivo, apenas logar
     }
 }
@@ -143,11 +143,11 @@ function filtrarAlimentacao() {
 
             // DEBUG: Log para verificar cálculos
             if (item.descricao.includes('Coffee Break Tipo 1')) {
-                console.log('🔍 [DEBUG] Coffee Break Tipo 1:');
-                console.log('   - Total Inicial:', totalInicial);
-                console.log('   - Total Gasto:', totalGasto);
-                console.log('   - Total Disponível:', totalDisponivel);
-                console.log('   - Regiões:', item.regioes);
+                debugLog('[DEBUG] Coffee Break Tipo 1:');
+                debugLog('- Total Inicial:', totalInicial);
+                debugLog('- Total Gasto:', totalGasto);
+                debugLog('- Total Disponível:', totalDisponivel);
+                debugLog('- Regiões:', item.regioes);
             }
 
             const statusClass = totalDisponivel === 0 ? 'badge-danger' : totalDisponivel < 1000 ? 'badge-warning' : 'badge-success';
@@ -224,8 +224,8 @@ function editarItemAlimentacao(categoria, itemId) {
     const item = dadosAlimentacao[categoria].itens.find(i => i.item === itemId.toString());
     if (!item) return;
 
-    console.log('🔍 [EDITAR] Item completo:', item);
-    console.log('🔍 [EDITAR] Regiões do item:', item.regioes);
+    debugLog('[EDITAR] Item completo:', item);
+    debugLog('[EDITAR] Regiões do item:', item.regioes);
 
     alimentacaoEditando = { categoria, itemId: itemId.toString() };
 
@@ -265,7 +265,7 @@ function editarItemAlimentacao(categoria, itemId) {
 
     for (let reg = 1; reg <= maxRegioes; reg++) {
         const r = item.regioes[reg.toString()] || { inicial: '', gasto: '0', preco: '0' };
-        console.log(`🔍 [EDITAR] Região ${reg}:`, r);
+        debugLog(`[EDITAR] Região ${reg}:`, r);
 
         // Garantir que preco nunca seja undefined
         const precoValor = (r.preco !== undefined && r.preco !== null) ? r.preco : '0';

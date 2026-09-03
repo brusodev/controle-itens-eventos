@@ -33,7 +33,7 @@ function atualizarInterface() {
 // ========================================
 
 function inicializarMenuMobile() {
-    console.log('🔧 Inicializando menu mobile...');
+    debugLog('Inicializando menu mobile...');
 
     // Aguarda um tick para garantir que as tabs estão renderizadas
     setTimeout(() => {
@@ -53,29 +53,29 @@ function inicializarMenuMobile() {
 
             if (hamburgerBtn) {
                 hamburgerBtn.addEventListener('click', abrirSidebar);
-                console.log('✅ Botão hamburger conectado');
+                debugLog('Botão hamburger conectado');
                 elementosEncontrados = true;
             }
 
             if (closeSidebarBtn) {
                 closeSidebarBtn.addEventListener('click', fecharSidebar);
-                console.log('✅ Botão fechar sidebar conectado');
+                debugLog('Botão fechar sidebar conectado');
                 elementosEncontrados = true;
             }
 
             if (sidebarOverlay) {
                 sidebarOverlay.addEventListener('click', fecharSidebar);
-                console.log('✅ Overlay conectado');
+                debugLog('Overlay conectado');
                 elementosEncontrados = true;
             }
 
             // Se elementos não foram encontrados e ainda temos tentativas, tenta novamente
             if (!elementosEncontrados && tentativas < maxTentativas) {
                 tentativas++;
-                console.log(`⏳ Tentando conectar elementos novamente... (${tentativas}/${maxTentativas})`);
+                debugLog(`Tentando conectar elementos novamente... (${tentativas}/${maxTentativas})`);
                 setTimeout(conectarElementos, 100);
             } else if (!elementosEncontrados && tentativas >= maxTentativas) {
-                console.warn('⚠️ Botão hamburger não encontrado após múltiplas tentativas');
+                console.warn('Botão hamburger não encontrado após múltiplas tentativas');
             }
         }
 
@@ -84,7 +84,7 @@ function inicializarMenuMobile() {
         // Sincronizar tabs do sidebar com tabs principais
         sincronizarTabsSidebar();
 
-        console.log('✅ Menu mobile inicializado com sucesso!');
+        debugLog('Menu mobile inicializado com sucesso!');
     }, 100);
 }
 
@@ -92,16 +92,16 @@ function criarTabsSidebar() {
     const sidebarTabs = document.getElementById('sidebar-tabs');
     const mainTabs = document.querySelectorAll('.tab-btn');
 
-    console.log('🔍 Criando tabs no sidebar...');
-    console.log('📋 Tabs principais encontradas:', mainTabs.length);
+    debugLog('Criando tabs no sidebar...');
+    debugLog('Tabs principais encontradas:', mainTabs.length);
 
     if (!sidebarTabs) {
-        console.warn('⚠️ Container sidebar-tabs não encontrado! (Pode ser normal em desktop)');
+        console.warn('Container sidebar-tabs não encontrado! (Pode ser normal em desktop)');
         return;
     }
 
     if (mainTabs.length === 0) {
-        console.error('❌ Nenhuma tab principal encontrada!');
+        console.error('Nenhuma tab principal encontrada!');
         return;
     }
 
@@ -118,7 +118,7 @@ function criarTabsSidebar() {
         }
 
         sidebarTab.addEventListener('click', function() {
-            console.log('📱 Tab do sidebar clicada:', tab.dataset.tab);
+            debugLog('Tab do sidebar clicada:', tab.dataset.tab);
             // Ativa a tab principal
             tab.click();
             // Fecha o sidebar
@@ -126,10 +126,10 @@ function criarTabsSidebar() {
         });
 
         sidebarTabs.appendChild(sidebarTab);
-        console.log(`✅ Tab ${index + 1} adicionada ao sidebar:`, tab.innerHTML);
+        debugLog(`Tab ${index + 1} adicionada ao sidebar:`, tab.innerHTML);
     });
 
-    console.log(`✅ ${mainTabs.length} tabs adicionadas ao sidebar!`);
+    debugLog(`${mainTabs.length} tabs adicionadas ao sidebar!`);
 }
 
 function sincronizarTabsSidebar() {
@@ -148,7 +148,7 @@ function sincronizarTabsSidebar() {
 }
 
 function abrirSidebar() {
-    console.log('📱 Abrindo sidebar...');
+    debugLog('Abrindo sidebar...');
     const sidebar = document.getElementById('mobile-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const hamburgerBtn = document.querySelector('.hamburger-menu');
@@ -156,11 +156,11 @@ function abrirSidebar() {
 
     if (sidebar) {
         sidebar.classList.add('active');
-        console.log('✅ Classe active adicionada ao sidebar');
+        debugLog('Classe active adicionada ao sidebar');
     }
     if (overlay) {
         overlay.classList.add('active');
-        console.log('✅ Classe active adicionada ao overlay');
+        debugLog('Classe active adicionada ao overlay');
     }
     if (hamburgerBtn) {
         hamburgerBtn.classList.add('active');
@@ -169,16 +169,16 @@ function abrirSidebar() {
     // Esconder botão hamburger quando sidebar abrir
     if (hamburgerToggle) {
         hamburgerToggle.classList.add('hidden');
-        console.log('✅ Botão hamburger escondido');
+        debugLog('Botão hamburger escondido');
     }
 
     // Previne scroll do body
     document.body.style.overflow = 'hidden';
-    console.log('✅ Sidebar aberto!');
+    debugLog('Sidebar aberto!');
 }
 
 function fecharSidebar() {
-    console.log('📱 Fechando sidebar...');
+    debugLog('Fechando sidebar...');
     const sidebar = document.getElementById('mobile-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const hamburgerBtn = document.querySelector('.hamburger-menu');
@@ -186,11 +186,11 @@ function fecharSidebar() {
 
     if (sidebar) {
         sidebar.classList.remove('active');
-        console.log('✅ Classe active removida do sidebar');
+        debugLog('Classe active removida do sidebar');
     }
     if (overlay) {
         overlay.classList.remove('active');
-        console.log('✅ Classe active removida do overlay');
+        debugLog('Classe active removida do overlay');
     }
     if (hamburgerBtn) {
         hamburgerBtn.classList.remove('active');
@@ -199,12 +199,12 @@ function fecharSidebar() {
     // Mostrar botão hamburger quando sidebar fechar
     if (hamburgerToggle) {
         hamburgerToggle.classList.remove('hidden');
-        console.log('✅ Botão hamburger visível novamente');
+        debugLog('Botão hamburger visível novamente');
     }
 
     // Restaura scroll do body
     document.body.style.overflow = '';
-    console.log('✅ Sidebar fechado!');
+    debugLog('Sidebar fechado!');
 }
 
 // ========================================
@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', monitorarFormulario);
 
 // Exemplo de uso do debounce no resize
 window.addEventListener('resize', debounce(function() {
-    console.log('📱 Resize detectado:', {
+    debugLog('Resize detectado:', {
         width: window.innerWidth,
         isMobile: isMobile(),
         isTablet: isTablet(),
@@ -352,4 +352,4 @@ document.addEventListener('mousedown', function() {
 }
 */
 
-console.log('✅ Melhorias de responsividade carregadas!');
+debugLog('Melhorias de responsividade carregadas!');

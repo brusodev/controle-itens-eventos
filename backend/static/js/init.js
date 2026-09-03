@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         await renderizarOrdensServico();
         await carregarSugestoesOS();
     } catch (error) {
-        console.error("❌ Erro ao carregar dados da API:", error);
+        console.error("Erro ao carregar dados da API:", error);
     }
 
     atualizarInterface();
@@ -98,10 +98,10 @@ function carregarDados() {
         );
 
         if (temPreco) {
-            console.log('✅ Cache válido com campo preço');
+            debugLog('Cache válido com campo preço');
             dadosAlimentacao = dadosCache;
         } else {
-            console.log('⚠️ Cache sem campo preço - será atualizado');
+            debugLog('Cache sem campo preço - será atualizado');
             localStorage.removeItem('dadosAlimentacao');
         }
     }

@@ -1077,4 +1077,4 @@ function exportarPagamentosExcel() {
     window.open(`/api/relatorios/pagamentos/excel?${params}`, '_blank');
 }
 
-console.log('✅ Funções de relatórios carregadas!');
+debugLog('Funções de relatórios carregadas!');

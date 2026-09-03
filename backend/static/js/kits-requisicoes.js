@@ -218,7 +218,7 @@ function configurarFormularios() {
             // Se houver itens iniciais, cadastrá-los também
             const itens = itensTexto.split('\n').map(i => i.trim()).filter(i => i.length > 0);
             if (itens.length > 0) {
-                console.log(`📦 Cadastrando ${itens.length} itens iniciais...`);
+                debugLog(`Cadastrando ${itens.length} itens iniciais...`);
             }
 
             alert('✅ Categoria criada com sucesso!');

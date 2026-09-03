@@ -11,6 +11,8 @@ from models import db
 from dotenv import load_dotenv
 import os
 import secrets
+import logging
+import logging.handlers
 
 # Diretório absoluto de app.py (backend/) — funciona de qualquer CWD
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,8 +20,98 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Carregar .env sempre de backend/, independente de onde o servidor for iniciado
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+logger = logging.getLogger(__name__)
+
+
+class _StreamHandlerSeguro(logging.StreamHandler):
+    """
+    StreamHandler que nunca derruba a requisicao por causa de encoding.
+
+    O console do Windows usa cp1252; qualquer caractere fora do charmap
+    (um emoji, por exemplo) levanta UnicodeEncodeError. Quando isso acontece
+    dentro de uma rota Flask, a requisicao inteira morre com HTTP 500 -- foi
+    exatamente o que derrubou a criacao de O.S. via registrar_auditoria().
+
+    O reconfigure() no topo deste arquivo so vale quando app.py e o
+    entrypoint; sob systemd/waitress ele nao roda. Esta classe garante a
+    protecao em qualquer cenario: o caractere problematico vira '?'.
+    """
+
+    def emit(self, registro):
+        # A conversao acontece ANTES da escrita: StreamHandler.emit() trata a
+        # UnicodeEncodeError internamente (handleError) e a mensagem se perde,
+        # entao nao adianta capturar por fora.
+        try:
+            codificacao = getattr(self.stream, 'encoding', None) or 'utf-8'
+            mensagem = self.format(registro)
+            mensagem.encode(codificacao)
+        except (UnicodeEncodeError, LookupError):
+            registro = logging.makeLogRecord(registro.__dict__)
+            registro.msg = (
+                self.format(registro).encode(codificacao, 'replace').decode(codificacao)
+            )
+            registro.args = None
+            registro.exc_info = None
+            registro.exc_text = None
+        except Exception:
+            pass
+        super().emit(registro)
+
+
+def configurar_logging():
+    """
+    Configura o logging da aplicacao.
+
+    Sem isto o nivel efetivo do root e WARNING, e todo logger.debug()/info()
+    do codigo e silenciosamente descartado -- ou seja, o diagnostico existe
+    no codigo mas nunca chega ao operador.
+
+    Controlado por ambiente:
+        LOG_LEVEL  DEBUG|INFO|WARNING|ERROR  (default INFO)
+        LOG_FILE   caminho de arquivo para log rotativo (opcional)
+    """
+    nivel_nome = (os.environ.get('LOG_LEVEL') or 'INFO').upper()
+    nivel = getattr(logging, nivel_nome, logging.INFO)
+
+    formato = logging.Formatter(
+        '%(asctime)s %(levelname)-8s [%(name)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    root = logging.getLogger()
+    root.setLevel(nivel)
+
+    # Idempotente: recriar o app (testes, reload) nao duplica handlers
+    for handler in list(root.handlers):
+        if getattr(handler, '_app_handler', False):
+            root.removeHandler(handler)
+
+    console = _StreamHandlerSeguro()
+    console.setFormatter(formato)
+    console._app_handler = True
+    root.addHandler(console)
+
+    caminho_log = os.environ.get('LOG_FILE')
+    if caminho_log:
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(caminho_log)), exist_ok=True)
+            arquivo = logging.handlers.RotatingFileHandler(
+                caminho_log, maxBytes=5 * 1024 * 1024, backupCount=5, encoding='utf-8'
+            )
+            arquivo.setFormatter(formato)
+            arquivo._app_handler = True
+            root.addHandler(arquivo)
+        except OSError as erro:
+            # Log em arquivo e conveniencia: se falhar, o console continua.
+            root.warning('Nao foi possivel abrir LOG_FILE %s: %s', caminho_log, erro)
+
+    # werkzeug repete cada requisicao; em DEBUG isso afoga o log util
+    logging.getLogger('werkzeug').setLevel(max(nivel, logging.INFO))
+
 def create_app():
     app = Flask(__name__)
+
+    configurar_logging()
 
     # Rate limiting — usa memória local (desenvolvimento); em produção, trocar por Redis:
     # storage_uri="redis://localhost:6379" no extensions.py
@@ -41,8 +133,10 @@ def create_app():
             )
         # Em desenvolvimento, gerar uma chave aleatoria (muda a cada reinicio)
         secret_key = secrets.token_hex(32)
-        print('[AVISO] SECRET_KEY nao definida. Usando chave temporaria (sessoes serao perdidas ao reiniciar).')
-        print('[AVISO] Crie um arquivo .env com SECRET_KEY=<sua-chave> para persistir sessoes.')
+        logger.warning(
+            'SECRET_KEY nao definida. Usando chave temporaria (sessoes serao '
+            'perdidas ao reiniciar). Crie um .env com SECRET_KEY=<sua-chave>.'
+        )
 
     app.config['SECRET_KEY'] = secret_key
 
@@ -101,7 +195,7 @@ def create_app():
     if portal_ativo:
         from routes.detentora_portal_routes import detentora_portal_bp
         app.register_blueprint(detentora_portal_bp, url_prefix='/api/empresa')
-        print('[Portal Detentora] Ativo  rotas /api/empresa/* registradas.')
+        logger.info('Portal Detentora ativo: rotas /api/empresa/* registradas.')
     else:
         from flask import Blueprint, jsonify as _jsonify
         _portal_stub = Blueprint('detentora_portal_stub', __name__)
@@ -111,7 +205,7 @@ def create_app():
             return _jsonify({'erro': 'Portal da Detentora não está ativo neste ambiente.'}), 503
 
         app.register_blueprint(_portal_stub, url_prefix='/api/empresa')
-        print('[Portal Detentora] Inativo  defina PORTAL_DETENTORA_ATIVO=true no .env para ativar.')
+        logger.info('Portal Detentora inativo: defina PORTAL_DETENTORA_ATIVO=true no .env.')
 
     # Headers de segurança em todas as respostas
     @app.after_request

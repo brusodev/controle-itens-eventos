@@ -276,5 +276,4 @@ function atualizarLabelsModulo() {
         el.textContent = cfg.grupoLabel;
     });
     
-    console.log('✅ Labels do módulo atualizados:', cfg);
 }

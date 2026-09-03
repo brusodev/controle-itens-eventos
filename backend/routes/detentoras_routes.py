@@ -1,7 +1,11 @@
+import logging
+
 from flask import Blueprint, request, jsonify
 from models import db, Detentora
 from routes.auth_routes import login_requerido, admin_requerido
 from utils.auditoria import registrar_auditoria
+
+logger = logging.getLogger(__name__)
 
 detentoras_bp = Blueprint('detentoras', __name__)
 
@@ -29,7 +33,7 @@ def listar_detentoras():
                 resultado.append(d.to_dict())
             except Exception as e:
                 # Se falhar em uma, adicionar dados básicos
-                print(f' Erro ao serializar detentora {d.id}: {str(e)}')
+                logger.exception('Erro ao serializar detentora %s', d.id)
                 resultado.append({
                     'id': d.id,
                     'nome': str(d.nome) if d.nome else 'Sem nome',
@@ -39,9 +43,7 @@ def listar_detentoras():
         return jsonify(resultado), 200
     
     except Exception as e:
-        print(f' ERRO em listar_detentoras: {str(e)}')
-        import traceback
-        traceback.print_exc()
+        logger.exception('Erro em listar_detentoras')
         return jsonify({'erro': str(e)}), 500
 
 
@@ -66,7 +68,7 @@ def obter_por_grupo(grupo):
     """Obtém dados da detentora por grupo"""
     try:
         modulo = request.args.get('modulo', 'coffee')
-        print(f' [API] Buscando Detentora para grupo: {grupo} (modulo: {modulo})')
+        logger.debug('Buscando detentora: grupo=%s modulo=%s', grupo, modulo)
         
         # Converter para string se necessário
         grupo_str = str(grupo).strip()
@@ -75,21 +77,20 @@ def obter_por_grupo(grupo):
         detentora = Detentora.query.filter_by(grupo=grupo_str, modulo=modulo, ativo=True).first()
         
         if not detentora:
-            print(f' [API] Detentora não encontrada para grupo "{grupo_str}"')
-            # Debug: listar grupos disponíveis
-            grupos_disponiveis = [d.grupo for d in Detentora.query.filter_by(ativo=True).all()]
-            print(f' [API] Grupos disponíveis: {grupos_disponiveis}')
+            if logger.isEnabledFor(logging.DEBUG):
+                grupos_disponiveis = [d.grupo for d in Detentora.query.filter_by(ativo=True).all()]
+                logger.debug('Grupos disponiveis: %s', grupos_disponiveis)
+            logger.warning('Detentora nao encontrada para grupo "%s"', grupo_str)
             return jsonify({'erro': f'Detentora não encontrada para o grupo "{grupo_str}"'}), 404
         
-        print(f' [API] Detentora encontrada: {detentora.nome}')
+        logger.debug('Detentora encontrada: %s', detentora.nome)
         
         # ✅ Serializar com tratamento de erro
         try:
             resultado = detentora.to_dict()
-            print(f' [API] Dados serializados com sucesso')
             return jsonify(resultado), 200
-        except Exception as serialize_error:
-            print(f' [API] Erro ao serializar: {str(serialize_error)}')
+        except Exception:
+            logger.exception('Erro ao serializar detentora %s', detentora.id)
             # Retornar dados básicos em caso de erro de serialização
             return jsonify({
                 'id': detentora.id,
@@ -100,9 +101,7 @@ def obter_por_grupo(grupo):
             }), 200
     
     except Exception as e:
-        print(f' [API] ERRO NÃO TRATADO: {str(e)}')
-        import traceback
-        traceback.print_exc()
+        logger.exception('Erro nao tratado em obter_por_grupo')
         return jsonify({'erro': f'Erro ao buscar detentora: {str(e)}'}), 500
 
 

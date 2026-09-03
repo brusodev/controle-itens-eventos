@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -8,6 +9,8 @@ from utils.auditoria import registrar_auditoria
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'utils'))
 from controle_estoque import converter_quantidade_para_float as _qtd
+
+logger = logging.getLogger(__name__)
 
 itens_bp = Blueprint('itens', __name__)
 
@@ -150,9 +153,7 @@ def atualizar_item(item_id):
         db.session.commit()
         
         # Registrar auditoria com estoques
-        print(f"\n Registrando auditoria para item {item.id} - {item.descricao}")
-        print(f"   Dados ANTES: {dados_antes}")
-        print(f"   Dados DEPOIS: {item.to_dict(incluir_estoques=True)}")
+        logger.debug('Registrando auditoria do item %s', item.id)
         
         registrar_auditoria(
             'UPDATE',
@@ -163,8 +164,6 @@ def atualizar_item(item_id):
             dados_antes=dados_antes,
             dados_depois=item.to_dict(incluir_estoques=True)
         )
-        
-        print(f"    Auditoria registrada!")
         
         return jsonify(item.to_dict()), 200
     

@@ -36,7 +36,6 @@ class APIClient {
         };
         
         try {
-            console.log(`🌐 [API] Request: ${url}`);
             const response = await fetch(url, config);
             
             if (!response.ok) {
@@ -132,7 +131,6 @@ class APIClient {
         const modulo = localStorage.getItem('modulo_atual') || 'coffee';
         const timestamp = new Date().getTime();
         const url = `/alimentacao/?modulo=${modulo}&_t=${timestamp}`;
-        console.log(`🌐 [API] Chamando listarAlimentacao: ${url}`);
         return this.request(url, {
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -186,11 +184,8 @@ class APIClient {
         if (filtro) params.append('filtro', filtro);
 
         const url = `/ordens-servico/?${params.toString()}`;
-        console.log('🌐 APIClient.listarOrdensServico: Fazendo request para', url);
         const result = await this.request(url);
-        console.log('✅ APIClient.listarOrdensServico: Recebido', result.length, 'items');
         if (result.length > 0) {
-            console.log('📋 APIClient.listarOrdensServico: Primeiro item:', result[0]);
         }
         return result;
     }

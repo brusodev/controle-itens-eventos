@@ -2,6 +2,29 @@
 // MÓDULO: UTILS - Funções Utilitárias
 // ========================================
 
+/**
+ * Log de diagnóstico, silencioso por padrão.
+ *
+ * Substitui os console.log espalhados pelo código: o rastro continua
+ * disponível quando é preciso investigar, sem poluir o console de quem
+ * usa o sistema.
+ *
+ * Para ativar, no console do navegador:
+ *     localStorage.setItem('debug', '1')   // e recarregue a página
+ *     localStorage.removeItem('debug')     // para desativar
+ */
+const DEBUG_ATIVO = (() => {
+    try {
+        return localStorage.getItem('debug') === '1';
+    } catch (e) {
+        return false;   // modo privado / storage bloqueado
+    }
+})();
+
+function debugLog(...args) {
+    if (DEBUG_ATIVO) console.log(...args);
+}
+
 function atualizarLabelsModulo() {
     const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
     const moduloLabels = {
@@ -53,7 +76,7 @@ function atualizarLabelsModulo() {
         btnNovaCat.textContent = `➕ ${cfg.novaCat}`;
     }
 
-    console.log(`🎨 [Interface] Labels atualizadas para o módulo: ${titulo}`);
+    debugLog('[Interface] Labels atualizadas para o modulo:', titulo);
 }
 
 function formatarCategoria(categoria) {

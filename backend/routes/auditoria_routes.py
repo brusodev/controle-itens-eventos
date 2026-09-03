@@ -1,7 +1,10 @@
+import logging
 from flask import Blueprint, request, jsonify, render_template
 from models import db, Auditoria, Usuario
 from routes.auth_routes import login_requerido, admin_requerido
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 auditoria_bp = Blueprint('auditoria', __name__)
 
@@ -171,6 +174,6 @@ def registrar_auditoria(usuario_id, usuario_email, usuario_nome, acao, modulo, d
         db.session.commit()
         return True
     except Exception as e:
-        print(f"Erro ao registrar auditoria: {str(e)}")
+        logger.exception('Erro ao registrar auditoria')
         db.session.rollback()
         return False

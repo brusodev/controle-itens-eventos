@@ -504,11 +504,9 @@ function _gerarAssinaturaBase64(nome, cargo) {
 // ============================================================
 
 async function confirmarAceite() {
-    console.log('[confirmarAceite] chamado, _osAtual=', _osAtual?.id);
     const nome = document.getElementById('din-aceitar-nome')?.value?.trim();
     const cargo = document.getElementById('din-aceitar-cargo')?.value?.trim() || '';
     const confirmado = document.getElementById('din-aceitar-check')?.checked;
-    console.log('[confirmarAceite] nome=', nome, 'confirmado=', confirmado);
 
     if (!nome) { mostrarToast('Informe o nome completo do responsável.', 'erro'); return; }
     if (!confirmado) { mostrarToast('É necessário marcar a declaração de responsabilidade.', 'erro'); return; }

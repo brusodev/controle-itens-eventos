@@ -3,10 +3,10 @@
 // ========================================
 
 async function renderizarOrdensServico() {
-    console.log('📞 renderizarOrdensServico chamada - Buscando do banco...');
+    debugLog('renderizarOrdensServico chamada - Buscando do banco...');
     await _popularFiltroGrupo();
     await filtrarOS();
-    console.log('✅ renderizarOrdensServico concluída');
+    debugLog('renderizarOrdensServico concluída');
 }
 
 async function _popularFiltroGrupo() {
@@ -39,18 +39,18 @@ async function filtrarOS() {
 
     try {
         // ✅ SEMPRE buscar direto da API - SEM CACHE
-        console.log('🔄 filtrarOS: Buscando da API...');
+        debugLog('filtrarOS: Buscando da API...');
         const ordensServico = await APIClient.listarOrdensServico(busca, grupo, filtro);
-        console.log('📡 filtrarOS: API retornou', ordensServico.length, 'O.S.');
-        console.log('📋 filtrarOS: Dados completos:', ordensServico);
+        debugLog('filtrarOS: API retornou', ordensServico.length, 'O.S.');
+        debugLog('filtrarOS: Dados completos:', ordensServico);
 
         if (ordensServico.length > 0) {
-            console.log('📝 filtrarOS: Primeira O.S. - Evento:', ordensServico[0].evento);
+            debugLog('filtrarOS: Primeira O.S. - Evento:', ordensServico[0].evento);
         }
 
-        console.log('🗑️ Limpando container de O.S...');
+        debugLog('Limpando container de O.S...');
         container.innerHTML = '';
-        console.log('✅ Container limpo! Criando novos cards...');
+        debugLog('Container limpo! Criando novos cards...');
 
         if (ordensServico.length === 0) {
             container.innerHTML = '<p class="empty-message">🧹Nenhuma Ordem de Serviço encontrada.</p>';
@@ -58,7 +58,7 @@ async function filtrarOS() {
         }
 
         ordensServico.forEach(os => {
-            console.log(`🎴 Criando card para O.S. ${os.id} - Evento: "${os.evento}"`);
+            debugLog(`Criando card para O.S. ${os.id} - Evento: "${os.evento}"`);
             const card = document.createElement('div');
             card.className = 'item-card os-card';
 
@@ -132,11 +132,11 @@ async function filtrarOS() {
             }
         });
 
-        console.log(`✅ ${ordensServico.length} cards criados e adicionados ao container!`);
-        console.log('📊 Container agora tem', container.children.length, 'elementos');
+        debugLog(`${ordensServico.length} cards criados e adicionados ao container!`);
+        debugLog('Container agora tem', container.children.length, 'elementos');
 
     } catch (error) {
-        console.error('❌ Erro ao carregar O.S.:', error);
+        console.error('Erro ao carregar O.S.:', error);
         container.innerHTML = '<p class="error-message">Erro ao carregar ordens de serviço. Verifique se o backend está rodando.</p>';
     }
 }
@@ -147,13 +147,13 @@ async function filtrarOS() {
 
 async function carregarSugestoesOS() {
     try {
-        console.log('📥 Carregando sugestões para datalist...');
+        debugLog('Carregando sugestões para datalist...');
 
         // Buscar todas as O.S. do banco
         const ordensServico = await APIClient.listarOrdensServico();
 
         if (!ordensServico || ordensServico.length === 0) {
-            console.log('⚠️ Nenhuma O.S. encontrada para sugestões');
+            debugLog('Nenhuma O.S. encontrada para sugestões');
             return;
         }
 
@@ -210,20 +210,20 @@ async function carregarSugestoesOS() {
         preencherDatalist('lista-fiscais', sugestoesOS.fiscais);
         preencherDatalist('lista-nomes-signatario', Array.from(nomesSignatarios).sort());
 
-        console.log('✅ Sugestões carregadas com sucesso');
-        console.log('📊 Resumo:');
-        console.log('   - Eventos:', sugestoesOS.eventos.length);
-        console.log('   - Datas:', sugestoesOS.datas.length);
-        console.log('   - Horários:', sugestoesOS.horarios.length);
-        console.log('   - Locais:', sugestoesOS.locais.length);
-        console.log('   - Responsáveis:', sugestoesOS.responsaveis.length);
-        console.log('   - Justificativas:', sugestoesOS.justificativas.length);
-        console.log('   - Observações:', sugestoesOS.observacoes.length);
-        console.log('   - Gestores:', sugestoesOS.gestores.length);
-        console.log('   - Fiscais:', sugestoesOS.fiscais.length);
+        debugLog('Sugestões carregadas com sucesso');
+        debugLog('Resumo:');
+        debugLog('- Eventos:', sugestoesOS.eventos.length);
+        debugLog('- Datas:', sugestoesOS.datas.length);
+        debugLog('- Horários:', sugestoesOS.horarios.length);
+        debugLog('- Locais:', sugestoesOS.locais.length);
+        debugLog('- Responsáveis:', sugestoesOS.responsaveis.length);
+        debugLog('- Justificativas:', sugestoesOS.justificativas.length);
+        debugLog('- Observações:', sugestoesOS.observacoes.length);
+        debugLog('- Gestores:', sugestoesOS.gestores.length);
+        debugLog('- Fiscais:', sugestoesOS.fiscais.length);
 
     } catch (error) {
-        console.error('❌ Erro ao carregar sugestões:', error);
+        console.error('Erro ao carregar sugestões:', error);
     }
 }
 
@@ -231,7 +231,7 @@ async function carregarSugestoesOS() {
 function preencherDatalist(datalistId, valores) {
     const datalist = document.getElementById(datalistId);
     if (!datalist) {
-        console.warn('⚠️ Datalist não encontrado:', datalistId);
+        console.warn('Datalist não encontrado:', datalistId);
         return;
     }
 
@@ -297,19 +297,19 @@ function normalizarDadosOS(os) {
 
 async function visualizarOSEmitida(osId) {
     try {
-        console.log('🔍 visualizarOSEmitida chamado com ID:', osId);
-        console.log('📡 Buscando dados ATUALIZADOS da API...');
+        debugLog('visualizarOSEmitida chamado com ID:', osId);
+        debugLog('Buscando dados ATUALIZADOS da API...');
 
         // Buscar dados atualizados da API
         const os = await APIClient.obterOrdemServico(osId);
-        console.log('📡 Dados recebidos da API:', os);
-        console.log('📋 Campos importantes da API:');
-        console.log('   - Evento:', os.evento);
-        console.log('   - Data:', os.data);
-        console.log('   - Horário:', os.horario);
-        console.log('   - Local:', os.local);
-        console.log('   - Responsável:', os.responsavel);
-        console.log('   - Justificativa:', os.justificativa?.substring(0, 60) + '...');
+        debugLog('Dados recebidos da API:', os);
+        debugLog('Campos importantes da API:');
+        debugLog('- Evento:', os.evento);
+        debugLog('- Data:', os.data);
+        debugLog('- Horário:', os.horario);
+        debugLog('- Local:', os.local);
+        debugLog('- Responsável:', os.responsavel);
+        debugLog('- Justificativa:', os.justificativa?.substring(0, 60) + '...');
 
         if (!os) {
             alert('Ordem de Serviço não encontrada.');
@@ -317,15 +317,15 @@ async function visualizarOSEmitida(osId) {
         }
 
         const dadosNormalizados = normalizarDadosOS(os);
-        console.log('🔄 Dados normalizados:', dadosNormalizados);
-        console.log('✅ Responsável normalizado:', dadosNormalizados.responsavel);
+        debugLog('Dados normalizados:', dadosNormalizados);
+        debugLog('Responsável normalizado:', dadosNormalizados.responsavel);
 
         const preview = gerarPreviewOS(dadosNormalizados);
-        console.log('✅ Preview HTML gerado - tamanho:', preview.length, 'caracteres');
-        console.log('✅ Preview contém responsável?', preview.includes('RESPONSÁVEL:'));
+        debugLog('Preview HTML gerado - tamanho:', preview.length, 'caracteres');
+        debugLog('Preview contém responsável?', preview.includes('RESPONSÁVEL:'));
 
         document.getElementById('preview-os').innerHTML = preview;
-        console.log('✅ Preview inserido no DOM');
+        debugLog('Preview inserido no DOM');
 
         // Mudar os botões do modal para incluir imprimir e PDF
         const modalButtons = document.querySelector('#modal-visualizar-os .modal-content > div:last-child');
@@ -339,9 +339,9 @@ async function visualizarOSEmitida(osId) {
         `;
 
         document.getElementById('modal-visualizar-os').style.display = 'flex';
-        console.log('✅ Modal aberto');
+        debugLog('Modal aberto');
     } catch (error) {
-        console.error('❌ Erro ao visualizar O.S.:', error);
+        console.error('Erro ao visualizar O.S.:', error);
         alert('Erro ao carregar dados da O.S.');
     }
 }
@@ -349,7 +349,7 @@ async function visualizarOSEmitida(osId) {
 // Função para imprimir O.S. (usa o mesmo PDF do backend)
 async function imprimirOS(osId) {
     try {
-        console.log('🖨️ Abrindo PDF para impressão - O.S. ID:', osId);
+        debugLog('Abrindo PDF para impressão - O.S. ID:', osId);
 
         // Buscar O.S. para obter numeroOS
         const os = await APIClient.obterOrdemServico(osId);
@@ -360,7 +360,7 @@ async function imprimirOS(osId) {
 
         // Abrir PDF em nova janela com parâmetro print=true (abre inline ao invés de baixar)
         const url = `/api/ordens-servico/${osId}/pdf?print=true`;
-        console.log('📄 Abrindo URL:', url);
+        debugLog('Abrindo URL:', url);
 
         // Abrir em nova janela para permitir impressão
         const printWindow = window.open(url, '_blank', 'width=1000,height=800');
@@ -378,10 +378,10 @@ async function imprimirOS(osId) {
             }, 1000);
         };
 
-        console.log('✅ Janela de impressão aberta');
+        debugLog('Janela de impressão aberta');
 
     } catch (error) {
-        console.error('❌ Erro ao abrir PDF para impressão:', error);
+        console.error('Erro ao abrir PDF para impressão:', error);
         alert('Erro ao carregar PDF: ' + error.message);
     }
 }
@@ -389,7 +389,7 @@ async function imprimirOS(osId) {
 // Função para baixar PDF com texto selecionável (novo método)
 async function baixarPDFTextoSelecionavel(osId) {
     try {
-        console.log('📄 Baixando PDF (texto selecionável) para O.S. ID:', osId);
+        debugLog('Baixando PDF (texto selecionável) para O.S. ID:', osId);
 
         // Buscar O.S. para obter numeroOS
         const os = await APIClient.obterOrdemServico(osId);
@@ -409,7 +409,7 @@ async function baixarPDFTextoSelecionavel(osId) {
 
         try {
             // Baixar PDF com texto selecionável do backend (ReportLab)
-            console.log('🚀 Gerando PDF real (texto selecionável) via backend...');
+            debugLog('Gerando PDF real (texto selecionável) via backend...');
             const response = await fetch(`/api/ordens-servico/${osId}/pdf`);
 
             if (!response.ok) {
@@ -435,11 +435,11 @@ async function baixarPDFTextoSelecionavel(osId) {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
-            console.log('✅ PDF com texto selecionável baixado com sucesso!');
+            debugLog('PDF com texto selecionável baixado com sucesso!');
             alert('✅ PDF gerado com sucesso!\n\nEste PDF contém texto selecionável e pode ser convertido para Excel facilmente.');
 
         } catch (error) {
-            console.error('❌ Erro ao gerar PDF via backend:', error);
+            console.error('Erro ao gerar PDF via backend:', error);
             alert(`Erro ao gerar PDF: ${error.message}`);
         }
 
@@ -450,7 +450,7 @@ async function baixarPDFTextoSelecionavel(osId) {
         }
 
     } catch (error) {
-        console.error('❌ Erro ao baixar PDF:', error);
+        console.error('Erro ao baixar PDF:', error);
         alert('Erro ao gerar PDF da O.S.');
     }
 }
@@ -484,13 +484,13 @@ async function excluirOS(osId, numeroOS) {
     }
 
     try {
-        console.log(`🗑️ Excluindo O.S. ${numeroOS} (ID: ${osId})...`);
-        console.log(`📝 Motivo: ${motivo}`);
+        debugLog(`Excluindo O.S. ${numeroOS} (ID: ${osId})...`);
+        debugLog(`Motivo: ${motivo}`);
 
         // Chamar API para deletar com motivo
         await APIClient.deletarOrdemServico(osId, motivo);
 
-        console.log('✅ O.S. excluída com sucesso!');
+        debugLog('O.S. excluída com sucesso!');
         alert(`✅ O.S. ${numeroOS} excluída com sucesso!\n\nMotivo registrado: ${motivo}\nO estoque foi revertido automaticamente.`);
 
         // Recarregar listas
@@ -498,7 +498,7 @@ async function excluirOS(osId, numeroOS) {
         await renderizarOrdensServico();
 
     } catch (error) {
-        console.error('❌ Erro ao excluir O.S.:', error);
+        console.error('Erro ao excluir O.S.:', error);
         alert(`❌ Erro ao excluir O.S.: ${error.message}`);
     }
 }
@@ -506,7 +506,7 @@ async function excluirOS(osId, numeroOS) {
 // Função para baixar PDF da O.S.
 async function baixarPDFOS(osId) {
     try {
-        console.log('🔍 Gerando PDF do modal visível para O.S. ID:', osId);
+        debugLog('Gerando PDF do modal visível para O.S. ID:', osId);
 
         // Buscar O.S. para obter numeroOS
         const os = await APIClient.obterOrdemServico(osId);
@@ -515,8 +515,8 @@ async function baixarPDFOS(osId) {
             return;
         }
 
-        console.log('📋 Dados da API - Evento:', os.evento);
-        console.log('📋 Dados da API - Justificativa:', os.justificativa?.substring(0, 50) + '...');
+        debugLog('Dados da API - Evento:', os.evento);
+        debugLog('Dados da API - Justificativa:', os.justificativa?.substring(0, 50) + '...');
 
         // Mostrar mensagem de processamento
         const btn = event && event.target ? event.target : null;
@@ -539,7 +539,7 @@ async function baixarPDFOS(osId) {
             return;
         }
 
-        console.log('✅ Usando HTML do modal (já renderizado corretamente)');
+        debugLog('Usando HTML do modal (já renderizado corretamente)');
 
         // Criar elemento temporário com o MESMO conteúdo do modal
         const tempDiv = document.createElement('div');
@@ -556,7 +556,7 @@ async function baixarPDFOS(osId) {
         }
 
         if (!previewElement) {
-            console.error('❌ Elemento .os-preview ou .os-document não encontrado no modal');
+            console.error('Elemento .os-preview ou .os-document não encontrado no modal');
             console.error('HTML do modal:', modalContent.innerHTML.substring(0, 500));
             alert('Erro ao preparar visualização para PDF');
             document.body.removeChild(tempDiv);
@@ -567,12 +567,12 @@ async function baixarPDFOS(osId) {
             return;
         }
 
-        console.log('📄 Elemento encontrado:', previewElement.className);
+        debugLog('Elemento encontrado:', previewElement.className);
 
         // Aguardar DOM atualizar completamente
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        console.log('📸 Capturando imagem do HTML...');
+        debugLog('Capturando imagem do HTML...');
 
         // Converter para canvas usando html2canvas
         const canvas = await html2canvas(previewElement, {
@@ -584,12 +584,12 @@ async function baixarPDFOS(osId) {
             windowHeight: previewElement.scrollHeight
         });
 
-        console.log('✅ Canvas gerado com sucesso');
+        debugLog('Canvas gerado com sucesso');
 
         // Remover elemento temporário
         document.body.removeChild(tempDiv);
 
-        console.log('📄 Criando PDF...');
+        debugLog('Criando PDF...');
 
         // Criar PDF usando jsPDF
         const { jsPDF } = window.jspdf;
@@ -621,9 +621,9 @@ async function baixarPDFOS(osId) {
         }
 
         // Salvar o PDF
-        console.log('💾 Salvando PDF como: OS_' + os.numeroOS + '.pdf');
+        debugLog('Salvando PDF como: OS_' + os.numeroOS + '.pdf');
         pdf.save(`OS_${os.numeroOS}.pdf`);
-        console.log('✅ PDF gerado e baixado com sucesso!');
+        debugLog('PDF gerado e baixado com sucesso!');
 
         // Restaurar botão
         if (btn) {
@@ -632,7 +632,7 @@ async function baixarPDFOS(osId) {
         }
 
     } catch (error) {
-        console.error('❌ Erro ao gerar PDF:', error);
+        console.error('Erro ao gerar PDF:', error);
         console.error('Stack trace:', error.stack);
         alert('Erro ao gerar PDF: ' + error.message);
 
@@ -667,9 +667,9 @@ async function editarOS(osId) {
 async function restaurarOSParaEdicao() {
     try {
         const osIdParaEditar = localStorage.getItem('osEditandoId');
-        console.log('🔍 restaurarOSParaEdicao: Verificando localStorage - osEditandoId:', osIdParaEditar);
+        debugLog('restaurarOSParaEdicao: Verificando localStorage - osEditandoId:', osIdParaEditar);
         if (!osIdParaEditar) {
-            console.log('⏭️ Sem O.S. para editar');
+            debugLog('Sem O.S. para editar');
             return; // Sem O.S. para editar
         }
 
@@ -696,7 +696,7 @@ async function restaurarOSParaEdicao() {
 
         // Definir que estamos editando (variável global)
         osEditandoId = parseInt(osIdParaEditar);
-        console.log('✏️ Modo edição ativado para O.S.:', osEditandoId);
+        debugLog('Modo edição ativado para O.S.:', osEditandoId);
 
         // Garantir que os campos condicionais do módulo (datas de pedido/entrega,
         // setor solicitante, obrigatoriedade de evento) estejam no estado correto,
@@ -821,7 +821,7 @@ async function restaurarOSParaEdicao() {
             <button type="button" class="btn-small btn-danger" onclick="cancelarEdicaoOS()">❌ Cancelar</button>
         `;
 
-        console.log('✅ O.S. restaurada para edição:', osEditandoId);
+        debugLog('O.S. restaurada para edição:', osEditandoId);
 
     } catch (error) {
         console.error('Erro ao restaurar O.S. para edição:', error);
@@ -835,32 +835,32 @@ async function carregarDadosDetentora() {
     const grupoSelect = document.getElementById('os-grupo-select');
     const grupo = grupoSelect.value;
 
-    console.log('🏢 carregarDadosDetentora() - Iniciando...');
-    console.log('   Grupo selecionado:', grupo, '(tipo:', typeof grupo, ')');
+    debugLog('carregarDadosDetentora() - Iniciando...');
+    debugLog('Grupo selecionado:', grupo, '(tipo:', typeof grupo, ')');
 
     // Limpar campos se nenhum grupo selecionado
     if (!grupo) {
-        console.log('⚠️  Nenhum grupo selecionado, limpando campos');
+        debugLog('Nenhum grupo selecionado, limpando campos');
         limparCamposDetentora();
         return;
     }
 
     try {
         // Buscar detentora pelo grupo
-        console.log('📡 Chamando API: obterDetentoraByGrupo(' + grupo + ')');
+        debugLog('Chamando API: obterDetentoraByGrupo(' + grupo + ')');
         const detentora = await APIClient.obterDetentoraByGrupo(grupo);
-        console.log('📦 Resposta da API:', detentora);
+        debugLog('Resposta da API:', detentora);
 
         if (!detentora || detentora.erro) {
             const mensagem = detentora?.erro || `Nenhuma Detentora cadastrada para o Grupo ${grupo}`;
-            console.error('❌ Detentora não encontrada:', mensagem);
+            console.error('Detentora não encontrada:', mensagem);
             alert(`⚠️ ${mensagem}\n\nPor favor, cadastre uma empresa detentora em 🏢 Detentoras antes de emitir a O.S.`);
             grupoSelect.value = '';
             limparCamposDetentora();
             return;
         }
 
-        console.log('📦 Dados da Detentora recebidos:', detentora);
+        debugLog('Dados da Detentora recebidos:', detentora);
 
         // Preencher campos automaticamente
         document.getElementById('os-contrato-num').value = detentora.contratoNum || '';
@@ -871,8 +871,8 @@ async function carregarDadosDetentora() {
         document.getElementById('os-servico').value = detentora.servico || 'COFFEE BREAK';
         document.getElementById('os-grupo').value = grupo;
 
-        console.log('✅ Dados da Detentora preenchidos com sucesso');
-        console.log('   Grupo definido:', grupo, '- Estoques serão filtrados automaticamente');
+        debugLog('Dados da Detentora preenchidos com sucesso');
+        debugLog('Grupo definido:', grupo, '- Estoques serão filtrados automaticamente');
 
         // Feedback visual
         grupoSelect.style.borderColor = '#28a745';
@@ -881,7 +881,7 @@ async function carregarDadosDetentora() {
         }, 2000);
 
     } catch (error) {
-        console.error('❌ Erro ao carregar dados da Detentora:', error);
+        console.error('Erro ao carregar dados da Detentora:', error);
         alert('Erro ao carregar dados da Detentora. Verifique se existe uma empresa cadastrada para este Grupo.');
         grupoSelect.value = '';
         limparCamposDetentora();
@@ -896,17 +896,17 @@ function limparCamposDetentora() {
     document.getElementById('os-cnpj').value = '';
     document.getElementById('os-servico').value = '';
     document.getElementById('os-grupo').value = '';
-    console.log('🧹 Campos da Detentora limpos');
+    debugLog('Campos da Detentora limpos');
 }
 
 // Nova função: Salvar e Fechar
 async function salvarEFecharOS() {
-    console.log('💾 salvarEFecharOS() - Iniciando...');
-    console.log('   osEditandoId atual:', osEditandoId, '(tipo:', typeof osEditandoId, ')');
+    debugLog('salvarEFecharOS() - Iniciando...');
+    debugLog('osEditandoId atual:', osEditandoId, '(tipo:', typeof osEditandoId, ')');
 
     if (!osEditandoId) {
         alert('❌ Erro: ID da O.S. não encontrado. Por favor, tente editar novamente.');
-        console.error('❌ osEditandoId está null/undefined!');
+        console.error('osEditandoId está null/undefined!');
         return;
     }
 
@@ -984,26 +984,26 @@ async function salvarEFecharOS() {
         await renderizarOrdensServico();
 
         // Redirecionar para lista de Ordens de Serviço
-        console.log('📂 O.S. salva - redirecionando para lista de Ordens de Serviço');
+        debugLog('O.S. salva - redirecionando para lista de Ordens de Serviço');
         // Pequeno delay para garantir que o formulário foi limpo antes de redirecionar
         setTimeout(() => {
             window.location.href = '/ordens-servico';
         }, 100);
 
     } catch (error) {
-        console.error('❌ Erro ao salvar O.S.:', error);
+        console.error('Erro ao salvar O.S.:', error);
         alert('Erro ao salvar O.S.: ' + error.message);
     }
 }
 
 // Nova função: Salvar e Continuar
 async function salvarEContinuarOS() {
-    console.log('💾 salvarEContinuarOS() - Iniciando...');
-    console.log('   osEditandoId atual:', osEditandoId, '(tipo:', typeof osEditandoId, ')');
+    debugLog('salvarEContinuarOS() - Iniciando...');
+    debugLog('osEditandoId atual:', osEditandoId, '(tipo:', typeof osEditandoId, ')');
 
     if (!osEditandoId) {
         alert('❌ Erro: ID da O.S. não encontrado. Por favor, tente editar novamente.');
-        console.error('❌ osEditandoId está null/undefined!');
+        console.error('osEditandoId está null/undefined!');
         return;
     }
 
@@ -1062,7 +1062,7 @@ async function salvarEContinuarOS() {
         await renderizarOrdensServico();
 
     } catch (error) {
-        console.error('❌ Erro ao salvar O.S.:', error);
+        console.error('Erro ao salvar O.S.:', error);
         alert('Erro ao salvar O.S.: ' + error.message);
     }
 }
