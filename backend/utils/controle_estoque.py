@@ -5,6 +5,8 @@ com validações rigorosas e rastreamento completo.
 """
 
 from models import db, EstoqueRegional, MovimentacaoEstoque, Item
+from sqlalchemy import func, case
+from collections import defaultdict
 from datetime import datetime
 
 
@@ -81,6 +83,51 @@ def formatar_quantidade(quantidade_float):
     return f"{quantidade_float:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
 
+def calcular_gasto_ledger(estoque_regional_id):
+    """
+    Consumo real de um estoque, derivado das movimentacoes.
+
+    Esta e a UNICA fonte de verdade do saldo: soma(SAIDA) - soma(ENTRADA).
+    O campo EstoqueRegional.quantidade_gasto e apenas um cache denormalizado
+    mantido a partir daqui, nunca por acumulacao cega.
+
+    Args:
+        estoque_regional_id (int): ID do registro de estoque regional
+
+    Returns:
+        float: quantidade consumida (>= 0)
+    """
+    if not estoque_regional_id:
+        return 0.0
+
+    total = db.session.query(
+        func.coalesce(
+            func.sum(
+                case(
+                    (MovimentacaoEstoque.tipo == 'SAIDA', MovimentacaoEstoque.quantidade),
+                    else_=-MovimentacaoEstoque.quantidade,
+                )
+            ),
+            0.0,
+        )
+    ).filter(
+        MovimentacaoEstoque.estoque_regional_id == estoque_regional_id
+    ).scalar()
+
+    return float(total or 0.0)
+
+
+def sincronizar_cache_gasto(estoque):
+    """
+    Realinha o cache quantidade_gasto com o ledger.
+
+    Nao faz commit -- cabe ao chamador, como no resto deste modulo.
+    """
+    gasto = calcular_gasto_ledger(estoque.id)
+    estoque.quantidade_gasto = formatar_quantidade(gasto)
+    return gasto
+
+
 def obter_estoque_disponivel(item_id, regiao_numero):
     """
     Obtém a quantidade disponível de um item em uma região específica
@@ -107,9 +154,11 @@ def obter_estoque_disponivel(item_id, regiao_numero):
         return None, 0.0
     
     inicial = converter_quantidade_para_float(estoque.quantidade_inicial)
-    gasto = converter_quantidade_para_float(estoque.quantidade_gasto)
+    # Saldo derivado do ledger, nunca do cache quantidade_gasto: o cache pode
+    # estar dessincronizado (ajuste manual, dados legados), o ledger nao.
+    gasto = calcular_gasto_ledger(estoque.id)
     disponivel = inicial - gasto
-    
+
     return estoque, max(0.0, disponivel)
 
 
@@ -171,72 +220,124 @@ def dar_baixa_estoque(ordem_servico_id, item_id, regiao_numero, quantidade, obse
     if not valido:
         raise ErroEstoqueInsuficiente(mensagem)
     
-    # Atualizar quantidade gasta
-    gasto_atual = converter_quantidade_para_float(estoque.quantidade_gasto)
+    # Consumo apos esta baixa, calculado a partir do ledger
+    gasto_atual = calcular_gasto_ledger(estoque.id)
     novo_gasto = gasto_atual + quantidade
-    
-    # Validação adicional: garantir que não ultrapasse o inicial
+
+    # Validacao adicional: garantir que nao ultrapasse o inicial
     inicial = converter_quantidade_para_float(estoque.quantidade_inicial)
     if novo_gasto > inicial:
         raise ErroEstoqueInsuficiente(
-            f"Operação resultaria em gasto ({formatar_quantidade(novo_gasto)}) "
+            f"Operacao resultaria em gasto ({formatar_quantidade(novo_gasto)}) "
             f"maior que o inicial ({formatar_quantidade(inicial)})"
         )
-    
-    estoque.quantidade_gasto = formatar_quantidade(novo_gasto)
-    
-    # Registrar movimentação
+
+    # Registrar movimentacao PRIMEIRO: o ledger e a fonte de verdade
     movimentacao = MovimentacaoEstoque(
         ordem_servico_id=ordem_servico_id,
         item_id=item_id,
         estoque_regional_id=estoque.id,
         quantidade=quantidade,
         tipo='SAIDA',
-        observacao=observacao or f"Baixa automática - O.S. {ordem_servico_id}"
+        observacao=observacao or f"Baixa automatica - O.S. {ordem_servico_id}"
     )
     db.session.add(movimentacao)
-    
+    db.session.flush()
+
+    # Cache derivado do ledger ja com a movimentacao acima incluida
+    sincronizar_cache_gasto(estoque)
+
     return estoque, movimentacao
+
+
+def calcular_consumo_liquido_os(ordem_servico_id, estoque_regional_id):
+    """
+    Consumo liquido VIGENTE de uma O.S. sobre um estoque especifico.
+
+    SAIDA - ENTRADA restrito a esta O.S. Se a O.S. ja foi revertida, o
+    resultado e 0 -- e por isso que reverter duas vezes nao credita nada.
+    """
+    total = db.session.query(
+        func.coalesce(
+            func.sum(
+                case(
+                    (MovimentacaoEstoque.tipo == 'SAIDA', MovimentacaoEstoque.quantidade),
+                    else_=-MovimentacaoEstoque.quantidade,
+                )
+            ),
+            0.0,
+        )
+    ).filter(
+        MovimentacaoEstoque.ordem_servico_id == ordem_servico_id,
+        MovimentacaoEstoque.estoque_regional_id == estoque_regional_id,
+    ).scalar()
+
+    return float(total or 0.0)
 
 
 def reverter_baixa_estoque(ordem_servico_id):
     """
-    Reverte todas as baixas de estoque de uma O.S. (útil para cancelamento/edição)
-    
+    Devolve ao estoque o consumo vigente de uma O.S. (edicao/cancelamento/exclusao).
+
+    IDEMPOTENTE. A versao anterior somava TODAS as movimentacoes 'SAIDA' da O.S.,
+    inclusive as ja revertidas por edicoes anteriores, e devolvia N x a quantidade
+    original -- criando saldo fantasma que permitia emitir O.S. acima do contrato.
+
+    Agora reverte o liquido (SAIDA - ENTRADA) por estoque_regional: se nada esta
+    consumido, nada e devolvido.
+
     Args:
-        ordem_servico_id (int): ID da ordem de serviço
-        
+        ordem_servico_id (int): ID da ordem de servico
+
     Returns:
-        int: Número de movimentações revertidas
+        int: numero de estoques efetivamente revertidos
     """
-    # Buscar todas as movimentações de saída da O.S.
-    movimentacoes = MovimentacaoEstoque.query.filter_by(
-        ordem_servico_id=ordem_servico_id,
-        tipo='SAIDA'
-    ).all()
-    
+    # Estoques distintos tocados por esta O.S.
+    estoque_ids = [
+        row[0]
+        for row in db.session.query(MovimentacaoEstoque.estoque_regional_id)
+        .filter(MovimentacaoEstoque.ordem_servico_id == ordem_servico_id)
+        .distinct()
+        .all()
+    ]
+
     total_revertido = 0
-    
-    for mov in movimentacoes:
-        # Reverter no estoque
-        estoque = EstoqueRegional.query.get(mov.estoque_regional_id)
-        if estoque:
-            gasto_atual = converter_quantidade_para_float(estoque.quantidade_gasto)
-            novo_gasto = max(0.0, gasto_atual - mov.quantidade)
-            estoque.quantidade_gasto = formatar_quantidade(novo_gasto)
-            
-            # Registrar movimentação de entrada (reversão)
-            reversao = MovimentacaoEstoque(
-                ordem_servico_id=ordem_servico_id,
-                item_id=mov.item_id,
-                estoque_regional_id=mov.estoque_regional_id,
-                quantidade=mov.quantidade,
-                tipo='ENTRADA',
-                observacao=f"Reversão de movimentação #{mov.id}"
-            )
-            db.session.add(reversao)
-            total_revertido += 1
-    
+
+    for estoque_regional_id in estoque_ids:
+        liquido = calcular_consumo_liquido_os(ordem_servico_id, estoque_regional_id)
+
+        # Nada consumido (ja revertido, ou zerado): nao ha o que devolver.
+        if liquido <= 0:
+            continue
+
+        estoque = EstoqueRegional.query.get(estoque_regional_id)
+        if not estoque:
+            continue
+
+        # Item de referencia para a movimentacao compensatoria
+        ultima = (
+            MovimentacaoEstoque.query
+            .filter_by(ordem_servico_id=ordem_servico_id,
+                       estoque_regional_id=estoque_regional_id)
+            .order_by(MovimentacaoEstoque.id.desc())
+            .first()
+        )
+
+        reversao = MovimentacaoEstoque(
+            ordem_servico_id=ordem_servico_id,
+            item_id=ultima.item_id if ultima else estoque.item_id,
+            estoque_regional_id=estoque_regional_id,
+            quantidade=liquido,
+            tipo='ENTRADA',
+            observacao=f"Reversao do consumo vigente da O.S. {ordem_servico_id}"
+        )
+        db.session.add(reversao)
+        db.session.flush()
+
+        # Cache derivado do ledger ja com a reversao incluida
+        sincronizar_cache_gasto(estoque)
+        total_revertido += 1
+
     return total_revertido
 
 
@@ -259,30 +360,35 @@ def processar_baixas_os(ordem_servico_id, itens_os, regiao_numero, numero_os=Non
         ErroEstoqueInsuficiente: Se algum item não tiver estoque suficiente
     """
     validar_regiao(regiao_numero)
-    
-    # FASE 1: Validar disponibilidade de TODOS os itens
+
+    # FASE 1: Validar disponibilidade de TODOS os itens.
+    # Agrupa por item_id antes de comparar: duas linhas do mesmo item na mesma
+    # O.S. consomem o mesmo saldo, e validar cada uma isoladamente contra o
+    # saldo cheio deixaria passar o dobro do disponivel.
     erros = []
     itens_validados = []
-    
+
+    quantidade_por_item = defaultdict(float)
     for item_os in itens_os:
-        item_id = item_os.item_id
-        quantidade = item_os.quantidade_total
-        
+        quantidade_por_item[item_os.item_id] += float(item_os.quantidade_total or 0)
+
+    for item_id, quantidade_agregada in quantidade_por_item.items():
         valido, mensagem, estoque, disponivel = validar_disponibilidade_estoque(
-            item_id, regiao_numero, quantidade
+            item_id, regiao_numero, quantidade_agregada
         )
-        
         if not valido:
             erros.append(mensagem)
-        else:
+
+    if not erros:
+        for item_os in itens_os:
             itens_validados.append({
                 'item_os': item_os,
-                'item_id': item_id,
-                'quantidade': quantidade,
-                'estoque': estoque
+                'item_id': item_os.item_id,
+                'quantidade': item_os.quantidade_total,
+                'estoque': None,
             })
-    
-    # Se houver qualquer erro, não prosseguir
+
+    # Se houver qualquer erro, nao prosseguir
     if erros:
         raise ErroEstoqueInsuficiente(
             f"Não foi possível emitir a O.S. devido a problemas de estoque:\n" + 

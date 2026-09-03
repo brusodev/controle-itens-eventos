@@ -1035,8 +1035,17 @@ def cancelar_ordem(os_id):
     if len(motivo) > 1000:
         return jsonify({'erro': 'motivo deve ter no máximo 1000 caracteres'}), 400
 
-    os_obj.status = 'cancelada'
-    db.session.commit()
+    # Devolver o estoque consumido: 'cancelada' e status terminal e o DELETE so
+    # aceita status 'emitida', entao sem esta reversao o saldo ficaria preso
+    # para sempre, sem nenhum caminho de recuperacao pela aplicacao.
+    try:
+        reverter_baixa_estoque(os_id)
+        os_obj.status = 'cancelada'
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception('Erro ao cancelar O.S. e reverter estoque')
+        return jsonify({'erro': 'Erro ao cancelar a O.S. O estoque nao foi alterado.'}), 500
 
     registrar_auditoria(
         'UPDATE', 'OS',

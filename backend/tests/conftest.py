@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask
-from models import db, Detentora, Usuario, OrdemServico
+from models import db, Detentora, Usuario, OrdemServico, Categoria, Item, EstoqueRegional
 
 
 def create_test_app():
@@ -30,10 +30,14 @@ def create_test_app():
     from routes.auth_routes import auth_bp
     from routes.os_routes import os_bp
     from routes.detentora_portal_routes import detentora_portal_bp
+    from routes.itens_routes import itens_bp
+    from routes.alimentacao_routes import alimentacao_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(os_bp, url_prefix='/api/ordens-servico')
     app.register_blueprint(detentora_portal_bp, url_prefix='/api/empresa')
+    app.register_blueprint(itens_bp, url_prefix='/api/itens')
+    app.register_blueprint(alimentacao_bp, url_prefix='/api/alimentacao')
 
     return app
 
@@ -198,3 +202,47 @@ def assinatura_fake_b64():
         0x42, 0x60, 0x82,
     ])
     return 'data:image/png;base64,' + base64.b64encode(png_1x1).decode()
+
+
+# ---------------------------------------------------------------------------
+# Fixtures de estoque
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def item_com_estoque(app):
+    """
+    Item de catalogo com estoque de 100 unidades na regiao 1.
+
+    Devolve dict com item_id e estoque_id (nunca objetos, para evitar
+    DetachedInstanceError entre contextos).
+    """
+    with app.app_context():
+        cat = Categoria(nome='Categoria Teste', tipo='alimentacao', modulo='coffee')
+        db.session.add(cat)
+        db.session.flush()
+
+        item = Item(
+            categoria_id=cat.id,
+            item_codigo='TESTE-001',
+            descricao='Item de Teste',
+            unidade='Unidade',
+        )
+        db.session.add(item)
+        db.session.flush()
+
+        estoque = EstoqueRegional(
+            item_id=item.id,
+            regiao_numero=1,
+            quantidade_inicial='100',
+            quantidade_gasto='0',
+            preco='10,00',
+        )
+        db.session.add(estoque)
+        db.session.commit()
+
+        return {
+            'item_id': item.id,
+            'estoque_id': estoque.id,
+            'categoria_id': cat.id,
+            'categoria_nome': cat.nome,
+        }
