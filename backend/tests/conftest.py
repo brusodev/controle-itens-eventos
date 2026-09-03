@@ -233,9 +233,9 @@ def item_com_estoque(app):
         estoque = EstoqueRegional(
             item_id=item.id,
             regiao_numero=1,
-            quantidade_inicial='100',
-            quantidade_gasto='0',
-            preco='10,00',
+            quantidade_inicial=100,
+            quantidade_gasto=0,
+            preco=10,
         )
         db.session.add(estoque)
         db.session.commit()

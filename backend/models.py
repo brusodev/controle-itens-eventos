@@ -12,6 +12,18 @@ def get_datetime_br():
     """Retorna o horário atual em São Paulo (UTC-3)"""
     return datetime.now(TIMEZONE_BR).replace(tzinfo=None)
 
+
+def formatar_br(valor):
+    """
+    Formata numero para o padrao brasileiro exibido na interface.
+
+    As quantidades sao Numeric no banco; a API continua entregando string
+    formatada ('1.250,50') porque o frontend depende desse formato.
+    """
+    if valor is None:
+        return '0,00'
+    return '{:,.2f}'.format(float(valor)).replace(',', 'X').replace('.', ',').replace('X', '.')
+
 class Categoria(db.Model):
     """Categorias de itens (ex: coffee_break_bebidas_quentes)"""
     __tablename__ = 'categorias'
@@ -67,9 +79,9 @@ class Item(db.Model):
         if incluir_estoques:
             data['regioes'] = {
                 str(est.regiao_numero): {
-                    'inicial': est.quantidade_inicial,
-                    'gasto': est.quantidade_gasto,
-                    'preco': est.preco if hasattr(est, 'preco') else '0'
+                    'inicial': formatar_br(est.quantidade_inicial),
+                    'gasto': formatar_br(est.quantidade_gasto),
+                    'preco': formatar_br(est.preco),
                 }
                 for est in self.estoques
             }
@@ -84,12 +96,18 @@ class EstoqueRegional(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey('itens.id'), nullable=False)
     regiao_numero = db.Column(db.Integer, nullable=False)  # 1 a 6
-    quantidade_inicial = db.Column(db.String(20), nullable=False)
-    quantidade_gasto = db.Column(db.String(20), default='0')
-    preco = db.Column(db.String(20), default='0')  # Preço unitário por região
-    
+    # Numeric, nao String: guardar quantidade como texto exigia um parser em
+    # cada leitura, e esse parser confundia separador de milhar com decimal
+    # ('10.5' virava 105) e transformava erro em 0.0 silencioso.
+    quantidade_inicial = db.Column(db.Numeric(14, 3), nullable=False, default=0)
+    quantidade_gasto = db.Column(db.Numeric(14, 3), nullable=False, default=0)
+    preco = db.Column(db.Numeric(14, 2), nullable=False, default=0)  # Preco unitario por regiao
+
     __table_args__ = (
         db.UniqueConstraint('item_id', 'regiao_numero', name='_item_regiao_uc'),
+        db.CheckConstraint('quantidade_inicial >= 0', name='_qtd_inicial_nao_negativa'),
+        db.CheckConstraint('quantidade_gasto >= 0', name='_qtd_gasto_nao_negativo'),
+        db.CheckConstraint('preco >= 0', name='_preco_nao_negativo'),
     )
     
     def to_dict(self):
@@ -97,33 +115,20 @@ class EstoqueRegional(db.Model):
             'id': self.id,
             'item_id': self.item_id,
             'regiao': self.regiao_numero,
-            'inicial': self.quantidade_inicial,
-            'gasto': self.quantidade_gasto,
-            'preco': self.preco
+            'inicial': formatar_br(self.quantidade_inicial),
+            'gasto': formatar_br(self.quantidade_gasto),
+            'preco': formatar_br(self.preco),
         }
     
     @property
     def disponivel(self):
-        """Calcula quantidade disponível"""
-        try:
-            # ✅ Tratamento seguro de valores
-            inicial_str = str(self.quantidade_inicial or '0').strip()
-            gasto_str = str(self.quantidade_gasto or '0').strip()
-            
-            # Evitar valores inválidos como '__'
-            if not inicial_str or inicial_str == '__' or not inicial_str.replace(',', '').replace('.', '').replace('-', ''):
-                inicial = 0
-            else:
-                inicial = float(inicial_str.replace('.', '').replace(',', '.'))
-            
-            if not gasto_str or gasto_str == '__' or not gasto_str.replace(',', '').replace('.', '').replace('-', ''):
-                gasto = 0
-            else:
-                gasto = float(gasto_str.replace('.', '').replace(',', '.'))
-            
-            return str(inicial - gasto)
-        except:
-            return '0'
+        """
+        Saldo contratado menos consumido.
+
+        Preferir controle_estoque.obter_estoque_disponivel(), que deriva o
+        consumo do ledger de movimentacoes. Esta propriedade le o cache.
+        """
+        return float(self.quantidade_inicial or 0) - float(self.quantidade_gasto or 0)
 
 
 class Detentora(db.Model):
@@ -384,7 +389,8 @@ class MovimentacaoEstoque(db.Model):
     __tablename__ = 'movimentacoes_estoque'
     
     id = db.Column(db.Integer, primary_key=True)
-    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id', ondelete='CASCADE'), nullable=False)
+    # NULL em ajustes manuais de estoque, que nao nascem de uma O.S.
+    ordem_servico_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id', ondelete='CASCADE'), nullable=True)
     item_id = db.Column(db.Integer, db.ForeignKey('itens.id'), nullable=False)
     estoque_regional_id = db.Column(db.Integer, db.ForeignKey('estoque_regional.id'), nullable=False)
     

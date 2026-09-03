@@ -1,7 +1,13 @@
+import os
+import sys
+
 from flask import Blueprint, request, jsonify
 from models import db, Item, Categoria, EstoqueRegional
 from routes.auth_routes import login_requerido, admin_requerido
 from utils.auditoria import registrar_auditoria
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'utils'))
+from controle_estoque import converter_quantidade_para_float as _qtd
 
 itens_bp = Blueprint('itens', __name__)
 
@@ -70,8 +76,9 @@ def criar_item():
                 estoque = EstoqueRegional(
                     item_id=item.id,
                     regiao_numero=int(regiao_num),
-                    quantidade_inicial=qtds.get('inicial', '0'),
-                    quantidade_gasto=qtds.get('gasto', '0')
+                    quantidade_inicial=max(0.0, _qtd(qtds.get('inicial', 0))),
+                    quantidade_gasto=max(0.0, _qtd(qtds.get('gasto', 0))),
+                    preco=max(0.0, _qtd(qtds.get('preco', 0))),
                 )
                 db.session.add(estoque)
         
@@ -124,16 +131,19 @@ def atualizar_item(item_id):
                 
                 if estoque:
                     if 'inicial' in qtds:
-                        estoque.quantidade_inicial = qtds['inicial']
-                    if 'gasto' in qtds:
-                        estoque.quantidade_gasto = qtds['gasto']
+                        estoque.quantidade_inicial = max(0.0, _qtd(qtds['inicial']))
+                    if 'preco' in qtds:
+                        estoque.preco = max(0.0, _qtd(qtds['preco']))
+                    # 'gasto' nao e gravado aqui: o consumo vem do ledger de
+                    # movimentacoes. Ajuste manual passa por /api/alimentacao.
                 else:
-                    # Criar se não existe
+                    # Criar se nao existe
                     estoque = EstoqueRegional(
                         item_id=item.id,
                         regiao_numero=int(regiao_num),
-                        quantidade_inicial=qtds.get('inicial', '0'),
-                        quantidade_gasto=qtds.get('gasto', '0')
+                        quantidade_inicial=max(0.0, _qtd(qtds.get('inicial', 0))),
+                        quantidade_gasto=max(0.0, _qtd(qtds.get('gasto', 0))),
+                        preco=max(0.0, _qtd(qtds.get('preco', 0))),
                     )
                     db.session.add(estoque)
         

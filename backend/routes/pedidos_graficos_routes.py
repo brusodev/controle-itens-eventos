@@ -7,7 +7,7 @@ para esse módulo especificamente (ver auth_routes.modulo_permitido_requerido).
 from flask import Blueprint, request, jsonify, session
 from models import (
     db, PedidoGrafico, ItemPedidoGrafico, Item, EstoqueRegional, OrdemServico,
-    get_datetime_br
+    get_datetime_br, formatar_br
 )
 from datetime import datetime, timedelta
 from routes.auth_routes import login_requerido, csrf_protegido, modulo_permitido_requerido
@@ -73,7 +73,10 @@ def _parsear_data(valor):
 def _resolver_valor_unitario(item_id):
     """Preço do item na região única do módulo (regiao_numero=1). Snapshot no momento da criação."""
     estoque = EstoqueRegional.query.filter_by(item_id=item_id, regiao_numero=1).first()
-    return estoque.preco if estoque and estoque.preco else '0'
+    if not estoque or not estoque.preco:
+        return '0'
+    # preco e Numeric no banco; o campo destino guarda texto no formato BR
+    return formatar_br(estoque.preco)
 
 
 def _aplicar_itens(pedido, itens_data):

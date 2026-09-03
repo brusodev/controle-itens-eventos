@@ -371,22 +371,9 @@ def relatorio_estoque_posicao():
         for r in resultados:
             # ✅ Tratamento seguro de valores
             try:
-                # Converter valores nulos ou inválidos para 0
-                inicial_str = str(r.quantidade_inicial or '0').strip()
-                gasto_str = str(r.quantidade_gasto or '0').strip()
-                
-                # Evitar valores inválidos como '__'
-                if not inicial_str or inicial_str == '__' or not inicial_str.replace(',', '').replace('.', '').replace('-', ''):
-                    inicial = 0
-                else:
-                    inicial = float(inicial_str.replace('.', '').replace(',', '.'))
-                
-                if not gasto_str or gasto_str == '__' or not gasto_str.replace(',', '').replace('.', '').replace('-', ''):
-                    gasto = 0
-                else:
-                    gasto = float(gasto_str.replace('.', '').replace(',', '.'))
-            except (ValueError, AttributeError):
-                # Se ainda houver erro, usar 0
+                inicial = float(r.quantidade_inicial or 0)
+                gasto = float(r.quantidade_gasto or 0)
+            except (TypeError, ValueError):
                 inicial = 0
                 gasto = 0
             
@@ -1670,22 +1657,9 @@ def gerar_pdf_estoque():
         for r in resultados:
             # ✅ Tratamento seguro de valores
             try:
-                # Converter valores nulos ou inválidos para 0
-                inicial_str = str(r.quantidade_inicial or '0').strip()
-                gasto_str = str(r.quantidade_gasto or '0').strip()
-                
-                # Evitar valores inválidos como '__'
-                if not inicial_str or inicial_str == '__' or not inicial_str.replace(',', '').replace('.', '').replace('-', ''):
-                    inicial = 0
-                else:
-                    inicial = float(inicial_str.replace('.', '').replace(',', '.'))
-                
-                if not gasto_str or gasto_str == '__' or not gasto_str.replace(',', '').replace('.', '').replace('-', ''):
-                    gasto = 0
-                else:
-                    gasto = float(gasto_str.replace('.', '').replace(',', '.'))
-            except (ValueError, AttributeError):
-                # Se ainda houver erro, usar 0
+                inicial = float(r.quantidade_inicial or 0)
+                gasto = float(r.quantidade_gasto or 0)
+            except (TypeError, ValueError):
                 inicial = 0
                 gasto = 0
             

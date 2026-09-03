@@ -1,13 +1,47 @@
 COMANDO PARA APP CONTROLE ITENS NA VPS
+
+=== DEPLOY SIMPLES (sem mudanca de schema) ===
 git pull origin main
-
 sudo systemctl restart controle-itens
-
 sudo systemctl status controle-itens
 
 
+=== DEPLOY COM MIGRACAO (obrigatorio quando o schema muda) ===
+Nao ha Alembic: create_all() cria tabelas novas, mas NUNCA altera colunas
+existentes. Migracao de coluna precisa ser rodada a mao.
 
+# 1. BACKUP PRIMEIRO -- sempre
+cd /var/www/controle-itens-eventos/backend
+python3 scripts/utilitarios/backup_automatico.py
+# copie o .db gerado para FORA da VPS (scp), backup no mesmo disco nao protege
+
+# 2. Atualizar o codigo
+cd /var/www/controle-itens-eventos
 git pull origin main
+
+# 3. Rodar as migracoes pendentes (dry-run antes, sempre)
 cd backend
-python scripts/migracao/add_motivo_exclusao.py  # ← Importante!
+python3 migrations/migrate_estoque_numeric.py            # dry-run: so mostra
+python3 migrations/migrate_estoque_numeric.py --aplicar  # grava
+
+# 4. Reconciliar o estoque (apos a correcao do saldo fantasma)
+python3 scripts/diagnostico/reconciliar_estoque.py            # dry-run
+python3 scripts/diagnostico/reconciliar_estoque.py --aplicar  # grava
+# Itens acima do contratado NAO sao corrigidos automaticamente:
+# reduzir O.S. ja emitida e decisao do gestor.
+
+# 5. Reiniciar
 sudo systemctl restart controle-itens
+sudo systemctl status controle-itens
+
+
+=== BACKUP AUTOMATICO (agendar uma vez) ===
+crontab -e
+0 2 * * * cd /var/www/controle-itens-eventos/backend && python3 scripts/utilitarios/backup_automatico.py >> /var/log/backup_db.log 2>&1
+
+Testar a restauracao pelo menos uma vez -- backup nunca restaurado nao e backup.
+Off-site: ver docs/PLANO_BACKUP_OFFSITE.md
+
+
+=== MIGRACOES ANTIGAS (referencia) ===
+python3 scripts/migracao/add_motivo_exclusao.py

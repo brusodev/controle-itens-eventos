@@ -497,10 +497,8 @@ class PDFOrdemServico:
                 
                 if estoque and estoque.preco:
                     try:
-                        # Converter preco (string) para float
-                        preco_str = estoque.preco.replace('.', '').replace(',', '.')
-                        valor_unit = float(preco_str)
-                    except:
+                        valor_unit = float(estoque.preco)
+                    except (TypeError, ValueError):
                         valor_unit = 0.0
             
             total_item = qtd_total * valor_unit

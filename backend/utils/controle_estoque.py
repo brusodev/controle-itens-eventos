@@ -34,40 +34,82 @@ def validar_regiao(regiao_numero):
         raise ErroRegiaoInvalida(f"Região {regiao_numero} inválida. Deve estar entre 1 e 6.")
 
 
-def converter_quantidade_para_float(quantidade_str):
+class ErroQuantidadeInvalida(ValueError):
+    """Quantidade em formato irreconhecivel vinda de payload/formulario."""
+    pass
+
+
+def converter_quantidade_para_float(quantidade_str, estrito=False):
     """
-    Converte string de quantidade para float
-    Suporta formatos: "1.000,50" ou "1000.50"
-    Trata valores inválidos como '__', None, strings vazias
-    
+    Converte quantidade de ENTRADA (payload JSON, formulario) para float.
+
+    As quantidades sao Numeric no banco -- esta funcao existe para o que chega
+    de fora, onde ainda vem texto. Desambigua os dois formatos:
+
+        '1.250,50' -> 1250.5   (BR: ponto = milhar, virgula = decimal)
+        '1250.50'  -> 1250.5   (en-US: ponto = decimal)
+        '20.000'   -> 20000.0  (BR: milhar, 3 digitos apos o ponto)
+        '10.5'     -> 10.5     (decimal, nao 105 como na versao anterior)
+
+    A versao antiga removia TODO ponto e todo sinal '-', entao '10.5' virava
+    105 e '-50' virava 50, e devolvia 0.0 para qualquer entrada invalida --
+    mascarando erro em vez de reporta-lo.
+
     Args:
-        quantidade_str (str): Quantidade em formato string
-        
+        quantidade_str: valor a converter
+        estrito (bool): se True, levanta ErroQuantidadeInvalida em vez de
+                        devolver 0.0 para entrada irreconhecivel
+
     Returns:
-        float: Quantidade convertida (0.0 para valores inválidos)
+        float
     """
-    try:
-        if isinstance(quantidade_str, (int, float)):
-            return float(quantidade_str) if quantidade_str else 0.0
-        
-        # Converter para string e limpar
-        quantidade_str = str(quantidade_str or '0').strip()
-        
-        # Verificar se é um valor inválido
-        if not quantidade_str or quantidade_str == '__' or quantidade_str == 'None':
-            return 0.0
-        
-        # Remover espaços e hífens desnecessários
-        quantidade_str = quantidade_str.replace(' ', '').replace('-', '')
-        
-        # Se ficar vazio após limpeza, retornar 0
-        if not quantidade_str or quantidade_str == '__' or not quantidade_str.replace(',', '').replace('.', ''):
-            return 0.0
-        
-        # Remove pontos de milhar e converte vírgula para ponto
-        return float(quantidade_str.replace('.', '').replace(',', '.'))
-    except (ValueError, AttributeError, TypeError):
+    if quantidade_str is None:
+        if estrito:
+            raise ErroQuantidadeInvalida('Quantidade ausente')
         return 0.0
+
+    if isinstance(quantidade_str, (int, float)):
+        return float(quantidade_str)
+
+    texto = str(quantidade_str).strip().replace(' ', '')
+
+    if not texto or texto in ('__', 'None'):
+        if estrito:
+            raise ErroQuantidadeInvalida(
+                'Quantidade invalida: {!r}'.format(quantidade_str))
+        return 0.0
+
+    negativo = texto.startswith('-')
+    texto = texto.lstrip('+-')
+
+    if not texto.replace(',', '').replace('.', '').isdigit():
+        if estrito:
+            raise ErroQuantidadeInvalida(
+                'Quantidade invalida: {!r}'.format(quantidade_str))
+        return 0.0
+
+    if ',' in texto:
+        # Virgula presente: formato BR, ponto e separador de milhar.
+        texto = texto.replace('.', '').replace(',', '.')
+    elif texto.count('.') > 1:
+        # Mais de um ponto: so pode ser separador de milhar (1.234.567)
+        texto = texto.replace('.', '')
+    elif '.' in texto:
+        inteiro, _, decimal = texto.partition('.')
+        # Exatamente 3 digitos apos o ponto e sem outro separador: milhar BR
+        # ('20.000'). Caso contrario e decimal ('10.5', '1250.50').
+        if len(decimal) == 3 and inteiro:
+            texto = inteiro + decimal
+
+    try:
+        numero = float(texto)
+    except ValueError:
+        if estrito:
+            raise ErroQuantidadeInvalida(
+                'Quantidade invalida: {!r}'.format(quantidade_str))
+        return 0.0
+
+    return -numero if negativo else numero
 
 
 def formatar_quantidade(quantidade_float):
@@ -124,7 +166,7 @@ def sincronizar_cache_gasto(estoque):
     Nao faz commit -- cabe ao chamador, como no resto deste modulo.
     """
     gasto = calcular_gasto_ledger(estoque.id)
-    estoque.quantidade_gasto = formatar_quantidade(gasto)
+    estoque.quantidade_gasto = max(0.0, gasto)
     return gasto
 
 
@@ -153,7 +195,7 @@ def obter_estoque_disponivel(item_id, regiao_numero):
         # Se não existe estoque para essa região/item, criar com valores zerados
         return None, 0.0
     
-    inicial = converter_quantidade_para_float(estoque.quantidade_inicial)
+    inicial = float(estoque.quantidade_inicial or 0)
     # Saldo derivado do ledger, nunca do cache quantidade_gasto: o cache pode
     # estar dessincronizado (ajuste manual, dados legados), o ledger nao.
     gasto = calcular_gasto_ledger(estoque.id)
@@ -225,7 +267,7 @@ def dar_baixa_estoque(ordem_servico_id, item_id, regiao_numero, quantidade, obse
     novo_gasto = gasto_atual + quantidade
 
     # Validacao adicional: garantir que nao ultrapasse o inicial
-    inicial = converter_quantidade_para_float(estoque.quantidade_inicial)
+    inicial = float(estoque.quantidade_inicial or 0)
     if novo_gasto > inicial:
         raise ErroEstoqueInsuficiente(
             f"Operacao resultaria em gasto ({formatar_quantidade(novo_gasto)}) "
@@ -429,8 +471,8 @@ def obter_relatorio_estoque_por_regiao(regiao_numero):
     
     relatorio = []
     for estoque in estoques:
-        inicial = converter_quantidade_para_float(estoque.quantidade_inicial)
-        gasto = converter_quantidade_para_float(estoque.quantidade_gasto)
+        inicial = float(estoque.quantidade_inicial or 0)
+        gasto = calcular_gasto_ledger(estoque.id)
         disponivel = inicial - gasto
         percentual_usado = (gasto / inicial * 100) if inicial > 0 else 0
         

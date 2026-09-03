@@ -1,7 +1,17 @@
+import os
+import sys
+
 from flask import Blueprint, request, jsonify
-from models import db, Categoria, Item, EstoqueRegional
+from models import db, Categoria, Item, EstoqueRegional, MovimentacaoEstoque
 from routes.auth_routes import login_requerido, admin_requerido
 from utils.auditoria import registrar_auditoria
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'utils'))
+from controle_estoque import (
+    calcular_gasto_ledger,
+    converter_quantidade_para_float,
+    sincronizar_cache_gasto,
+)
 
 alimentacao_bp = Blueprint('alimentacao', __name__)
 
@@ -125,11 +135,29 @@ def atualizar_estoque(item_id):
             
             if estoque:
                 if 'inicial' in qtds:
-                    estoque.quantidade_inicial = qtds['inicial']
-                if 'gasto' in qtds:
-                    estoque.quantidade_gasto = qtds['gasto']
+                    estoque.quantidade_inicial = max(
+                        0.0, converter_quantidade_para_float(qtds['inicial']))
                 if 'preco' in qtds:
-                    estoque.preco = qtds['preco']
+                    estoque.preco = max(
+                        0.0, converter_quantidade_para_float(qtds['preco']))
+                if 'gasto' in qtds:
+                    # O consumo e derivado do ledger de movimentacoes. Gravar
+                    # 'gasto' direto dessincronizaria o cache do historico, entao
+                    # a diferenca vira uma movimentacao de ajuste rastreavel.
+                    alvo = max(0.0, converter_quantidade_para_float(qtds['gasto']))
+                    atual = calcular_gasto_ledger(estoque.id)
+                    delta = alvo - atual
+                    if abs(delta) >= 0.001:
+                        db.session.add(MovimentacaoEstoque(
+                            ordem_servico_id=None,
+                            item_id=estoque.item_id,
+                            estoque_regional_id=estoque.id,
+                            quantidade=abs(delta),
+                            tipo='SAIDA' if delta > 0 else 'ENTRADA',
+                            observacao='Ajuste manual de estoque via cadastro de itens',
+                        ))
+                        db.session.flush()
+                    sincronizar_cache_gasto(estoque)
         
         db.session.commit()
         
@@ -175,21 +203,8 @@ def resumo_estoque():
         
         for est in estoques:
             try:
-                # ✅ Tratamento seguro de valores
-                inicial_str = str(est.quantidade_inicial or '0').strip()
-                gasto_str = str(est.quantidade_gasto or '0').strip()
-                
-                # Evitar valores inválidos como '__'
-                if not inicial_str or inicial_str == '__' or not inicial_str.replace(',', '').replace('.', '').replace('-', ''):
-                    inicial = 0
-                else:
-                    inicial = float(inicial_str.replace('.', '').replace(',', '.'))
-                
-                if not gasto_str or gasto_str == '__' or not gasto_str.replace(',', '').replace('.', '').replace('-', ''):
-                    gasto = 0
-                else:
-                    gasto = float(gasto_str.replace('.', '').replace(',', '.'))
-                
+                inicial = float(est.quantidade_inicial or 0)
+                gasto = float(est.quantidade_gasto or 0)
                 disponivel = inicial - gasto
                 
                 resumo['total_inicial'] += inicial

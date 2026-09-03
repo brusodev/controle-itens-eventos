@@ -17,7 +17,6 @@ import pytest
 from models import db, EstoqueRegional, MovimentacaoEstoque, OrdemServico
 from controle_estoque import (
     calcular_gasto_ledger,
-    converter_quantidade_para_float,
     obter_estoque_disponivel,
     reverter_baixa_estoque,
 )
@@ -59,7 +58,8 @@ def _disponivel(item):
 def _assert_cache_bate_ledger(estoque_id):
     """Invariante: o cache nunca pode divergir do ledger."""
     estoque = db.session.get(EstoqueRegional, estoque_id)
-    cache = converter_quantidade_para_float(estoque.quantidade_gasto)
+    # quantidade_gasto e Numeric: ler direto, sem passar pelo parser de texto
+    cache = float(estoque.quantidade_gasto or 0)
     ledger = calcular_gasto_ledger(estoque_id)
     assert abs(cache - ledger) < 0.01, (
         'cache quantidade_gasto={} divergiu do ledger={}'.format(cache, ledger)
@@ -235,3 +235,72 @@ class TestReversao:
         with app.app_context():
             assert _disponivel(item_com_estoque) == 100, 'cancelamento nao devolveu o saldo'
             _assert_cache_bate_ledger(item_com_estoque['estoque_id'])
+
+
+# ---------------------------------------------------------------------------
+# Parser de quantidades vindas de payload
+# ---------------------------------------------------------------------------
+
+class TestParserQuantidade:
+
+    @pytest.mark.parametrize('entrada,esperado', [
+        ('1.250,50', 1250.5),    # BR: ponto milhar, virgula decimal
+        ('20.000', 20000.0),     # BR: milhar com 3 digitos
+        ('1.234.567', 1234567.0),
+        ('1250.50', 1250.5),     # en-US: ponto decimal
+        ('10.5', 10.5),          # antes virava 105
+        ('0,5', 0.5),
+        ('-50', -50.0),          # antes virava 50
+        ('100', 100.0),
+        (1500, 1500.0),
+        (12.75, 12.75),
+        ('__', 0.0),
+        ('', 0.0),
+        (None, 0.0),
+    ])
+    def test_converte_formatos(self, entrada, esperado):
+        from controle_estoque import converter_quantidade_para_float
+        assert abs(converter_quantidade_para_float(entrada) - esperado) < 1e-9
+
+    @pytest.mark.parametrize('entrada', ['__', 'abc', '', None])
+    def test_modo_estrito_levanta(self, entrada):
+        """Modo estrito reporta o erro em vez de devolver 0.0 silencioso."""
+        from controle_estoque import (
+            converter_quantidade_para_float, ErroQuantidadeInvalida)
+        with pytest.raises(ErroQuantidadeInvalida):
+            converter_quantidade_para_float(entrada, estrito=True)
+
+
+# ---------------------------------------------------------------------------
+# Ajuste manual de estoque
+# ---------------------------------------------------------------------------
+
+class TestAjusteManual:
+
+    def test_ajuste_manual_gera_movimentacao(self, client, app, usuario_admin, item_com_estoque):
+        """
+        Editar 'gasto' pela tela de itens nao pode dessincronizar o cache do
+        ledger: a diferenca vira uma movimentacao de ajuste rastreavel.
+        """
+        token = sessao_admin(client, usuario_admin)
+        resp = client.put(
+            '/api/alimentacao/item/{}/estoque'.format(item_com_estoque['item_id']),
+            json={'regioes': {'1': {'gasto': '25'}}},
+            headers={'X-CSRF-Token': token},
+        )
+        assert resp.status_code == 200, resp.get_json()
+
+        with app.app_context():
+            assert calcular_gasto_ledger(item_com_estoque['estoque_id']) == 25
+            _assert_cache_bate_ledger(item_com_estoque['estoque_id'])
+            assert _disponivel(item_com_estoque) == 75
+
+    def test_estoque_nao_aceita_negativo(self, app, item_com_estoque):
+        """CHECK constraint no banco recusa estado impossivel."""
+        from sqlalchemy.exc import IntegrityError
+        with app.app_context():
+            estoque = db.session.get(EstoqueRegional, item_com_estoque['estoque_id'])
+            estoque.quantidade_gasto = -10
+            with pytest.raises(IntegrityError):
+                db.session.commit()
+            db.session.rollback()
