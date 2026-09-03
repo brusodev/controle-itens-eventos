@@ -75,7 +75,8 @@ function inicializarMenuMobile() {
                 debugLog(`Tentando conectar elementos novamente... (${tentativas}/${maxTentativas})`);
                 setTimeout(conectarElementos, 100);
             } else if (!elementosEncontrados && tentativas >= maxTentativas) {
-                console.warn('Botão hamburger não encontrado após múltiplas tentativas');
+                // Botao hamburger so existe no layout mobile.
+                debugLog('Botao hamburger ausente (layout desktop)');
             }
         }
 
@@ -96,7 +97,8 @@ function criarTabsSidebar() {
     debugLog('Tabs principais encontradas:', mainTabs.length);
 
     if (!sidebarTabs) {
-        console.warn('Container sidebar-tabs não encontrado! (Pode ser normal em desktop)');
+        // Ausente no layout desktop: condicao normal, nao um problema.
+        debugLog('Container sidebar-tabs ausente (layout desktop)');
         return;
     }
 

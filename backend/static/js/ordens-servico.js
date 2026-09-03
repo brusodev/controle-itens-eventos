@@ -206,8 +206,9 @@ async function carregarSugestoesOS() {
         preencherDatalist('lista-responsaveis', sugestoesOS.responsaveis);
         preencherDatalist('lista-justificativas', sugestoesOS.justificativas);
         preencherDatalist('lista-observacoes', sugestoesOS.observacoes);
-        preencherDatalist('lista-gestores', sugestoesOS.gestores);
-        preencherDatalist('lista-fiscais', sugestoesOS.fiscais);
+        // lista-gestores / lista-fiscais nao existem mais no formulario:
+        // gestor e fiscal viraram cargos de signatario (lista-cargos-signatario).
+        // sugestoesOS.gestores/fiscais seguem preenchidos para O.S. antigas.
         preencherDatalist('lista-nomes-signatario', Array.from(nomesSignatarios).sort());
 
         debugLog('Sugestões carregadas com sucesso');
