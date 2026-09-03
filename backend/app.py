@@ -101,7 +101,7 @@ def create_app():
     if portal_ativo:
         from routes.detentora_portal_routes import detentora_portal_bp
         app.register_blueprint(detentora_portal_bp, url_prefix='/api/empresa')
-        print('[Portal Detentora] Ativo — rotas /api/empresa/* registradas.')
+        print('[Portal Detentora] Ativo  rotas /api/empresa/* registradas.')
     else:
         from flask import Blueprint, jsonify as _jsonify
         _portal_stub = Blueprint('detentora_portal_stub', __name__)
@@ -111,7 +111,7 @@ def create_app():
             return _jsonify({'erro': 'Portal da Detentora não está ativo neste ambiente.'}), 503
 
         app.register_blueprint(_portal_stub, url_prefix='/api/empresa')
-        print('[Portal Detentora] Inativo — defina PORTAL_DETENTORA_ATIVO=true no .env para ativar.')
+        print('[Portal Detentora] Inativo  defina PORTAL_DETENTORA_ATIVO=true no .env para ativar.')
 
     # Headers de segurança em todas as respostas
     @app.after_request

@@ -150,7 +150,7 @@ def atualizar_item(item_id):
         db.session.commit()
         
         # Registrar auditoria com estoques
-        print(f"\n📋 Registrando auditoria para item {item.id} - {item.descricao}")
+        print(f"\n Registrando auditoria para item {item.id} - {item.descricao}")
         print(f"   Dados ANTES: {dados_antes}")
         print(f"   Dados DEPOIS: {item.to_dict(incluir_estoques=True)}")
         
@@ -164,7 +164,7 @@ def atualizar_item(item_id):
             dados_depois=item.to_dict(incluir_estoques=True)
         )
         
-        print(f"   ✅ Auditoria registrada!")
+        print(f"    Auditoria registrada!")
         
         return jsonify(item.to_dict()), 200
     

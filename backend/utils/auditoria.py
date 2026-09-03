@@ -4,6 +4,12 @@ Utilitário para registro de auditoria
 from models import db, Auditoria
 from flask import request, session
 import json
+import logging
+
+# Sem emoji e sem print(): sob cp1252 (console do Windows) um emoji levanta
+# UnicodeEncodeError, e como isto roda dentro do fluxo de criacao de O.S. o
+# crash derrubava a requisicao inteira com 500.
+logger = logging.getLogger(__name__)
 
 
 def registrar_auditoria(acao, modulo, descricao, entidade_tipo=None, entidade_id=None, 
@@ -26,13 +32,11 @@ def registrar_auditoria(acao, modulo, descricao, entidade_tipo=None, entidade_id
         usuario_email = session.get('usuario_email')
         usuario_nome = session.get('usuario_nome')
         
-        print(f"🔍 DEBUG Auditoria:")
-        print(f"   Usuario ID: {usuario_id}")
-        print(f"   Ação: {acao}, Módulo: {modulo}")
-        print(f"   Entidade: {entidade_tipo} #{entidade_id}")
+        logger.debug('Auditoria: usuario=%s acao=%s modulo=%s entidade=%s#%s',
+                     usuario_id, acao, modulo, entidade_tipo, entidade_id)
         
         if not usuario_id:
-            print(f"   ❌ Sem usuário na sessão!")
+            logger.warning('Auditoria sem usuario na sessao')
             return False
         
         # Pegar informações da requisição
@@ -43,8 +47,8 @@ def registrar_auditoria(acao, modulo, descricao, entidade_tipo=None, entidade_id
         dados_antes_json = json.dumps(dados_antes, ensure_ascii=False) if dados_antes else None
         dados_depois_json = json.dumps(dados_depois, ensure_ascii=False) if dados_depois else None
         
-        print(f"   Dados ANTES (JSON): {dados_antes_json[:100] if dados_antes_json else 'None'}...")
-        print(f"   Dados DEPOIS (JSON): {dados_depois_json[:100] if dados_depois_json else 'None'}...")
+        logger.debug('Auditoria dados antes=%s depois=%s',
+                     bool(dados_antes_json), bool(dados_depois_json))
         
         # Criar registro de auditoria
         auditoria = Auditoria(
@@ -65,13 +69,11 @@ def registrar_auditoria(acao, modulo, descricao, entidade_tipo=None, entidade_id
         db.session.add(auditoria)
         db.session.commit()
         
-        print(f"   ✅ Auditoria ID {auditoria.id} salva com sucesso!")
+        logger.debug('Auditoria ID %s salva', auditoria.id)
         return True
         
     except Exception as e:
-        print(f"❌ Erro ao registrar auditoria: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception('Erro ao registrar auditoria')
         try:
             db.session.rollback()
         except:
