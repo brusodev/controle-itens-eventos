@@ -221,6 +221,7 @@ def obter_ordem(os_id):
 
 @os_bp.route('/', methods=['POST'])
 @login_requerido
+@csrf_protegido
 def criar_ordem():
     """Cria uma nova ordem de serviço e atualiza estoque COM VALIDAÇÃO"""
     # Empresa contratada não pode emitir O.S. — apenas operadores internos
@@ -365,6 +366,7 @@ def criar_ordem():
 
 @os_bp.route('/<int:os_id>', methods=['PUT'])
 @login_requerido
+@csrf_protegido
 def atualizar_ordem(os_id):
     """Atualiza uma ordem de serviço existente COM CONTROLE DE ESTOQUE"""
     # Empresa contratada não pode editar estrutura da O.S.
@@ -532,6 +534,7 @@ def atualizar_ordem(os_id):
 @os_bp.route('/<int:os_id>', methods=['DELETE'])
 @login_requerido
 @admin_requerido  # Apenas administradores podem deletar O.S.
+@csrf_protegido
 def deletar_ordem(os_id):
     """Deleta uma ordem de serviço e reverte o estoque automaticamente"""
     try:

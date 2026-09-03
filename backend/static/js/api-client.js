@@ -200,24 +200,30 @@ class APIClient {
     }
     
     static async criarOrdemServico(dados) {
+        const csrf = await this._csrfToken();
         return this.request('/ordens-servico/', {
             method: 'POST',
+            headers: { 'X-CSRF-Token': csrf },
             body: JSON.stringify(dados)
         });
     }
     
     static async atualizarOrdemServico(id, dados) {
+        const csrf = await this._csrfToken();
         return this.request(`/ordens-servico/${id}`, {
             method: 'PUT',
+            headers: { 'X-CSRF-Token': csrf },
             body: JSON.stringify(dados)
         });
     }
     
     static async deletarOrdemServico(id, motivo = null) {
         // ✅ Enviar motivo da exclusão se fornecido
+        const csrf = await this._csrfToken();
         const body = motivo ? { motivo } : {};
         return this.request(`/ordens-servico/${id}`, {
             method: 'DELETE',
+            headers: { 'X-CSRF-Token': csrf },
             body: motivo ? JSON.stringify(body) : undefined
         });
     }

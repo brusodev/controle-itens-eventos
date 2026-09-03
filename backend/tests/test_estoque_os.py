@@ -66,8 +66,15 @@ def _assert_cache_bate_ledger(estoque_id):
     )
 
 
-def _criar_os(client, item, quantidade, evento='Evento Teste'):
-    return client.post('/api/ordens-servico/', json=_payload_os(item, quantidade, evento))
+def _criar_os(client, item, quantidade, evento='Evento Teste', token=None):
+    return client.post('/api/ordens-servico/', json=_payload_os(item, quantidade, evento),
+                       headers={'X-CSRF-Token': token} if token else None)
+
+
+def _editar_os(client, os_id, item, quantidade, evento='Evento Teste', token=None):
+    return client.put('/api/ordens-servico/{}'.format(os_id),
+                      json=_payload_os(item, quantidade, evento),
+                      headers={'X-CSRF-Token': token} if token else None)
 
 
 # ---------------------------------------------------------------------------
@@ -77,8 +84,8 @@ def _criar_os(client, item, quantidade, evento='Evento Teste'):
 class TestCriacao:
 
     def test_criar_os_dentro_do_saldo_baixa_estoque(self, client, app, usuario_admin, item_com_estoque):
-        sessao_admin(client, usuario_admin)
-        resp = _criar_os(client, item_com_estoque, 60)
+        token = sessao_admin(client, usuario_admin)
+        resp = _criar_os(client, item_com_estoque, 60, token=token)
         assert resp.status_code == 201, resp.get_json()
 
         with app.app_context():
@@ -86,8 +93,8 @@ class TestCriacao:
             _assert_cache_bate_ledger(item_com_estoque['estoque_id'])
 
     def test_criar_os_acima_do_saldo_e_recusada(self, client, app, usuario_admin, item_com_estoque):
-        sessao_admin(client, usuario_admin)
-        resp = _criar_os(client, item_com_estoque, 150)
+        token = sessao_admin(client, usuario_admin)
+        resp = _criar_os(client, item_com_estoque, 150, token=token)
         assert resp.status_code == 400
         assert 'insuficiente' in resp.get_json()['erro'].lower()
 
@@ -97,11 +104,12 @@ class TestCriacao:
 
     def test_linhas_duplicadas_do_mesmo_item_somam(self, client, app, usuario_admin, item_com_estoque):
         """Duas linhas de 60 do mesmo item = 120 > 100: deve recusar."""
-        sessao_admin(client, usuario_admin)
+        token = sessao_admin(client, usuario_admin)
         payload = _payload_os(item_com_estoque, 60)
         payload['itens'].append(dict(payload['itens'][0]))
 
-        resp = client.post('/api/ordens-servico/', json=payload)
+        resp = client.post('/api/ordens-servico/', json=payload,
+                           headers={'X-CSRF-Token': token})
         assert resp.status_code == 400, 'validacao deve somar linhas do mesmo item'
 
         with app.app_context():
@@ -116,12 +124,11 @@ class TestEdicao:
 
     def test_editar_varias_vezes_mantendo_qtd_nao_altera_saldo(self, client, app, usuario_admin, item_com_estoque):
         """Regressao: cada edicao revertia TODAS as SAIDAs historicas."""
-        sessao_admin(client, usuario_admin)
-        os_id = _criar_os(client, item_com_estoque, 60).get_json()['id']
+        token = sessao_admin(client, usuario_admin)
+        os_id = _criar_os(client, item_com_estoque, 60, token=token).get_json()['id']
 
         for i in range(5):
-            resp = client.put('/api/ordens-servico/{}'.format(os_id),
-                              json=_payload_os(item_com_estoque, 60))
+            resp = _editar_os(client, os_id, item_com_estoque, 60, token=token)
             assert resp.status_code == 200, resp.get_json()
 
             with app.app_context():
@@ -136,25 +143,23 @@ class TestEdicao:
         edicoes da O.S.#1, o bug creditava saldo fantasma e deixava aumentar
         para 100 -- alocando 140 de um estoque de 100.
         """
-        sessao_admin(client, usuario_admin)
-        os1 = _criar_os(client, item_com_estoque, 60, 'Evento 1').get_json()['id']
-        _criar_os(client, item_com_estoque, 40, 'Evento 2')
+        token = sessao_admin(client, usuario_admin)
+        os1 = _criar_os(client, item_com_estoque, 60, 'Evento 1', token=token).get_json()['id']
+        _criar_os(client, item_com_estoque, 40, 'Evento 2', token=token)
 
         with app.app_context():
             assert _disponivel(item_com_estoque) == 0, 'estoque deveria estar zerado'
 
         # Edicoes repetidas mantendo a quantidade
         for _ in range(2):
-            resp = client.put('/api/ordens-servico/{}'.format(os1),
-                              json=_payload_os(item_com_estoque, 60, 'Evento 1'))
+            resp = _editar_os(client, os1, item_com_estoque, 60, 'Evento 1', token=token)
             assert resp.status_code == 200, resp.get_json()
 
         with app.app_context():
             assert _disponivel(item_com_estoque) == 0, 'saldo fantasma reapareceu'
 
         # Tentativa de aumentar com estoque zerado: deve ser RECUSADA
-        resp = client.put('/api/ordens-servico/{}'.format(os1),
-                          json=_payload_os(item_com_estoque, 100, 'Evento 1'))
+        resp = _editar_os(client, os1, item_com_estoque, 100, 'Evento 1', token=token)
         assert resp.status_code == 400, 'aumentou item com estoque zerado'
 
         with app.app_context():
@@ -162,11 +167,10 @@ class TestEdicao:
             _assert_cache_bate_ledger(item_com_estoque['estoque_id'])
 
     def test_reduzir_quantidade_devolve_diferenca(self, client, app, usuario_admin, item_com_estoque):
-        sessao_admin(client, usuario_admin)
-        os_id = _criar_os(client, item_com_estoque, 80).get_json()['id']
+        token = sessao_admin(client, usuario_admin)
+        os_id = _criar_os(client, item_com_estoque, 80, token=token).get_json()['id']
 
-        resp = client.put('/api/ordens-servico/{}'.format(os_id),
-                          json=_payload_os(item_com_estoque, 30))
+        resp = _editar_os(client, os_id, item_com_estoque, 30, token=token)
         assert resp.status_code == 200, resp.get_json()
 
         with app.app_context():
@@ -174,11 +178,10 @@ class TestEdicao:
             _assert_cache_bate_ledger(item_com_estoque['estoque_id'])
 
     def test_aumentar_dentro_do_saldo_e_aceito(self, client, app, usuario_admin, item_com_estoque):
-        sessao_admin(client, usuario_admin)
-        os_id = _criar_os(client, item_com_estoque, 30).get_json()['id']
+        token = sessao_admin(client, usuario_admin)
+        os_id = _criar_os(client, item_com_estoque, 30, token=token).get_json()['id']
 
-        resp = client.put('/api/ordens-servico/{}'.format(os_id),
-                          json=_payload_os(item_com_estoque, 90))
+        resp = _editar_os(client, os_id, item_com_estoque, 90, token=token)
         assert resp.status_code == 200, resp.get_json()
 
         with app.app_context():
@@ -194,8 +197,8 @@ class TestReversao:
 
     def test_reverter_e_idempotente(self, client, app, usuario_admin, item_com_estoque):
         """Reverter duas vezes nao pode creditar estoque duas vezes."""
-        sessao_admin(client, usuario_admin)
-        os_id = _criar_os(client, item_com_estoque, 60).get_json()['id']
+        token = sessao_admin(client, usuario_admin)
+        os_id = _criar_os(client, item_com_estoque, 60, token=token).get_json()['id']
 
         with app.app_context():
             reverter_baixa_estoque(os_id)
@@ -208,10 +211,11 @@ class TestReversao:
             _assert_cache_bate_ledger(item_com_estoque['estoque_id'])
 
     def test_excluir_os_devolve_saldo(self, client, app, usuario_admin, item_com_estoque):
-        sessao_admin(client, usuario_admin)
-        os_id = _criar_os(client, item_com_estoque, 60).get_json()['id']
+        token = sessao_admin(client, usuario_admin)
+        os_id = _criar_os(client, item_com_estoque, 60, token=token).get_json()['id']
 
-        resp = client.delete('/api/ordens-servico/{}'.format(os_id), json={'motivo': 'teste'})
+        resp = client.delete('/api/ordens-servico/{}'.format(os_id), json={'motivo': 'teste'},
+                             headers={'X-CSRF-Token': token})
         assert resp.status_code == 200, resp.get_json()
 
         with app.app_context():
@@ -220,7 +224,7 @@ class TestReversao:
     def test_cancelar_os_devolve_saldo(self, client, app, usuario_admin, item_com_estoque):
         """Antes da correcao o cancelamento nao devolvia nada -- saldo preso."""
         token = sessao_admin(client, usuario_admin)
-        os_id = _criar_os(client, item_com_estoque, 60).get_json()['id']
+        os_id = _criar_os(client, item_com_estoque, 60, token=token).get_json()['id']
 
         with app.app_context():
             os_obj = db.session.get(OrdemServico, os_id)
@@ -304,3 +308,30 @@ class TestAjusteManual:
             with pytest.raises(IntegrityError):
                 db.session.commit()
             db.session.rollback()
+
+
+# ---------------------------------------------------------------------------
+# Protecao CSRF
+# ---------------------------------------------------------------------------
+
+class TestCSRF:
+    """POST/PUT/DELETE de O.S. nao tinham @csrf_protegido, enquanto rotas
+    menos criticas (/cancelar, /pagamento) ja tinham."""
+
+    def test_criar_sem_token_recusado(self, client, usuario_admin, item_com_estoque):
+        sessao_admin(client, usuario_admin)
+        resp = client.post('/api/ordens-servico/', json=_payload_os(item_com_estoque, 10))
+        assert resp.status_code == 403
+
+    def test_editar_sem_token_recusado(self, client, usuario_admin, item_com_estoque):
+        token = sessao_admin(client, usuario_admin)
+        os_id = _criar_os(client, item_com_estoque, 10, token=token).get_json()['id']
+        resp = client.put('/api/ordens-servico/{}'.format(os_id),
+                          json=_payload_os(item_com_estoque, 20))
+        assert resp.status_code == 403
+
+    def test_deletar_sem_token_recusado(self, client, usuario_admin, item_com_estoque):
+        token = sessao_admin(client, usuario_admin)
+        os_id = _criar_os(client, item_com_estoque, 10, token=token).get_json()['id']
+        resp = client.delete('/api/ordens-servico/{}'.format(os_id), json={'motivo': 'x'})
+        assert resp.status_code == 403
