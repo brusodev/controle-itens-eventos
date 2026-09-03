@@ -61,6 +61,14 @@ def formatar(numero):
     return '{:,.2f}'.format(numero).replace(',', 'X').replace('.', ',').replace('X', '.')
 
 
+def schema_numerico(conn):
+    """True se estoque_regional ja foi migrado para NUMERIC."""
+    for _, nome, tipo, _, _, _ in conn.execute("PRAGMA table_info(estoque_regional)"):
+        if nome == 'quantidade_inicial':
+            return 'NUMERIC' in (tipo or '').upper()
+    return False
+
+
 def linha(titulo):
     print('')
     print('=' * 78)
@@ -217,10 +225,14 @@ def aplicar_correcoes(conn, relatorio):
         return 0
 
     cur = conn.cursor()
+    # Apos a migracao as colunas sao NUMERIC: gravar texto formatado em BR
+    # reintroduziria string no banco e quebraria a leitura do SQLAlchemy.
+    numerico = schema_numerico(conn)
     for d in divergentes:
+        valor = max(0.0, d['ledger'])
         cur.execute(
             'UPDATE estoque_regional SET quantidade_gasto = ? WHERE id = ?',
-            (formatar(max(0.0, d['ledger'])), d['estoque_id'])
+            (valor if numerico else formatar(valor), d['estoque_id'])
         )
     conn.commit()
     print('Corrigido(s) %d registro(s) de cache.' % len(divergentes))
