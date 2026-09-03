@@ -4,7 +4,12 @@ Execute uma única vez para configurar o primeiro usuário
 """
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+# backend/ fica dois niveis acima (scripts/admin/ -> scripts/ -> backend/),
+# que e onde app.py e models.py vivem.
+_BACKEND = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, _BACKEND)
+sys.path.insert(0, os.path.join(_BACKEND, 'utils'))
 
 from app import create_app
 from models import db, Usuario
@@ -63,6 +68,7 @@ def criar_admin():
             nome=nome,
             email=email,
             cargo=cargo or "Administrador",
+            perfil='admin',   # sem isto o model cai no default 'comum'
             ativo=True
         )
         novo_usuario.set_senha(senha)
@@ -76,6 +82,7 @@ def criar_admin():
         print(f"Nome: {novo_usuario.nome}")
         print(f"Email: {novo_usuario.email}")
         print(f"Cargo: {novo_usuario.cargo}")
+        print(f"Perfil: {novo_usuario.perfil}")
         print(f"ID: {novo_usuario.id}")
         print("\nVocê pode fazer login com essas credenciais")
 
