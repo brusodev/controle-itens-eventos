@@ -43,5 +43,18 @@ Testar a restauracao pelo menos uma vez -- backup nunca restaurado nao e backup.
 Off-site: ver docs/PLANO_BACKUP_OFFSITE.md
 
 
+=== MIGRACAO: CATSER -> ITEM BEC (Servicos Graficos) ===
+Migracao de DADOS (nao muda schema). Troca o codigo de referencia dos itens
+de Servicos Graficos de CATSER para o codigo BEC (sem hifen), conforme a
+planilha do contrato reajustado 2026.
+38 itens recebem BEC; 15 ficam com o campo vazio ate os codigos serem informados.
+Idempotente: pode rodar mais de uma vez.
+
+cd /var/www/controle-itens-eventos/backend
+python3 migrations/migrate_bec_servicos_graficos.py            # dry-run: so mostra
+python3 migrations/migrate_bec_servicos_graficos.py --aplicar  # grava
+# Backup antes, como sempre. Nao precisa de reconciliar_estoque (nao mexe em saldo).
+
+
 === MIGRACOES ANTIGAS (referencia) ===
 python3 scripts/migracao/add_motivo_exclusao.py

@@ -67,7 +67,7 @@ class PDFOrdemServico:
             'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL DO EVENTO'
         },
         'servicos_graficos': {
-            'grupo': 'GRUPO',  'item_code': 'CATSER',    'desc': 'DESCRIÇÃO',     'usa_diarias': False,
+            'grupo': 'GRUPO',  'item_code': 'ITEM BEC',  'desc': 'DESCRIÇÃO',     'usa_diarias': False,
             'qtd_label': 'QTDE<br/>SOLICITADA', 'qtd_total_label': 'QTDE<br/>SOLICITADA<br/>TOTAL', 'valor_unit_label': 'VALOR UNIT.',
             'os_data_label': 'DATA', 'os_horario_label': 'HORÁRIO', 'os_local_label': 'LOCAL'
         },

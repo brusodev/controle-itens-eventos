@@ -134,7 +134,7 @@ const MODULE_CONFIG = {
     servicos_graficos: {
         titulo: 'Serviços Gráficos', emoji: '🖨️', itemLabel: 'Itens Gráficos',
         grupoLabel: 'Grupo',  grupoLabelUpper: 'GRUPO',
-        itemCodeLabel: 'CATSER', itemCodeLabelUpper: 'CATSER',
+        itemCodeLabel: 'ITEM BEC', itemCodeLabelUpper: 'ITEM BEC',
         descLabel: 'DESCRIÇÃO',
         usaDiarias: false,
         colunaQtd: 'QTDE<br/>SOLICITADA',     colunaQtdCompacta: 'Qtd',

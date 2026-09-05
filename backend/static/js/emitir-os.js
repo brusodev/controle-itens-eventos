@@ -476,6 +476,7 @@ function filtrarItensSeletor() {
 }
 
 function confirmarSelecaoItens() {
+    const moduloAtual = localStorage.getItem('modulo_atual') || 'coffee';
     const rows = document.querySelectorAll('#seletor-categorias .seletor-item-row input[type="checkbox"]:checked');
 
     if (rows.length === 0) {
@@ -526,7 +527,9 @@ function confirmarSelecaoItens() {
                 itemId: itemId,
                 descricao: item.descricao,
                 unidade: item.unidade || '',
-                itemBec: item.natureza || catData.natureza || '',
+                itemBec: (moduloAtual === 'servicos_graficos'
+                    ? (item.natureza || '')
+                    : (item.natureza || catData.natureza || '')),
                 diarias: diarias,
                 qtdSolicitada: qtd,
                 qtdTotal: diarias * qtd

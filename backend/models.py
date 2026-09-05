@@ -73,7 +73,11 @@ class Item(db.Model):
             'item': self.item_codigo,
             'descricao': self.descricao,
             'unidade': self.unidade,
-            'natureza': self.natureza or self.categoria.natureza  # BEC individual ou da categoria
+            # Servicos Graficos referencia o item pelo codigo BEC individual: sem o
+            # codigo, o campo fica vazio (a natureza de despesa da categoria nao e um
+            # codigo de item e nao pode vazar para a O.S.).
+            'natureza': (self.natureza or None) if self.categoria.modulo == 'servicos_graficos'
+                        else (self.natureza or self.categoria.natureza)
         }
         
         if incluir_estoques:

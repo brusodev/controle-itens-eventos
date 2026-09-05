@@ -462,7 +462,7 @@ function exibirResultadoRelatorioCategoria(data) {
 
     data.categorias.forEach(cat => {
         tabelaHTML += `
-            <h5 style="margin-top: 20px; color: #667eea;">${cat.categoria} (BEC: ${cat.natureza || 'N/A'})</h5>
+            <h5 style="margin-top: 20px; color: #667eea;">${cat.categoria} (Natureza: ${cat.natureza || 'N/A'})</h5>
             <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 10px;">
                 Total de itens diferentes: ${cat.total_itens_diferentes} |
                 Consumo total: ${cat.total_consumo.toLocaleString('pt-BR')}
