@@ -244,6 +244,10 @@ def main():
     parser.add_argument('--aplicar', action='store_true',
                         help='grava as correcoes de cache (por padrao e dry-run)')
     parser.add_argument('--db', default=DB_PATH, help='caminho do banco')
+    parser.add_argument('--check', action='store_true',
+                        help='modo auditoria (cron): sai com codigo != 0 se houver '
+                             'sinal que deveria ser sempre zero (drift de cache, '
+                             'SAIDA repetida, canceladas presas, invalidos)')
     args = parser.parse_args()
 
     if not os.path.exists(args.db):
@@ -283,6 +287,24 @@ def main():
             print('')
             print('AVISO: itens acima do contratado NAO sao corrigidos por este')
             print('script. Reduzir uma O.S. ja emitida e decisao do gestor.')
+
+        if args.check:
+            # Sinais que, num sistema saudavel, DEVEM ser sempre zero. Os
+            # 'estourados' (itens acima do contratado) ficam de fora: sao
+            # decisao de negocio ja conhecida, nao regressao tecnica.
+            criticos = (
+                len(relatorio['divergentes'])
+                + len(relatorio['suspeitas'])
+                + len(relatorio['presas'])
+                + relatorio['invalidos']
+            )
+            if criticos > 0:
+                print('')
+                print('[ALERTA] %d sinal(is) critico(s) de integridade do estoque. '
+                      'Investigar.' % criticos)
+                return 2
+            print('')
+            print('[OK] Nenhum sinal critico de integridade.')
     finally:
         conn.close()
 

@@ -1,5 +1,6 @@
 import json
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event, DDL
 from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -418,6 +419,45 @@ class MovimentacaoEstoque(db.Model):
             'dataMovimentacao': self.data_movimentacao.isoformat() if self.data_movimentacao else None,
             'observacao': self.observacao
         }
+
+
+# Trava de integridade no nivel do banco: uma SAIDA nunca pode fazer o consumo
+# liquido (SUM(SAIDA) - SUM(ENTRADA)) de um estoque_regional ultrapassar o
+# contratado. Faz parte do schema canonico -- criado junto com a tabela em
+# db.create_all() (testes e novos ambientes). O banco de producao ja recebeu o
+# mesmo trigger via migrations/migrate_trigger_estoque.py.
+# Epsilon de 0.001 evita falso positivo por arredondamento de ponto flutuante.
+_TRIGGER_SAIDA_NAO_EXCEDE = DDL("""
+CREATE TRIGGER IF NOT EXISTS trg_saida_nao_excede_contratado
+BEFORE INSERT ON movimentacoes_estoque
+FOR EACH ROW
+WHEN NEW.tipo = 'SAIDA'
+BEGIN
+    SELECT
+        CASE WHEN (
+            COALESCE((
+                SELECT SUM(CASE WHEN m.tipo = 'SAIDA' THEN m.quantidade
+                                ELSE -m.quantidade END)
+                FROM movimentacoes_estoque m
+                WHERE m.estoque_regional_id = NEW.estoque_regional_id
+            ), 0) + NEW.quantidade
+        ) > (
+            COALESCE((
+                SELECT e.quantidade_inicial
+                FROM estoque_regional e
+                WHERE e.id = NEW.estoque_regional_id
+            ), 0) + 0.001
+        )
+        THEN RAISE(ABORT, 'Estoque insuficiente: a SAIDA excederia o contratado do estoque_regional')
+    END;
+END;
+""")
+
+event.listen(
+    MovimentacaoEstoque.__table__,
+    'after_create',
+    _TRIGGER_SAIDA_NAO_EXCEDE.execute_if(dialect='sqlite'),
+)
 
 
 class Usuario(db.Model):
