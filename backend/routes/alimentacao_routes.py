@@ -204,7 +204,8 @@ def resumo_estoque():
         for est in estoques:
             try:
                 inicial = float(est.quantidade_inicial or 0)
-                gasto = float(est.quantidade_gasto or 0)
+                # Fonte unica de verdade: o ledger, nao o cache quantidade_gasto
+                gasto = calcular_gasto_ledger(est.id)
                 disponivel = inicial - gasto
                 
                 resumo['total_inicial'] += inicial

@@ -159,6 +159,42 @@ def calcular_gasto_ledger(estoque_regional_id):
     return float(total or 0.0)
 
 
+def subquery_gasto_ledger(estoque_id_col, rotulo='gasto_ledger'):
+    """
+    Expressao SQL (scalar subquery) do consumo derivado do ledger, para uso em
+    consultas/relatorios: SUM(SAIDA) - SUM(ENTRADA) correlacionado ao estoque.
+
+    Mantem os relatorios na MESMA fonte de verdade da validacao de emissao (o
+    ledger), em vez do cache quantidade_gasto -- que pode divergir. Uso:
+
+        gasto = subquery_gasto_ledger(EstoqueRegional.id)
+        query = db.session.query(..., gasto)
+        ...
+        valor = row.gasto_ledger
+
+    Args:
+        estoque_id_col: coluna do estoque_regional.id na consulta externa
+        rotulo (str): label da coluna resultante
+    """
+    return (
+        db.select(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (MovimentacaoEstoque.tipo == 'SAIDA', MovimentacaoEstoque.quantidade),
+                        else_=-MovimentacaoEstoque.quantidade,
+                    )
+                ),
+                0.0,
+            )
+        )
+        .where(MovimentacaoEstoque.estoque_regional_id == estoque_id_col)
+        .correlate_except(MovimentacaoEstoque)
+        .scalar_subquery()
+        .label(rotulo)
+    )
+
+
 def sincronizar_cache_gasto(estoque):
     """
     Realinha o cache quantidade_gasto com o ledger.

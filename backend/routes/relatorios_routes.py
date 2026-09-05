@@ -16,6 +16,7 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from sqlalchemy import func
+from utils.controle_estoque import subquery_gasto_ledger
 
 from routes.auth_routes import login_requerido
 
@@ -350,16 +351,16 @@ def relatorio_estoque_posicao():
             Categoria.natureza,
             EstoqueRegional.regiao_numero,
             EstoqueRegional.quantidade_inicial,
-            EstoqueRegional.quantidade_gasto
+            subquery_gasto_ledger(EstoqueRegional.id).label('quantidade_gasto')
         ).join(Categoria, Item.categoria_id == Categoria.id)\
          .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)\
          .filter(Categoria.modulo == modulo)
-        
+
         if categoria_id:
             query = query.filter(Item.categoria_id == int(categoria_id))
         if regiao:
             query = query.filter(EstoqueRegional.regiao_numero == int(regiao))
-        
+
         resultados = query.all()
         
         # Processar dados
@@ -1609,16 +1610,16 @@ def gerar_pdf_estoque():
             Categoria.nome.label('categoria_nome'),
             EstoqueRegional.regiao_numero,
             EstoqueRegional.quantidade_inicial,
-            EstoqueRegional.quantidade_gasto
+            subquery_gasto_ledger(EstoqueRegional.id).label('quantidade_gasto')
         ).join(Categoria, Item.categoria_id == Categoria.id)\
          .join(EstoqueRegional, Item.id == EstoqueRegional.item_id)\
          .filter(Categoria.modulo == modulo)
-        
+
         if categoria_id:
             query = query.filter(Item.categoria_id == int(categoria_id))
         if regiao:
             query = query.filter(EstoqueRegional.regiao_numero == int(regiao))
-        
+
         resultados = query.order_by(Categoria.nome, Item.descricao).all()
         
         # Criar PDF
