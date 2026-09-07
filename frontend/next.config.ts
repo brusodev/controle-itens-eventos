@@ -17,17 +17,29 @@ async function rewrites() {
       'BACKEND_URL não definida. Copie frontend/.env.example para .env.local e ajuste.',
     )
   }
-  return [
+  return {
+    // beforeFiles: sempre tem prioridade sobre as próprias páginas do Next —
+    // usado só para /api e /auth, que são sempre do Flask, nunca do Next.
+    //
     // Regras com barra final EXPLÍCITA primeiro — sem elas, `:path*` sozinho
     // normaliza a barra final embutida no path antes do destino ser montado,
     // e várias rotas do Flask (O.S., itens, categorias, detentoras...) só
     // existem com a barra (@blueprint.route('/')); sem ela, o Werkzeug
     // devolve 308 e o rewrite vira um redirect cross-origin quebrado.
-    { source: '/api/:path*/', destination: `${backendUrl}/api/:path*/` },
-    { source: '/api/:path*', destination: `${backendUrl}/api/:path*` },
-    { source: '/auth/:path*/', destination: `${backendUrl}/auth/:path*/` },
-    { source: '/auth/:path*', destination: `${backendUrl}/auth/:path*` },
-  ]
+    beforeFiles: [
+      { source: '/api/:path*/', destination: `${backendUrl}/api/:path*/` },
+      { source: '/api/:path*', destination: `${backendUrl}/api/:path*` },
+      { source: '/auth/:path*/', destination: `${backendUrl}/auth/:path*/` },
+      { source: '/auth/:path*', destination: `${backendUrl}/auth/:path*` },
+    ],
+    // fallback: só entra em ação quando o Next tenta suas próprias rotas
+    // (app/**) e nenhuma casa. Cobre as telas Flask que a migração ainda
+    // não alcançou (/dashboard, /gerenciar-usuarios, /empresa, /auditoria,
+    // ...) sem precisar listar cada uma — sem isso, links para elas (ex.:
+    // o redirect pós-login) caem em 404 do próprio Next em vez de chegar
+    // ao Flask.
+    fallback: [{ source: '/:path*', destination: `${backendUrl}/:path*` }],
+  }
 }
 
 const nextConfig: NextConfig = {

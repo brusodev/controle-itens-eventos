@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcularDisponivel, excedeEstoque } from './disponibilidade'
+import { calcularDisponivel, calcularTotaisEstoque, excedeEstoque } from './disponibilidade'
 import type { ItemEstoque } from './schema'
 
 function item(regioes: ItemEstoque['regioes']): ItemEstoque {
@@ -28,5 +28,21 @@ describe('excedeEstoque', () => {
 
   it('nunca excede quando disponível é null (sem controle de estoque)', () => {
     expect(excedeEstoque({ disponivel: null, quantidade: 999999, diarias: 1 })).toBe(false)
+  })
+})
+
+describe('calcularTotaisEstoque', () => {
+  it('soma inicial e gasto de todas as regiões', () => {
+    const totais = calcularTotaisEstoque(
+      item({
+        '1': { inicial: '1.000', gasto: '100', preco: '0' },
+        '2': { inicial: '500', gasto: '50', preco: '0' },
+      }),
+    )
+    expect(totais).toEqual({ inicial: 1500, gasto: 150, disponivel: 1350 })
+  })
+
+  it('retorna zeros quando o item não tem nenhuma região', () => {
+    expect(calcularTotaisEstoque(item(undefined))).toEqual({ inicial: 0, gasto: 0, disponivel: 0 })
   })
 })

@@ -25,3 +25,20 @@ export function excedeEstoque(params: {
   if (disponivel === null || disponivel < 0) return false
   return quantidade * diarias > disponivel
 }
+
+export interface TotaisEstoque {
+  inicial: number
+  gasto: number
+  disponivel: number
+}
+
+/** Soma inicial/gasto de todas as regiões do item — porta de filtrarAlimentacao (estoque.js:126-133). */
+export function calcularTotaisEstoque(item: ItemEstoque): TotaisEstoque {
+  let inicial = 0
+  let gasto = 0
+  for (const regiao of Object.values(item.regioes ?? {})) {
+    inicial += parseNumeroBr(regiao.inicial)
+    gasto += parseNumeroBr(regiao.gasto)
+  }
+  return { inicial, gasto, disponivel: inicial - gasto }
+}

@@ -87,6 +87,7 @@ describe('FormularioOS — edição campo a campo', () => {
       nome: 'Empresa Teste',
       cnpj: '00.000.000/0001-00',
       servico: 'COFFEE BREAK',
+      modulo: 'coffee',
       grupo: '1',
       ativo: true,
     })
