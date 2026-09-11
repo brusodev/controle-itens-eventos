@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { ChevronDown, KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react'
 import { getModuloConfig } from '@/features/modulos/config'
 import type { Usuario } from '@/features/auth/schema'
@@ -89,15 +90,24 @@ export function Topbar({
                 <p className="truncate text-xs text-text-muted">{usuario.email}</p>
                 <p className="mt-0.5 text-xs capitalize text-text-muted">{usuario.perfil}</p>
               </div>
-              {/* Ainda Flask (Domínio 4 da Fase 2 não fechou) — <a> normal, não <Link>. */}
-              <a href="/gerenciar-conta" role="menuitem" className={CLASSE_ITEM_DROPDOWN}>
+              <Link
+                href="/conta"
+                role="menuitem"
+                className={CLASSE_ITEM_DROPDOWN}
+                onClick={() => setDropdownAberto(false)}
+              >
                 <UserRound aria-hidden="true" className="size-4 shrink-0 text-text-muted" strokeWidth={1.75} />
                 Meu Perfil
-              </a>
-              <a href="/alterar-senha" role="menuitem" className={CLASSE_ITEM_DROPDOWN}>
+              </Link>
+              <Link
+                href="/conta/senha"
+                role="menuitem"
+                className={CLASSE_ITEM_DROPDOWN}
+                onClick={() => setDropdownAberto(false)}
+              >
                 <KeyRound aria-hidden="true" className="size-4 shrink-0 text-text-muted" strokeWidth={1.75} />
                 Alterar Senha
-              </a>
+              </Link>
               <div className="my-1 border-t border-border-subtle" />
               <button
                 type="button"

@@ -25,6 +25,17 @@ export const detentorasAPI = {
     }
   },
 
+  /**
+   * Sem filtro de módulo — porta de carregarDetentoras()
+   * (gerenciar-usuarios.html:536), que popula o select de vínculo do
+   * usuário empresa com detentoras de QUALQUER módulo (`modulo=None` no
+   * backend devolve todas — detentoras_routes.py:18-22).
+   */
+  async listarTodas(incluirInativas = true): Promise<Detentora[]> {
+    const data = await apiFetch<unknown[]>(`/api/detentoras/?incluir_inativas=${incluirInativas}`)
+    return data.map((item) => detentoraPersistidaSchema.parse(item))
+  },
+
   /** Tela de gestão inclui inativas — diferente do uso em O.S., que só vê ativas. */
   async listar(modulo: Modulo, incluirInativas = true): Promise<Detentora[]> {
     const data = await apiFetch<unknown[]>(

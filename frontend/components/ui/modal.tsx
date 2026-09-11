@@ -46,9 +46,18 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
       }
     }
 
+    // Trava o scroll do body enquanto o modal está aberto: sem isso, rolar
+    // sobre o overlay rolava a página atrás dele — visível sobretudo no
+    // mobile, onde o modal ficava parado no topo enquanto o conteúdo passava.
+    const overflowAnterior = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     document.addEventListener('keydown', handleKeyDown)
     dialogRef.current?.focus()
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = overflowAnterior
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [open, onClose])
 
   if (!open) return null

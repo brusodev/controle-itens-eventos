@@ -18,6 +18,32 @@ const SIZE_CLASSES = {
 export type ButtonVariant = keyof typeof VARIANT_CLASSES
 export type ButtonSize = keyof typeof SIZE_CLASSES
 
+/**
+ * Classes do botão para elementos que não são <button> — sobretudo <Link>,
+ * que precisa continuar sendo âncora (navegação, abrir em nova aba, prefetch
+ * do Next) mas com a mesma aparência.
+ *
+ * Existe para que ninguém precise recopiar a lista de classes à mão: uma
+ * cópia manual não acompanha mudanças de token e sai do padrão em silêncio.
+ */
+export function classesBotao({
+  variant = 'primary',
+  size = 'md',
+  className,
+}: {
+  variant?: ButtonVariant
+  size?: ButtonSize
+  className?: string
+} = {}): string {
+  return cn(
+    'inline-flex items-center justify-center rounded-md font-medium transition-colors',
+    'disabled:opacity-50 disabled:cursor-not-allowed',
+    VARIANT_CLASSES[variant],
+    SIZE_CLASSES[size],
+    className,
+  )
+}
+
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
@@ -33,13 +59,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn(
-        'inline-flex items-center justify-center rounded-md font-medium transition-colors',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-        VARIANT_CLASSES[variant],
-        SIZE_CLASSES[size],
-        className,
-      )}
+      className={classesBotao({ variant, size, className })}
       {...props}
     >
       {loading && (
