@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Download, FileSearch } from 'lucide-react'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Field, Select } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
@@ -32,7 +33,7 @@ export function CardRelatorioTopItens() {
   const { data, isFetching } = useRelatorioTopItens(filtros, gerado)
 
   return (
-    <section className="rounded-lg border border-border-subtle bg-surface p-4 sm:p-6">
+    <Card as="section" padding="lg">
       <header className="mb-4">
         <h2 className="text-base font-semibold text-text">Itens Mais Utilizados</h2>
         <p className="text-sm text-text-muted">Ranking dos itens com maior consumo.</p>
@@ -111,6 +112,6 @@ export function CardRelatorioTopItens() {
           ) : null}
         </div>
       )}
-    </section>
+    </Card>
   )
 }

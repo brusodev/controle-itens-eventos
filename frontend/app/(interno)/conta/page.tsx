@@ -1,5 +1,6 @@
 'use client'
 
+import { Card } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { useUsuarioAtual } from '@/features/auth/hooks/use-usuario-atual'
 import { CardAlterarSenha } from '@/features/conta/components/card-alterar-senha'
@@ -24,10 +25,10 @@ export default function ContaPage() {
         <p className="text-sm text-text-muted">Gerencie suas informações pessoais e a segurança da conta.</p>
       </header>
 
-      <section className="rounded-lg border border-border-subtle bg-surface p-4 sm:p-6">
+      <Card as="section" padding="lg">
         <h2 className="mb-4 text-base font-semibold text-text">Dados pessoais</h2>
         <FormularioPerfil usuario={usuario} />
-      </section>
+      </Card>
 
       <CardAlterarSenha />
     </div>

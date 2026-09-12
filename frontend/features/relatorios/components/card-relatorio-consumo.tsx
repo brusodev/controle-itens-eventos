@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { FileSearch } from 'lucide-react'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
@@ -21,7 +22,7 @@ export function CardRelatorioConsumo() {
   const { data, isFetching } = useRelatorioConsumo(filtros, gerado)
 
   return (
-    <section className="rounded-lg border border-border-subtle bg-surface p-4 sm:p-6">
+    <Card as="section" padding="lg">
       <header className="mb-4">
         <h2 className="text-base font-semibold text-text">Consumo por Categoria</h2>
         <p className="text-sm text-text-muted">Análise consolidada do consumo agrupado por categoria.</p>
@@ -72,6 +73,6 @@ export function CardRelatorioConsumo() {
           ) : null}
         </div>
       )}
-    </section>
+    </Card>
   )
 }

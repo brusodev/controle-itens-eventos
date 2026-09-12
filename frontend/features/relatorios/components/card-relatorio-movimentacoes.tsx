@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { FileSearch } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Field, Select } from '@/components/ui/field'
 import { ResponsiveList, CardListItem } from '@/components/ui/responsive-list'
@@ -25,7 +26,7 @@ export function CardRelatorioMovimentacoes() {
   const { data, isFetching } = useRelatorioMovimentacoes(filtros, gerado)
 
   return (
-    <section className="rounded-lg border border-border-subtle bg-surface p-4 sm:p-6">
+    <Card as="section" padding="lg">
       <header className="mb-4">
         <h2 className="text-base font-semibold text-text">Movimentações de Estoque</h2>
         <p className="text-sm text-text-muted">Histórico detalhado de entradas e saídas.</p>
@@ -123,6 +124,6 @@ export function CardRelatorioMovimentacoes() {
           ) : null}
         </div>
       )}
-    </section>
+    </Card>
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { AlertTriangle } from 'lucide-react'
 import { Modal } from './modal'
 import { Button } from './button'
 
@@ -10,6 +11,8 @@ export interface ConfirmDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   danger?: boolean
+  /** Desabilita os dois botões e mostra spinner no de confirmar — evita duplo clique numa exclusão. */
+  loading?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
@@ -25,17 +28,27 @@ export function ConfirmDialog({
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   danger = false,
+  loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   return (
     <Modal open={open} onClose={onCancel} title={title}>
-      {description && <p className="mb-4 text-sm text-text-muted">{description}</p>}
-      <div className="flex justify-end gap-3">
-        <Button variant="secondary" onClick={onCancel}>
+      <div className="flex gap-3">
+        {danger && (
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 text-danger-strong"
+            strokeWidth={1.75}
+          />
+        )}
+        {description && <p className="text-sm text-text-muted">{description}</p>}
+      </div>
+      <div className="mt-4 flex justify-end gap-3">
+        <Button variant="secondary" onClick={onCancel} disabled={loading}>
           {cancelLabel}
         </Button>
-        <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>
+        <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={loading}>
           {confirmLabel}
         </Button>
       </div>

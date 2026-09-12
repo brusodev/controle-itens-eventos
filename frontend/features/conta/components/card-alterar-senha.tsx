@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { KeyRound } from 'lucide-react'
 import { classesBotao } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 /**
  * Card que leva à troca de senha — o único dos 6 cards de gerenciar-conta.html
@@ -11,7 +12,7 @@ import { classesBotao } from '@/components/ui/button'
  */
 export function CardAlterarSenha() {
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+    <Card as="section" padding="lg" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 className="text-base font-semibold text-text">Senha</h2>
         <p className="text-sm text-text-muted">Mantenha sua conta segura trocando a senha periodicamente.</p>
@@ -20,6 +21,6 @@ export function CardAlterarSenha() {
         <KeyRound aria-hidden="true" className="size-4" strokeWidth={1.75} />
         Alterar senha
       </Link>
-    </section>
+    </Card>
   )
 }

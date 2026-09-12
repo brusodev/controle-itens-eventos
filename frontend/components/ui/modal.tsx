@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 export interface ModalProps {
@@ -64,7 +65,7 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -76,9 +77,11 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
         onClick={(event) => event.stopPropagation()}
         className={cn(
           // Bottom-sheet no mobile (desliza de baixo, cantos só em cima),
-          // modal centralizado a partir de sm: (plano § UX).
+          // modal centralizado a partir de sm: (plano § UX). Animação de
+          // entrada diferente por breakpoint: sobe do rodapé no mobile,
+          // aparece com leve escala no desktop.
           'flex max-h-[85vh] w-full flex-col rounded-t-lg bg-surface shadow-lg',
-          'sm:max-w-lg sm:rounded-lg',
+          'animate-slide-up sm:max-w-lg sm:animate-scale-in sm:rounded-lg',
           className,
         )}
       >
@@ -88,9 +91,9 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
             <button
               onClick={onClose}
               aria-label="Fechar"
-              className="text-text-muted hover:text-text"
+              className="flex size-9 items-center justify-center rounded-md text-text-muted hover:bg-surface-muted hover:text-text"
             >
-              ×
+              <X aria-hidden="true" className="size-4.5" strokeWidth={1.75} />
             </button>
           </div>
         )}

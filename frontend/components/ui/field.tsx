@@ -1,4 +1,5 @@
 import { forwardRef, useId } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 export interface FieldProps {
@@ -6,7 +7,12 @@ export interface FieldProps {
   error?: string
   hint?: string
   required?: boolean
-  children: (id: string, describedBy: string | undefined) => React.ReactNode
+  /**
+   * `invalid` é passado como 3º argumento à render-prop — telas existentes
+   * que só leem `(id, describedBy)` continuam funcionando sem mudança; quem
+   * quiser a borda de erro passa `invalid` para Input/Select/Textarea.
+   */
+  children: (id: string, describedBy: string | undefined, invalid: boolean) => React.ReactNode
 }
 
 /**
@@ -31,7 +37,7 @@ export function Field({ label, error, hint, required, children }: FieldProps) {
           </span>
         )}
       </label>
-      {children(id, describedBy)}
+      {children(id, describedBy, Boolean(error))}
       {hint && !error && (
         <p id={hintId} className="text-xs text-text-muted">
           {hint}
@@ -48,33 +54,71 @@ export function Field({ label, error, hint, required, children }: FieldProps) {
 
 const inputBaseClasses =
   'h-11 rounded-md border border-border bg-surface px-3 text-sm text-text ' +
-  'placeholder:text-text-muted focus-visible:border-primary disabled:opacity-50'
+  'placeholder:text-text-muted transition-colors ' +
+  'focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40 ' +
+  'disabled:opacity-50'
 
-export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...props }, ref) {
-    return <input ref={ref} className={cn(inputBaseClasses, className)} {...props} />
-  },
-)
+/** Props em comum entre os 3 campos — `invalid` (de `Field`) pinta borda e liga `aria-invalid`. */
+interface CampoInvalidoProps {
+  invalid?: boolean
+}
+
+export const Input = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & CampoInvalidoProps
+>(function Input({ className, invalid, ...props }, ref) {
+  return (
+    <input
+      ref={ref}
+      aria-invalid={invalid || undefined}
+      className={cn(inputBaseClasses, invalid && 'border-danger-strong focus-visible:ring-danger-strong/30', className)}
+      {...props}
+    />
+  )
+})
 
 export const Select = forwardRef<
   HTMLSelectElement,
-  React.SelectHTMLAttributes<HTMLSelectElement>
->(function Select({ className, children, ...props }, ref) {
+  React.SelectHTMLAttributes<HTMLSelectElement> & CampoInvalidoProps
+>(function Select({ className, invalid, children, ...props }, ref) {
   return (
-    <select ref={ref} className={cn(inputBaseClasses, className)} {...props}>
-      {children}
-    </select>
+    <div className="relative">
+      <select
+        ref={ref}
+        aria-invalid={invalid || undefined}
+        className={cn(
+          inputBaseClasses,
+          'w-full appearance-none pr-9',
+          invalid && 'border-danger-strong focus-visible:ring-danger-strong/30',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        aria-hidden="true"
+        className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
+        strokeWidth={1.75}
+      />
+    </div>
   )
 })
 
 export const Textarea = forwardRef<
   HTMLTextAreaElement,
-  React.TextareaHTMLAttributes<HTMLTextAreaElement>
->(function Textarea({ className, ...props }, ref) {
+  React.TextareaHTMLAttributes<HTMLTextAreaElement> & CampoInvalidoProps
+>(function Textarea({ className, invalid, ...props }, ref) {
   return (
     <textarea
       ref={ref}
-      className={cn(inputBaseClasses, 'min-h-24 resize-y py-2', className)}
+      aria-invalid={invalid || undefined}
+      className={cn(
+        inputBaseClasses,
+        'min-h-24 resize-y py-2',
+        invalid && 'border-danger-strong focus-visible:ring-danger-strong/30',
+        className,
+      )}
       {...props}
     />
   )

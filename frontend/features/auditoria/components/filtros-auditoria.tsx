@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Field, Select, Input } from '@/components/ui/field'
 import { useUsuariosAuditoria } from '../hooks/use-usuarios-auditoria'
 import {
@@ -35,7 +36,7 @@ export function FiltrosAuditoriaForm({
   const temFiltro = Object.values(filtros).some(Boolean)
 
   return (
-    <div className="rounded-lg border border-border-subtle bg-surface p-4">
+    <Card>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Usuário">
           {(id) => (
@@ -96,6 +97,6 @@ export function FiltrosAuditoriaForm({
           </Button>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

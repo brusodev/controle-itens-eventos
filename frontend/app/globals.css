@@ -53,22 +53,15 @@
   --color-neutral-strong-solid: #424242;
   --color-neutral-strong-subtle: #e5e7eb;
 
-  /* Espaçamento — grid de 4px */
-  --space-1: 0.25rem; /* 4px */
-  --space-2: 0.5rem; /* 8px */
-  --space-3: 0.75rem; /* 12px */
-  --space-4: 1rem; /* 16px */
-  --space-6: 1.5rem; /* 24px */
-  --space-8: 2rem; /* 32px */
-  --space-12: 3rem; /* 48px */
-
-  /* Raio e sombra — 3 níveis cada */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 1rem;
-  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06);
-  --shadow-md: 0 4px 12px rgba(17, 24, 39, 0.1);
-  --shadow-lg: 0 8px 32px rgba(17, 24, 39, 0.16);
+  /*
+   * Espaçamento — a escala de 4px vem do `--spacing` nativo do Tailwind v4
+   * (base 0.25rem, multiplicada pelas classes `p-4`/`gap-3`/etc.), não de
+   * tokens próprios: o Tailwind v4 gera a escala de `--spacing`, um valor
+   * base, e não de uma lista `--space-1..12` — declarar isso em `@theme`
+   * não geraria nenhuma utility nova. Um bloco `--space-*` existiu aqui
+   * mas nunca teve consumidor (as classes já em uso usam o `--spacing`
+   * default, que já é este mesmo grid de 4px).
+   */
 }
 
 @theme inline {
@@ -105,6 +98,85 @@
   --color-purple-subtle: var(--color-purple-subtle);
   --color-neutral-strong: var(--color-neutral-strong-solid);
   --color-neutral-strong-subtle: var(--color-neutral-strong-subtle);
+
+  /*
+   * Raio — dentro do @theme para que `rounded-md`/`rounded-lg` venham DAQUI,
+   * não do default do Tailwind. Recalibrados para perto do default (md:
+   * 0.5rem vs 0.375rem nativo) em vez dos 0.625rem/1rem que estavam órfãos
+   * em :root: `rounded-md` está em quase todo input/botão/card do app, e o
+   * valor antigo arredondaria a UI inteira de uma vez ("efeito bolha").
+   */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /*
+   * Elevação em camadas — sombra de contorno + sombra de projeção, em vez de
+   * uma só. É o que faz um card parecer "apoiado" e não "com um blur embaixo".
+   * Mais sutil que o default do Tailwind de propósito: a UI é densa (tabelas,
+   * formulários longos) e sombra forte em muitos elementos vira ruído.
+   */
+  --shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06), 0 0 0 1px rgba(17, 24, 39, 0.03);
+  --shadow-md: 0 2px 4px rgba(17, 24, 39, 0.06), 0 4px 12px rgba(17, 24, 39, 0.08);
+  --shadow-lg: 0 4px 8px rgba(17, 24, 39, 0.06), 0 12px 32px rgba(17, 24, 39, 0.14);
+  --shadow-primary: 0 4px 14px rgba(102, 126, 234, 0.35);
+
+  /* Movimento — uma só fonte de duração/curva, para nada animar "diferente". */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fade-in: fade-in 150ms var(--ease-out-soft);
+  --animate-scale-in: scale-in 180ms var(--ease-out-soft);
+  --animate-slide-up: slide-up 220ms var(--ease-out-soft);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  /* Foco/ring — a regra global :focus-visible continua o piso; os primitivos usam isto. */
+  --color-ring: var(--color-primary-500);
+  --color-ring-offset: var(--color-neutral-0);
+
+  /* Tokeniza as duas últimas cores nativas do Tailwind em uso no shell. */
+  --color-sidebar: var(--color-neutral-900);
+  --color-skeleton: var(--color-neutral-200);
+}
+
+@layer utilities {
+  /*
+   * Gradiente da identidade (roxo→azul) — existia no CSS legado e caiu na
+   * migração, embora os dois stops continuassem nos tokens. Não é
+   * `bg-linear-to-r from-primary to-primary-emphasis` espalhado pelo código
+   * porque o ângulo e os stops são decisão de marca, feita UMA vez aqui.
+   * Uso deliberadamente contido: header da sidebar, avatar da topbar, título
+   * da home de módulos — nunca em botão de tabela nem em badge.
+   */
+  .bg-brand-gradient {
+    background-image: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-700) 100%);
+  }
+  .text-brand-gradient {
+    background-image: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-700) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
 }
 
 body {

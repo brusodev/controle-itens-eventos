@@ -24,11 +24,14 @@ export function ItemMenuLink({
   const { Icone } = item
 
   const classe = cn(
-    'flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
+    'relative flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
     // Colapsada centraliza o ícone; expandida mantém o padding lateral do legado.
     colapsada ? 'px-0 md:justify-center' : 'px-3',
     ativo
-      ? 'bg-white/10 text-white'
+      ? // Borda esquerda do legado (.menu-item.active), via pseudo-elemento
+        // para não empurrar o padding — ausente até aqui (comentário do
+        // arquivo já apontava a lacuna).
+        'bg-white/10 text-white before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-primary-300'
       : 'text-white/70 hover:bg-white/5 hover:text-white',
   )
 

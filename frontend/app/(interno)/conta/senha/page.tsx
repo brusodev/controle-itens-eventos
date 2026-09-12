@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import { FormularioSenha } from '@/features/conta/components/formulario-senha'
 
 /** Porta de alterar-senha.html — o formulário e suas regras vivem no componente. */
@@ -9,9 +10,9 @@ export default function AlterarSenhaPage() {
         <p className="text-sm text-text-muted">Crie uma senha forte para proteger sua conta.</p>
       </header>
 
-      <div className="rounded-lg border border-border-subtle bg-surface p-4 sm:p-6">
+      <Card padding="lg">
         <FormularioSenha />
-      </div>
+      </Card>
     </div>
   )
 }

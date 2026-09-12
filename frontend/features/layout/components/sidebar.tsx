@@ -47,7 +47,7 @@ export function Sidebar({
       <aside
         aria-label="Menu principal"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-neutral-900 text-white',
+          'fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-white',
           'transition-transform duration-200 md:transition-[width]',
           // Largura reduzida só no desktop — no mobile o drawer é sempre 260px.
           colapsada && 'md:w-[70px]',
@@ -56,8 +56,8 @@ export function Sidebar({
           abertaNoMobile ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className={cn('flex h-15 shrink-0 items-center gap-2 border-b border-white/10', colapsada ? 'px-3 md:justify-center' : 'px-4')}>
-          <Target aria-hidden="true" className="size-5 shrink-0 text-primary-300" strokeWidth={2} />
+        <div className={cn('flex h-15 shrink-0 items-center gap-2 border-b border-white/10 bg-brand-gradient', colapsada ? 'px-3 md:justify-center' : 'px-4')}>
+          <Target aria-hidden="true" className="size-5 shrink-0 text-white" strokeWidth={2} />
           <span className={cn('font-semibold', colapsada && 'md:hidden')}>Controle Itens</span>
           {/* Fechar o drawer: no mobile o overlay e o Esc não são descobríveis
               por toque — sem este botão a única saída óbvia era tocar fora. */}

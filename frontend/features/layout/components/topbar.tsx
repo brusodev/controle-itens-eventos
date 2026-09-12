@@ -40,7 +40,7 @@ export function Topbar({
   const IconeColapso = colapsada ? PanelLeftOpen : PanelLeftClose
 
   return (
-    <header className="sticky top-0 z-30 flex h-15 shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface px-3 sm:px-4">
+    <header className="sticky top-0 z-30 flex h-15 shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface/85 px-3 backdrop-blur-md sm:px-4">
       <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
@@ -71,7 +71,7 @@ export function Topbar({
           aria-haspopup="menu"
           className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-text hover:bg-surface-muted sm:px-3"
         >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-text-on-primary">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-gradient text-xs font-semibold text-text-on-primary">
             {usuario.nome.charAt(0).toUpperCase()}
           </span>
           {/* O nome some no mobile: com nomes longos ele espremia o título do módulo. */}

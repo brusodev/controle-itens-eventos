@@ -2,10 +2,10 @@ import { forwardRef } from 'react'
 import { cn } from '@/lib/cn'
 
 const VARIANT_CLASSES = {
-  primary: 'bg-primary text-text-on-primary hover:bg-primary-hover',
-  secondary: 'bg-surface text-text border border-border hover:bg-surface-muted',
-  success: 'bg-success text-text-on-primary hover:opacity-90',
-  danger: 'bg-danger-strong text-text-on-primary hover:opacity-90',
+  primary: 'bg-primary text-text-on-primary shadow-xs hover:bg-primary-hover hover:shadow-primary',
+  secondary: 'bg-surface text-text border border-border hover:bg-surface-muted hover:border-border',
+  success: 'bg-success text-text-on-primary shadow-xs hover:brightness-110',
+  danger: 'bg-danger-strong text-text-on-primary shadow-xs hover:brightness-110',
   ghost: 'bg-transparent text-text hover:bg-surface-muted',
 } as const
 
@@ -36,8 +36,10 @@ export function classesBotao({
   className?: string
 } = {}): string {
   return cn(
-    'inline-flex items-center justify-center rounded-md font-medium transition-colors',
-    'disabled:opacity-50 disabled:cursor-not-allowed',
+    'inline-flex items-center justify-center rounded-md font-medium',
+    'transition-[background-color,box-shadow,transform,border-color] duration-150',
+    'active:translate-y-px active:shadow-none',
+    'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0',
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,

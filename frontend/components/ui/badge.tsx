@@ -13,14 +13,24 @@ const TONE_CLASSES = {
 
 export type BadgeTone = keyof typeof TONE_CLASSES
 
-export function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode }) {
+export interface BadgeProps {
+  tone: BadgeTone
+  children: React.ReactNode
+  className?: string
+  /** Ponto de status à esquerda (ex.: indicador ao vivo), sem repetir o texto. */
+  dot?: boolean
+}
+
+export function Badge({ tone, children, className, dot }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide',
         TONE_CLASSES[tone],
+        className,
       )}
     >
+      {dot && <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />}
       {children}
     </span>
   )

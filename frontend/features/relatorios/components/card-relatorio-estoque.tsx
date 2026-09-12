@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { FileSearch, FileText } from 'lucide-react'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Field, Select } from '@/components/ui/field'
 import { ResponsiveList, CardListItem } from '@/components/ui/responsive-list'
@@ -24,7 +25,7 @@ export function CardRelatorioEstoque() {
   const { data, isFetching } = useRelatorioEstoque(filtros, gerado)
 
   return (
-    <section className="rounded-lg border border-border-subtle bg-surface p-4 sm:p-6">
+    <Card as="section" padding="lg">
       <header className="mb-4">
         <h2 className="text-base font-semibold text-text">Posição de Estoque</h2>
         <p className="text-sm text-text-muted">Visualize o estoque atual, consumo e disponibilidade por região.</p>
@@ -124,6 +125,6 @@ export function CardRelatorioEstoque() {
           ) : null}
         </div>
       )}
-    </section>
+    </Card>
   )
 }

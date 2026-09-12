@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useEstatisticasAuditoria } from '../hooks/use-estatisticas-auditoria'
 
@@ -14,14 +15,14 @@ export function CardsEstatisticas() {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {cards.map((card) => (
-        <div key={card.titulo} className="rounded-lg border border-border-subtle bg-surface p-4">
+        <Card key={card.titulo}>
           <p className="text-xs font-medium uppercase tracking-wide text-text-muted">{card.titulo}</p>
           {isLoading ? (
             <Skeleton className="mt-1 h-8 w-20" />
           ) : (
             <p className="mt-1 text-2xl font-bold text-text">{(card.valor ?? 0).toLocaleString('pt-BR')}</p>
           )}
-        </div>
+        </Card>
       ))}
     </div>
   )
