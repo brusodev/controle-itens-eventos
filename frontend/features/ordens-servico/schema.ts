@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MODULOS } from '@/features/modulos/config'
+import { camposPorModulo } from './campos-por-modulo'
 
 /**
  * Fonte única de tipo + validação do formulário de O.S. — ver plano
@@ -74,7 +75,15 @@ export const osSchema = z.object({
   servico: z.string().nullable().optional(),
 
   // Evento / pedido — `data` é texto livre, nunca ISO (ver docstring acima)
-  evento: z.string().min(1, 'Informe o evento.'),
+  //
+  // `evento` é opcional AQUI (schema base/leitura) porque Serviços Gráficos
+  // são pedidos pontuais sem evento (camposPorModulo().camposEventoObrigatorios
+  // é false para esse módulo) e o banco já tem O.S. gráficas com evento vazio.
+  // A obrigatoriedade condicional por módulo vive em `osFormSchema` (abaixo),
+  // usado só na escrita — se ficasse aqui, o parse da LISTAGEM (que usa este
+  // schema para toda O.S. já persistida) rejeitava essas O.S. e derrubava a
+  // tela inteira (uma linha inválida em `.map(parse)` lançava para todas).
+  evento: z.string().nullable().optional(),
   data: z.string().nullable().optional(),
   horario: z.string().nullable().optional(),
   local: z.string().nullable().optional(),
@@ -105,6 +114,13 @@ export const osSchema = z.object({
   signatarios: z.array(signatarioSchema),
 
   dataEmissao: z.string().nullable().optional(),
+  // Backend envia mas o schema não declarava — Zod v3 descarta (strip) campo
+  // não declarado ao fazer `.parse()`, então a tela de detalhe nunca via
+  // esses valores mesmo eles chegando na resposta da API.
+  dataEmissaoCompleta: z.string().nullable().optional(),
+  regiaoEstoque: z.number().nullable().optional(),
+  motivoExclusao: z.string().nullable().optional(),
+  dataExclusao: z.string().nullable().optional(),
 
   // Pagamento
   pagamentoVencimento: z.string().nullable().optional(),
@@ -114,6 +130,23 @@ export const osSchema = z.object({
 })
 
 export type OSForm = z.infer<typeof osSchema>
+
+/**
+ * Schema de ESCRITA — usado só pelo formulário (zodResolver). Reaplica como
+ * validação condicional as regras que `osSchema` deixou tolerantes para não
+ * quebrar a leitura de O.S. já persistidas: `evento` só é obrigatório nos
+ * módulos em que `camposPorModulo().camposEventoObrigatorios` é true (todos
+ * menos Serviços Gráficos — ver comentário acima de `evento` em `osSchema`).
+ */
+export const osFormSchema = osSchema.superRefine((dados, ctx) => {
+  if (camposPorModulo(dados.modulo).camposEventoObrigatorios && !dados.evento?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['evento'],
+      message: 'Informe o evento.',
+    })
+  }
+})
 
 /**
  * Uma O.S. já persistida sempre volta da API com `id` e `status` — só o

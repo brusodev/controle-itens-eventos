@@ -8,11 +8,14 @@ import { ResponsiveList } from '@/components/ui/responsive-list'
 import { Button } from '@/components/ui/button'
 import { useUsuarioAtual } from '@/features/auth/hooks/use-usuario-atual'
 import { useModulo } from '@/features/modulos/modulo-context'
+import { ApiError } from '@/lib/api-error'
 import { useOrdensServico } from '../../hooks/use-ordens-servico'
 import { useModalOS } from '../../hooks/use-modal-os'
+import { useModoVisualizacao } from '../../hooks/use-modo-visualizacao'
 import { EMPTY_FILTRO_OS, FiltrosOS, type FiltroOSState } from './filtros-os'
 import { CardOS } from './card-os'
 import { TabelaOS } from './tabela-os'
+import { ToggleModoVisualizacao } from './toggle-modo-visualizacao'
 import { ModalPagamento } from './modal-pagamento'
 import { ModalExcluirOS } from './modal-excluir-os'
 import { ModalCancelarOS } from './modal-cancelar-os'
@@ -31,9 +34,10 @@ export function ListaOS() {
   const [reordenarAberto, setReordenarAberto] = useState(false)
   const { modal, fechar, abrirExcluir, abrirCancelar, abrirAtividade, abrirPagamento } =
     useModalOS()
+  const { modo, setModo } = useModoVisualizacao()
 
   const { data: usuario } = useUsuarioAtual()
-  const { data: ordens, isLoading, isError } = useOrdensServico(modulo, filtro)
+  const { data: ordens, isLoading, isError, error } = useOrdensServico(modulo, filtro)
 
   if (!usuario) return null // aguarda sessão resolver antes de decidir ações visíveis
 
@@ -43,11 +47,14 @@ export function ListaOS() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <FiltrosOS value={filtro} onChange={setFiltro} />
-        {usuario.perfil === 'admin' && filtro.grupo && (
-          <Button variant="secondary" size="sm" onClick={() => setReordenarAberto(true)}>
-            Reordenar OS
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <ToggleModoVisualizacao modo={modo} onChange={setModo} />
+          {usuario.perfil === 'admin' && filtro.grupo && (
+            <Button variant="secondary" size="sm" onClick={() => setReordenarAberto(true)}>
+              Reordenar OS
+            </Button>
+          )}
+        </div>
       </div>
 
       {isLoading && (
@@ -60,7 +67,11 @@ export function ListaOS() {
       {isError && (
         <EmptyState
           title="Erro ao carregar ordens de serviço"
-          description="Verifique se o backend está rodando e tente novamente."
+          description={
+            error instanceof ApiError
+              ? 'Verifique se o backend está rodando e tente novamente.'
+              : 'Os dados recebidos não puderam ser processados. Tente novamente ou avise o suporte.'
+          }
         />
       )}
 
@@ -73,7 +84,16 @@ export function ListaOS() {
 
       {ordens && ordens.length > 0 && (
         <ResponsiveList
-          table={<TabelaOS ordens={ordens} />}
+          modo={modo}
+          className={modo === 'grid' ? 'lg:grid-cols-2' : undefined}
+          table={
+            <TabelaOS
+              ordens={ordens}
+              perfil={usuario.perfil}
+              onAbrir={(id) => router.push(`/os/${id}`)}
+              onEditar={(id) => router.push(`/os/${id}/editar`)}
+            />
+          }
           cards={ordens.map((os) => (
             <CardOS
               key={os.id}

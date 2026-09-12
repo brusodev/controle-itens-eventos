@@ -4,16 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { getModuloConfig } from '@/features/modulos/config'
 import { useModulo } from '@/features/modulos/modulo-context'
 import { usePedidosOrigem } from '@/features/pedidos-graficos/hooks/use-pedidos-origem'
 import { useVincularOS } from '@/features/pedidos-graficos/hooks/use-vincular-os'
-import { osAPI } from '../../api'
-import { EMPTY_OS, osSchema, type OSForm } from '../../schema'
+import { EMPTY_OS, osFormSchema, type OSForm } from '../../schema'
 import { camposPorModulo } from '../../campos-por-modulo'
+import { useOS } from '../../hooks/use-os'
 import { useSalvarOS } from '../../hooks/use-salvar-os'
 import { useSugestoesOS } from '../../hooks/use-sugestoes-os'
 import { useSetoresSolicitantes } from '../../hooks/use-setores-solicitantes'
@@ -41,14 +40,10 @@ export function FormularioOS({ osId }: { osId?: number }) {
   const config = getModuloConfig(modulo)
   const camposModulo = camposPorModulo(modulo)
 
-  const { data: osExistente } = useQuery({
-    queryKey: ['ordens-servico', osId],
-    queryFn: () => osAPI.obter(osId!),
-    enabled: !!osId,
-  })
+  const { data: osExistente } = useOS(osId)
 
   const form = useForm<OSForm>({
-    resolver: zodResolver(osSchema),
+    resolver: zodResolver(osFormSchema),
     defaultValues: osExistente ?? { ...EMPTY_OS, modulo },
     values: osExistente,
   })

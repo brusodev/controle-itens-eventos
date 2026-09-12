@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api'
+import { debugLog } from '@/lib/debug-log'
 import type { Modulo } from '@/features/modulos/config'
 import { osSchema, type OSForm, type OSPersistida } from './schema'
 import { atividadePortalSchema, comentarioSchema, type AtividadePortal, type Comentario } from './schema-atividade'
@@ -28,7 +29,19 @@ export const osAPI = {
     if (params.filtro) query.set('filtro', params.filtro)
     const qs = query.toString()
     const data = await apiFetch<unknown[]>(`/api/ordens-servico/${qs ? `?${qs}` : ''}`, { modulo })
-    return data.map((item) => osPersistidaSchema.parse(item))
+
+    // `safeParse` por item, não `.map(parse)`: um único registro que não bate
+    // o schema (ex. O.S. antiga com campo divergente) não pode apagar a lista
+    // inteira — foi exatamente esse o bug que zerava a listagem de Serviços
+    // Gráficos (ver `evento` em schema.ts). Descarta só a linha inválida e
+    // avisa em dev; `obter()`/`criar()`/`atualizar()` continuam com `.parse()`
+    // porque ali é uma O.S. só, e renderizar pela metade é pior que falhar.
+    const resultados = data.map((item) => osPersistidaSchema.safeParse(item))
+    const invalidas = resultados.filter((resultado) => !resultado.success)
+    if (invalidas.length > 0) {
+      debugLog(`osAPI.listar: ${invalidas.length} de ${data.length} O.S. descartadas por schema inválido`, invalidas)
+    }
+    return resultados.flatMap((resultado) => (resultado.success ? [resultado.data] : []))
   },
 
   async obter(id: number): Promise<OSPersistida> {
