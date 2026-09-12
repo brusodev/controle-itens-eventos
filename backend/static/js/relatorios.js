@@ -287,10 +287,10 @@ function exibirResultadoRelatorioEstoque(data) {
 
         tabelaHTML += `
             <tr>
-                <td>${item.categoria}</td>
-                <td>${item.descricao}</td>
-                <td>${item.unidade}</td>
-                <td>${item.regiao}</td>
+                <td>${escaparHtml(item.categoria)}</td>
+                <td>${escaparHtml(item.descricao)}</td>
+                <td>${escaparHtml(item.unidade)}</td>
+                <td>${escaparHtml(item.regiao)}</td>
                 <td>${item.quantidade_inicial.toLocaleString('pt-BR')}</td>
                 <td>${item.quantidade_gasto.toLocaleString('pt-BR')}</td>
                 <td>${item.quantidade_disponivel.toLocaleString('pt-BR')}</td>
@@ -404,13 +404,13 @@ function exibirResultadoRelatorioMovimentacoes(data) {
 
         tabelaHTML += `
             <tr>
-                <td>${mov.data}</td>
-                <td>${mov.item_descricao}</td>
-                <td>${mov.numero_os}</td>
-                <td>${mov.regiao}</td>
+                <td>${escaparHtml(mov.data)}</td>
+                <td>${escaparHtml(mov.item_descricao)}</td>
+                <td>${escaparHtml(mov.numero_os)}</td>
+                <td>${escaparHtml(mov.regiao)}</td>
                 <td>${mov.quantidade.toLocaleString('pt-BR')}</td>
-                <td><span class="${badgeClass}">${mov.tipo}</span></td>
-                <td>${mov.observacao || '-'}</td>
+                <td><span class="${badgeClass}">${escaparHtml(mov.tipo)}</span></td>
+                <td>${escaparHtml(mov.observacao) || '-'}</td>
             </tr>
         `;
     });
@@ -462,7 +462,7 @@ function exibirResultadoRelatorioCategoria(data) {
 
     data.categorias.forEach(cat => {
         tabelaHTML += `
-            <h5 style="margin-top: 20px; color: #667eea;">${cat.categoria} (Natureza: ${cat.natureza || 'N/A'})</h5>
+            <h5 style="margin-top: 20px; color: #667eea;">${escaparHtml(cat.categoria)} (Natureza: ${escaparHtml(cat.natureza) || 'N/A'})</h5>
             <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 10px;">
                 Total de itens diferentes: ${cat.total_itens_diferentes} |
                 Consumo total: ${cat.total_consumo.toLocaleString('pt-BR')}
@@ -482,8 +482,8 @@ function exibirResultadoRelatorioCategoria(data) {
         cat.itens.forEach(item => {
             tabelaHTML += `
                 <tr>
-                    <td>${item.descricao}</td>
-                    <td>${item.unidade}</td>
+                    <td>${escaparHtml(item.descricao)}</td>
+                    <td>${escaparHtml(item.unidade)}</td>
                     <td>${item.total_consumido.toLocaleString('pt-BR')}</td>
                     <td>${item.vezes_utilizado}</td>
                 </tr>
@@ -582,9 +582,9 @@ function exibirResultadoRelatorioTopItens(data) {
         tabelaHTML += `
             <tr>
                 <td><span class="ranking-position ${posClass}">${item.posicao}</span></td>
-                <td><strong>${item.descricao}</strong></td>
-                <td>${item.categoria}</td>
-                <td>${item.unidade}</td>
+                <td><strong>${escaparHtml(item.descricao)}</strong></td>
+                <td>${escaparHtml(item.categoria)}</td>
+                <td>${escaparHtml(item.unidade)}</td>
                 <td>${item.total_consumido.toLocaleString('pt-BR')}</td>
                 <td>${item.vezes_utilizado}</td>
             </tr>
@@ -756,11 +756,11 @@ async function gerarRelatorioOrgEventos() {
 
             html += `
                 <tr>
-                    <td><strong>${ev.numeroOS}</strong></td>
-                    <td title="${ev.evento}">${ev.evento.length > 35 ? ev.evento.substring(0, 33) + '…' : ev.evento}</td>
-                    <td>${ev.dataEvento}</td>
-                    <td>${ev.grupoNome}</td>
-                    <td title="${ev.empresa}">${ev.empresa.length > 30 ? ev.empresa.substring(0, 28) + '…' : ev.empresa}</td>
+                    <td><strong>${escaparHtml(ev.numeroOS)}</strong></td>
+                    <td title="${escaparHtml(ev.evento)}">${escaparHtml(ev.evento.length > 35 ? ev.evento.substring(0, 33) + '…' : ev.evento)}</td>
+                    <td>${escaparHtml(ev.dataEvento)}</td>
+                    <td>${escaparHtml(ev.grupoNome)}</td>
+                    <td title="${escaparHtml(ev.empresa)}">${escaparHtml(ev.empresa.length > 30 ? ev.empresa.substring(0, 28) + '…' : ev.empresa)}</td>
                     <td>${badge}</td>
                     <td style="text-align:right;">${ev.qtdPessoas > 0 ? ev.qtdPessoas.toLocaleString('pt-BR') : '—'}</td>
                     <td style="text-align:right;">${fmtV(ev.custoMontagem)}</td>
@@ -863,7 +863,7 @@ async function gerarRelatorioTransporteSetores() {
         data.setores.forEach(s => {
             html += `
                 <tr>
-                    <td><strong>${s.setor}</strong></td>
+                    <td><strong>${escaparHtml(s.setor)}</strong></td>
                     <td style="text-align:right;">${s.qtdOS}</td>
                     <td class="col-destaque" style="text-align:right;">R$ ${_fmtBRL(s.valorTotal)}</td>
                 </tr>
@@ -902,11 +902,11 @@ async function gerarRelatorioTransporteSetores() {
             const badge = `<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:600;background:${stCfg.bg};color:${stCfg.cor};">${stCfg.texto}</span>`;
             html += `
                 <tr>
-                    <td><strong>${o.numeroOS}</strong></td>
-                    <td>${o.setor}</td>
-                    <td title="${o.evento}">${o.evento.length > 30 ? o.evento.substring(0, 28) + '…' : o.evento}</td>
-                    <td>${o.dataEvento}</td>
-                    <td title="${o.empresa}">${o.empresa.length > 28 ? o.empresa.substring(0, 26) + '…' : o.empresa}</td>
+                    <td><strong>${escaparHtml(o.numeroOS)}</strong></td>
+                    <td>${escaparHtml(o.setor)}</td>
+                    <td title="${escaparHtml(o.evento)}">${escaparHtml(o.evento.length > 30 ? o.evento.substring(0, 28) + '…' : o.evento)}</td>
+                    <td>${escaparHtml(o.dataEvento)}</td>
+                    <td title="${escaparHtml(o.empresa)}">${escaparHtml(o.empresa.length > 28 ? o.empresa.substring(0, 26) + '…' : o.empresa)}</td>
                     <td>${badge}</td>
                     <td style="text-align:right;">${o.totalItens}</td>
                     <td class="col-destaque" style="text-align:right;">R$ ${_fmtBRL(o.valorTotal)}</td>
@@ -1051,12 +1051,12 @@ async function gerarRelatorioPagamentos() {
 
             html += `
                 <tr style="${rowStyle}">
-                    <td><strong>${p.numeroOS}</strong></td>
-                    <td>${p.empresa}</td>
-                    <td>${p.modulo}</td>
-                    <td>${p.regiao}</td>
-                    <td>${p.dataEmissao}</td>
-                    <td><strong>${p.vencimento}</strong></td>
+                    <td><strong>${escaparHtml(p.numeroOS)}</strong></td>
+                    <td>${escaparHtml(p.empresa)}</td>
+                    <td>${escaparHtml(p.modulo)}</td>
+                    <td>${escaparHtml(p.regiao)}</td>
+                    <td>${escaparHtml(p.dataEmissao)}</td>
+                    <td><strong>${escaparHtml(p.vencimento)}</strong></td>
                     <td style="text-align:right;">${valorFmt === '—' ? '—' : 'R$ ' + valorFmt}</td>
                     <td style="text-align:center;">${badge}</td>
                 </tr>

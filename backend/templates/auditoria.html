@@ -615,12 +615,12 @@
                 <tr>
                     <td>${formatarDataHora(a.data_hora)}</td>
                     <td>
-                        <strong>${a.usuario_nome}</strong><br>
-                        <small style="color: #6b7280;">${a.usuario_email}</small>
+                        <strong>${escapeHtml(a.usuario_nome)}</strong><br>
+                        <small style="color: #6b7280;">${escapeHtml(a.usuario_email)}</small>
                     </td>
                     <td><span class="badge badge-${a.acao.toLowerCase()}">${traduzirAcao(a.acao)}</span></td>
                     <td>${traduzirModulo(a.modulo)}</td>
-                    <td>${a.descricao}</td>
+                    <td>${escapeHtml(a.descricao)}</td>
                     <td>
                         <button class="btn-detalhes" onclick='abrirDetalhes(${JSON.stringify(a).replace(/'/g, "&#39;")})'>
                             👁️ Ver
@@ -709,7 +709,7 @@
                     </div>
                     <div class="info-item">
                         <span class="info-label">Usuário:</span>
-                        <span class="info-value">${auditoria.usuario_nome} (${auditoria.usuario_email})</span>
+                        <span class="info-value">${escapeHtml(auditoria.usuario_nome)} (${escapeHtml(auditoria.usuario_email)})</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Ação:</span>
@@ -721,15 +721,15 @@
                     </div>
                     <div class="info-item">
                         <span class="info-label">Descrição:</span>
-                        <span class="info-value">${auditoria.descricao}</span>
+                        <span class="info-value">${escapeHtml(auditoria.descricao)}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">IP:</span>
-                        <span class="info-value">${auditoria.ip_address || 'Não disponível'}</span>
+                        <span class="info-value">${escapeHtml(auditoria.ip_address) || 'Não disponível'}</span>
                     </div>
                     <div class="info-item" style="border-bottom: none;">
                         <span class="info-label">User Agent:</span>
-                        <span class="info-value" style="font-size: 0.8rem;">${auditoria.user_agent || 'Não disponível'}</span>
+                        <span class="info-value" style="font-size: 0.8rem;">${escapeHtml(auditoria.user_agent) || 'Não disponível'}</span>
                     </div>
                 </div>
             `;
@@ -894,7 +894,7 @@
 
                     if (typeof dados === 'object') {
                         Object.entries(dados).forEach(([k, v]) => {
-                            html += `<div style="margin: 4px 0;"><strong>${formatarChave(k)}:</strong> ${v}</div>`;
+                            html += `<div style="margin: 4px 0;"><strong>${escapeHtml(formatarChave(k))}:</strong> ${escapeHtml(String(v))}</div>`;
                         });
                     }
 
@@ -916,10 +916,10 @@
 
                     if (typeof item === 'object') {
                         Object.entries(item).forEach(([k, v]) => {
-                            html += `<div style="margin: 4px 0;"><strong>${formatarChave(k)}:</strong> ${formatarValor(v, k)}</div>`;
+                            html += `<div style="margin: 4px 0;"><strong>${escapeHtml(formatarChave(k))}:</strong> ${formatarValor(v, k)}</div>`;
                         });
                     } else {
-                        html += item;
+                        html += escapeHtml(String(item));
                     }
 
                     html += '</div></details>';
@@ -942,6 +942,7 @@
         }
 
         function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -949,7 +950,7 @@
                 '"': '&quot;',
                 "'": '&#039;'
             };
-            return text.replace(/[&<>"']/g, m => map[m]);
+            return String(text).replace(/[&<>"']/g, m => map[m]);
         }
 
 

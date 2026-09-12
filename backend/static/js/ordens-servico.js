@@ -100,9 +100,9 @@ async function filtrarOS() {
                     </div>
                 </div>
                 <div class="item-body os-card-body">
-                    <h3>${os.evento || 'Sem título'}</h3>
-                    <p><strong>Detentora:</strong> ${os.detentora || 'N/A'}</p>
-                    <p><strong>Data do Evento:</strong> ${os.data || 'N/A'}</p>
+                    <h3>${escaparHtml(os.evento) || 'Sem título'}</h3>
+                    <p><strong>Detentora:</strong> ${escaparHtml(os.detentora) || 'N/A'}</p>
+                    <p><strong>Data do Evento:</strong> ${escaparHtml(os.data) || 'N/A'}</p>
                     <p><strong>Emitida em:</strong> ${new Date(os.dataEmissao).toLocaleDateString('pt-BR')}</p>
                     <p><strong>Itens:</strong> ${os.itens ? os.itens.length : 0}</p>
                 </div>
@@ -1216,7 +1216,7 @@ async function _carregarAtividade(osId) {
             ? '<p style="color:#aaa;font-style:italic;font-size:.88rem;">Não há aceite registrado.</p>'
             : data.aceites.map(a => `
                 <div style="padding:.6rem .75rem;background:#e8f5e9;border-radius:6px;border-left:3px solid #2e7d32;margin-bottom:.4rem;">
-                    <div style="font-size:.9rem;color:#1b5e20;font-weight:600;">✅ Aceito por ${a.nomeResponsavel || '—'}</div>
+                    <div style="font-size:.9rem;color:#1b5e20;font-weight:600;">✅ Aceito por ${escaparHtml(a.nomeResponsavel) || '—'}</div>
                     <div style="font-size:.8rem;color:#555;margin-top:.2rem;">${fmt(a.dataHora)}</div>
                     ${a.assinaturaPath ? `<img src="/static/${a.assinaturaPath}" style="max-width:100%;border:1px solid #c8e6c9;border-radius:4px;margin-top:.4rem;" alt="Assinatura">` : ''}
                 </div>`).join('');
@@ -1226,7 +1226,7 @@ async function _carregarAtividade(osId) {
             ? '<p style="color:#aaa;font-style:italic;font-size:.88rem;">Nenhuma revisão.</p>'
             : data.revisoes.map(r => `
                 <div style="padding:.55rem .75rem;border-left:3px solid ${r.descricao?.includes('[RECUSA]') ? '#e53935' : '#9fa8da'};background:${r.descricao?.includes('[RECUSA]') ? '#ffebee' : '#f5f5f5'};border-radius:0 6px 6px 0;margin-bottom:.5rem;">
-                    <div style="font-size:.9rem;color:#333;">${r.descricao || '—'}</div>
+                    <div style="font-size:.9rem;color:#333;">${escaparHtml(r.descricao) || '—'}</div>
                     <div style="font-size:.75rem;color:#888;margin-top:.2rem;">${fmt(r.criadoEm)}</div>
                 </div>`).join('');
 
@@ -1235,7 +1235,7 @@ async function _carregarAtividade(osId) {
             ? '<p style="color:#aaa;font-style:italic;font-size:.88rem;">Nenhuma mensagem ainda.</p>'
             : data.comentarios.map(c => {
                 const isOperador = c.autorPerfil === 'admin' || c.autorPerfil === 'comum';
-                const autor = isOperador ? (c.autorNome || 'Operador') : (c.autorNome || 'Empresa');
+                const autor = escaparHtml(isOperador ? (c.autorNome || 'Operador') : (c.autorNome || 'Empresa'));
                 const bg = isOperador ? '#e3f2fd' : '#f5f5f5';
                 const border = isOperador ? '#1565c0' : '#9e9e9e';
                 const align = isOperador ? 'flex-end' : 'flex-start';
@@ -1244,7 +1244,7 @@ async function _carregarAtividade(osId) {
                 <div style="display:flex;flex-direction:column;align-items:${align};margin-bottom:.6rem;">
                     <div style="font-size:.7rem;color:${labelColor};font-weight:600;margin-bottom:.15rem;">${isOperador ? '🏢 ' : '🏭 '}${autor}</div>
                     <div style="max-width:85%;padding:.55rem .75rem;background:${bg};border-radius:8px;border-left:3px solid ${border};">
-                        <div style="font-size:.9rem;color:#333;">${c.texto || '—'}</div>
+                        <div style="font-size:.9rem;color:#333;">${escaparHtml(c.texto) || '—'}</div>
                         <div style="font-size:.72rem;color:#aaa;margin-top:.2rem;text-align:right;">${fmt(c.criadoEm)}</div>
                     </div>
                 </div>`;
@@ -1508,12 +1508,12 @@ async function abrirModalEditarTrajeto(osId) {
     if (anterior) anterior.remove();
 
     let linhasHTML = os.itens.map((item, idx) => {
-        const origem = item.trajetoOrigem || '';
-        const destino = item.trajetoDestino || '';
+        const origem = escaparHtml(item.trajetoOrigem || '');
+        const destino = escaparHtml(item.trajetoDestino || '');
         const tipo = item.trajetoTipo || '';
         return `
         <tr>
-            <td style="padding:6px 8px;font-size:.85rem;">${idx+1}. ${item.descricao.substring(0,45)}...</td>
+            <td style="padding:6px 8px;font-size:.85rem;">${idx+1}. ${escaparHtml(item.descricao.substring(0,45))}...</td>
             <td style="padding:4px;">
                 <input type="text" data-item-id="${item.id}" data-campo="origem"
                     value="${origem}" placeholder="Cidade origem" maxlength="100"
@@ -1691,8 +1691,8 @@ async function abrirModalReordenarOS() {
             tr.innerHTML = `
                 <td style="padding:.5rem .4rem;color:#aaa;font-size:1.1rem;text-align:center;user-select:none;">⠿</td>
                 <td style="padding:.5rem .75rem;font-weight:700;color:#1a237e;" class="novo-numero">OS-${String(idx + 1).padStart(3, '0')}</td>
-                <td style="padding:.5rem .75rem;color:#555;">${os.numeroOS}</td>
-                <td style="padding:.5rem .75rem;">${os.evento || '—'}</td>
+                <td style="padding:.5rem .75rem;color:#555;">${escaparHtml(os.numeroOS)}</td>
+                <td style="padding:.5rem .75rem;">${escaparHtml(os.evento) || '—'}</td>
                 <td style="padding:.5rem .75rem;color:#777;font-size:.85rem;">${dataEmissao}</td>
             `;
 

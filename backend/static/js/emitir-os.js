@@ -354,9 +354,9 @@ function abrirSeletorItens() {
 
             const cfgSeletor = getModuleConfig();
             itensHtml += `
-                <div class="seletor-item-row ${jaSelecionado ? 'selecionado' : ''}" data-item-id="${item.id}" data-cat="${cat}" data-nome="${item.descricao.toLowerCase()}" ${dispAttr}>
+                <div class="seletor-item-row ${jaSelecionado ? 'selecionado' : ''}" data-item-id="${item.id}" data-cat="${cat}" data-nome="${escaparHtml(item.descricao.toLowerCase())}" ${dispAttr}>
                     <input type="checkbox" ${jaSelecionado ? 'checked' : ''} onchange="toggleItemSeletor(this)">
-                    <span class="item-nome" onclick="this.previousElementSibling.click()">${item.descricao}</span>
+                    <span class="item-nome" onclick="this.previousElementSibling.click()">${escaparHtml(item.descricao)}</span>
                     <span class="item-unidade">${item.unidade || ''}</span>
                     ${badge}
                     ${cfgSeletor.usaDiarias ? `
@@ -627,7 +627,7 @@ function renderizarTabelaItensOS() {
         if (cfg.usaDiarias) {
             tr.innerHTML = `
                 <td style="text-align: center; color: #888;">${idx + 1}</td>
-                <td class="item-descricao">${item.descricao}</td>
+                <td class="item-descricao">${escaparHtml(item.descricao)}</td>
                 <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
                 <td><input type="number" value="${item.diarias}" min="1" oninput="atualizarItemTabela(${idx}, 'diarias', this.value)"></td>
                 <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
@@ -636,12 +636,12 @@ function renderizarTabelaItensOS() {
             `;
         } else if (cfg.usaTrajeto) {
             // Transporte: sem diárias, com campos de trajeto por item
-            const origem = item.trajetoOrigem || '';
-            const destino = item.trajetoDestino || '';
+            const origem = escaparHtml(item.trajetoOrigem || '');
+            const destino = escaparHtml(item.trajetoDestino || '');
             const tipo = item.trajetoTipo || '';
             tr.innerHTML = `
                 <td style="text-align: center; color: #888;">${idx + 1}</td>
-                <td class="item-descricao">${item.descricao}</td>
+                <td class="item-descricao">${escaparHtml(item.descricao)}</td>
                 <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
                 <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)" style="width:90px;"></td>
                 <td><input type="text" value="${origem}" placeholder="Cidade origem" maxlength="100"
@@ -667,7 +667,7 @@ function renderizarTabelaItensOS() {
             // Sem diárias e sem trajeto (ex.: Serviços Gráficos): Qtd direta + total
             tr.innerHTML = `
                 <td style="text-align: center; color: #888;">${idx + 1}</td>
-                <td class="item-descricao">${item.descricao}</td>
+                <td class="item-descricao">${escaparHtml(item.descricao)}</td>
                 <td class="item-categoria">${formatarNomeCategoria(item.categoria)}</td>
                 <td><input type="number" value="${item.qtdSolicitada}" min="0" step="any" oninput="atualizarItemTabela(${idx}, 'qtd', this.value)"></td>
                 <td class="td-total">${total}</td>
@@ -959,7 +959,7 @@ function gerarPreviewOS(dados) {
                     </tr>
                     <tr>
                         <td><strong>DETENTORA:</strong></td>
-                        <td colspan="3">${dados.detentora}</td>
+                        <td colspan="3">${escaparHtml(dados.detentora)}</td>
                     </tr>
                     <tr>
                         <td><strong>SERVIÇO:</strong></td>
@@ -969,9 +969,9 @@ function gerarPreviewOS(dados) {
                     </tr>
                     <tr>
                         <td><strong>CNPJ:</strong></td>
-                        <td>${dados.cnpj}</td>
+                        <td>${escaparHtml(dados.cnpj)}</td>
                         <td><strong>${cfg.grupoLabelUpper}:</strong></td>
-                        <td>${dados.grupo || ''}</td>
+                        <td>${escaparHtml(dados.grupo) || ''}</td>
                     </tr>
                 </table>
             </div>
@@ -981,31 +981,31 @@ function gerarPreviewOS(dados) {
                     ${dados.evento ? `
                     <tr>
                         <td style="width: 30%;"><strong>EVENTO:</strong></td>
-                        <td colspan="3">${dados.evento}</td>
+                        <td colspan="3">${escaparHtml(dados.evento)}</td>
                     </tr>` : ''}
                     ${dados.dataEvento ? `
                     <tr>
                         <td style="width: 30%;"><strong>${cfg.osDataLabel}:</strong></td>
-                        <td colspan="3">${dados.dataEvento}</td>
+                        <td colspan="3">${escaparHtml(dados.dataEvento)}</td>
                     </tr>` : ''}
                     ${dados.horario ? `
                     <tr>
                         <td style="width: 30%;"><strong>${cfg.osHorarioLabel}:</strong></td>
-                        <td colspan="3">${dados.horario}</td>
+                        <td colspan="3">${escaparHtml(dados.horario)}</td>
                     </tr>` : ''}
                     ${dados.local ? `
                     <tr>
                         <td style="width: 30%;"><strong>${cfg.osLocalLabel}:</strong></td>
-                        <td colspan="3">${dados.local}</td>
+                        <td colspan="3">${escaparHtml(dados.local)}</td>
                     </tr>` : ''}
                     <tr>
                         <td style="width: 30%;"><strong>RESPONSÁVEL:</strong></td>
-                        <td colspan="3">${dados.responsavel || ''}</td>
+                        <td colspan="3">${escaparHtml(dados.responsavel) || ''}</td>
                     </tr>
                     ${(modulo === 'transporte' || modulo === 'servicos_graficos') && dados.setorSolicitante ? `
                     <tr>
                         <td><strong>SETOR SOLICITANTE:</strong></td>
-                        <td colspan="3">${dados.setorSolicitante}</td>
+                        <td colspan="3">${escaparHtml(dados.setorSolicitante)}</td>
                     </tr>` : ''}
                     ${modulo === 'servicos_graficos' && dados.dataPedido ? `
                     <tr>
@@ -1051,7 +1051,7 @@ function gerarPreviewOS(dados) {
                             return `
                             <tr style="background-color: #e2efd9;">
                                 <td style="text-align: center;">${item.num}</td>
-                                <td style="text-align: left; padding-left: 8px;">${item.descricao}</td>
+                                <td style="text-align: left; padding-left: 8px;">${escaparHtml(item.descricao)}</td>
                                 <td style="text-align: center;">${item.itemBec || ''}</td>
                                 ${cfg.usaDiarias ? `<td style="text-align: center;">${diarias}</td>` : ''}
                                 <td style="text-align: right; padding-right: 8px;">${cfg.usaDiarias ? qtdSolFmt : qtdTotalFmt}</td>
@@ -1072,13 +1072,13 @@ function gerarPreviewOS(dados) {
 
             <div class="os-section">
                 <p style="margin: 5px 0;"><strong>JUSTIFICATIVA:</strong></p>
-                <div class="os-justificativa">${(dados.justificativa || '').replace(/\n/g, '<br>')}</div>
+                <div class="os-justificativa">${escaparHtml(dados.justificativa || '').replace(/\n/g, '<br>')}</div>
             </div>
 
             ${dados.observacoes ? `
             <div class="os-section">
                 <p style="margin: 5px 0;"><strong>OBSERVAÇÕES:</strong></p>
-                <div class="os-justificativa">${dados.observacoes.replace(/\n/g, '<br>')}</div>
+                <div class="os-justificativa">${escaparHtml(dados.observacoes).replace(/\n/g, '<br>')}</div>
             </div>
             ` : ''}
 
@@ -1322,8 +1322,8 @@ function gerarSignatariosPreview(dados) {
         html += `
             <div style="text-align: center; min-width: 200px; flex: 1; max-width: 45%;">
                 <div style="border-bottom: 1px solid #000; width: 100%; margin-bottom: 4px;">&nbsp;</div>
-                <div style="font-weight: bold; font-size: 11px;">${sig.nome}</div>
-                <div style="font-size: 10px;">${sig.cargo}</div>
+                <div style="font-weight: bold; font-size: 11px;">${escaparHtml(sig.nome)}</div>
+                <div style="font-size: 10px;">${escaparHtml(sig.cargo)}</div>
             </div>
         `;
     });
