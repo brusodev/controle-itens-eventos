@@ -103,3 +103,4 @@ config_local.py
 /var/log/
 *.service
 backup_*.db.gz
+.vercel
