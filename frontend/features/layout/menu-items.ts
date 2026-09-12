@@ -44,7 +44,7 @@ export const ITENS_MENU_BASE: readonly ItemMenu[] = [
   { id: 'categorias', label: 'Categorias', Icone: Tags, href: '/categorias', migrado: true },
   { id: 'emitir-os', label: 'Emitir O.S.', Icone: FileText, href: '/os/nova', migrado: true },
   { id: 'ordens-servico', label: 'Ordens de Serviço', Icone: ClipboardList, href: '/os', migrado: true },
-  { id: 'pedidos-graficos', label: 'Pedidos/Orçamentos', Icone: Receipt, href: '/pedidos-graficos', migrado: false },
+  { id: 'pedidos-graficos', label: 'Pedidos/Orçamentos', Icone: Receipt, href: '/pedidos-graficos', migrado: true },
   { id: 'relatorios', label: 'Relatórios', Icone: ScrollText, href: '/relatorios', migrado: true },
   { id: 'detentoras', label: 'Detentoras', Icone: Building2, href: '/detentoras', migrado: true },
 ] as const

@@ -75,6 +75,29 @@ def csrf_protegido(f):
     O frontend deve:
       1. Buscar o token em GET /auth/csrf-token após o login.
       2. Incluir o header X-CSRF-Token em todas as requisições mutantes.
+
+    COBERTURA INCOMPLETA — dívida conhecida, não esquecimento:
+    hoje só O.S., Pedidos Gráficos e Portal da Detentora usam este decorator.
+    Ficam de fora 17 rotas de mutação (categorias, itens, detentoras,
+    alimentação/estoque e as de auth: registro, atualizar_usuario,
+    deletar_usuario, alterar_senha_api, atualizar_perfil).
+
+    Por que ainda não foram protegidas: o frontend LEGADO chama várias delas
+    sem enviar o header (categorias.js, gerenciar-usuarios.html,
+    gerenciar-conta.html, alterar-senha.html) — ligar o decorator agora
+    devolveria 403 para quem usa o sistema em produção. O frontend novo
+    (Next) já envia o header em toda mutação, então a correção depende de
+    aposentar esses arquivos legados.
+
+    Por que o risco segue baixo enquanto isso: SESSION_COOKIE_SAMESITE='Lax'
+    (app.py) impede que um POST cross-site carregue o cookie de sessão, que é
+    o vetor que o CSRF token existiria para cobrir. ATENÇÃO: se algum dia o
+    cookie precisar virar SameSite='None' (front e back em domínios
+    diferentes, sem proxy same-origin), essa proteção cai e estas 17 rotas
+    ficam expostas — proteger TODAS elas passa a ser pré-requisito.
+
+    `login` é a única exceção permanente: o token CSRF só existe depois que a
+    sessão é criada, então não há o que validar antes do login.
     """
     @wraps(f)
     def verificar_csrf(*args, **kwargs):

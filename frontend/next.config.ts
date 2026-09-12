@@ -1,20 +1,30 @@
 import type { NextConfig } from 'next'
 
-// Em desenvolvimento, o Flask roda local e o cookie de sessão (SameSite=Lax)
-// exige same-origin: o proxy abaixo faz o Next servir /api/* e /auth/* como
-// se fossem dele mesmo, sem precisar mexer em CORS/cookie do Flask.
+// O proxy abaixo faz o Next servir /api/* e /auth/* como se fossem dele
+// mesmo, encaminhando ao Flask de servidor para servidor. Vale em DEV e em
+// PRODUÇÃO, pelo mesmo motivo nos dois casos: o navegador só enxerga a
+// origem do próprio front, então
+//   - o cookie de sessão (HttpOnly, SameSite=Lax) é gravado no domínio do
+//     front e reenviado normalmente, sem precisar de SESSION_COOKIE_DOMAIN;
+//   - CORS não entra em jogo (não há requisição cross-origin no browser);
+//   - `SameSite=Lax` continua valendo como defesa contra CSRF — não é
+//     preciso afrouxar para SameSite=None, que exporia as rotas de mutação
+//     que ainda não validam o token CSRF no servidor.
+// Consequência prática: o Flask em produção NÃO precisa de nenhuma mudança
+// de configuração para o front novo funcionar.
 //
-// Em produção (Vercel) este rewrite não é usado — lá o Flask fica num
-// subdomínio próprio e é chamado direto via CORS (ver plano § Deploy).
-// Por isso a env var é exigida sem fallback: se faltar, é sinal de que o
-// .env.local não foi criado a partir do .env.example, não que devemos
-// adivinhar um endereço de servidor.
+// A variável é obrigatória e sem fallback: um endereço de backend adivinhado
+// silenciosamente é pior do que um build que falha — sem ela, todo /api/* e
+// /auth/* viraria 404 do próprio Next, e o site só quebraria no primeiro
+// login, já em produção.
 async function rewrites() {
   const backendUrl = process.env.BACKEND_URL
   if (!backendUrl) {
-    if (process.env.NODE_ENV === 'production') return []
     throw new Error(
-      'BACKEND_URL não definida. Copie frontend/.env.example para .env.local e ajuste.',
+      'BACKEND_URL não definida.\n' +
+        '  - Local: copie frontend/.env.example para .env.local e ajuste.\n' +
+        '  - Vercel: defina BACKEND_URL nas Environment Variables do projeto\n' +
+        '    (ex.: https://coex.projtdev.site) para todos os ambientes.',
     )
   }
   return {

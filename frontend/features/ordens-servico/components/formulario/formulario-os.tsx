@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { getModuloConfig } from '@/features/modulos/config'
 import { useModulo } from '@/features/modulos/modulo-context'
+import { usePedidosOrigem } from '@/features/pedidos-graficos/hooks/use-pedidos-origem'
+import { useVincularOS } from '@/features/pedidos-graficos/hooks/use-vincular-os'
 import { osAPI } from '../../api'
 import { EMPTY_OS, osSchema, type OSForm } from '../../schema'
 import { camposPorModulo } from '../../campos-por-modulo'
@@ -60,6 +62,30 @@ export function FormularioOS({ osId }: { osId?: number }) {
   const rascunho = useRascunhoOS(modulo)
   const [seletorAberto, setSeletorAberto] = useState(false)
 
+  // Pré-preenchimento vindo de Pedidos/Orçamentos (só na criação — nunca
+  // conflita com uma O.S. já existente sendo editada). Espelha
+  // restaurarPedidosParaOS() (emitir-os.js): só entra em campo ainda vazio,
+  // nunca sobrescreve o que o usuário já digitou.
+  const pedidosOrigem = usePedidosOrigem()
+  const vincularOS = useVincularOS()
+
+  useEffect(() => {
+    if (osId || !pedidosOrigem.patch) return
+    const patch = pedidosOrigem.patch
+    const atual = form.getValues()
+
+    if (patch.setorSolicitante && !atual.setorSolicitante) form.setValue('setorSolicitante', patch.setorSolicitante)
+    if (patch.dataPedido && !atual.dataPedido) form.setValue('dataPedido', patch.dataPedido)
+    if (patch.dataEntrega && !atual.dataEntrega) form.setValue('dataEntrega', patch.dataEntrega)
+    if (patch.justificativa && !atual.justificativa) form.setValue('justificativa', patch.justificativa)
+    if (patch.observacoes && !atual.observacoes) form.setValue('observacoes', patch.observacoes)
+    if (patch.itens && patch.itens.length > 0 && atual.itens.length === 0) form.setValue('itens', patch.itens)
+
+    // Serviços Gráficos tem um único grupo — mesma regra do legado.
+    if (!atual.grupo) form.setValue('grupo', '1')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedidosOrigem.patch, osId])
+
   async function onSubmit(dados: OSForm) {
     await preview.abrirPreview(dados, osId)
   }
@@ -67,10 +93,18 @@ export function FormularioOS({ osId }: { osId?: number }) {
   function confirmarEmissao() {
     if (!preview.dadosPreview) return
     salvar.mutate(preview.dadosPreview, {
-      onSuccess: () => {
+      onSuccess: (osCriada) => {
         rascunho.descartar()
         showToast(osId ? 'O.S. atualizada com sucesso.' : 'O.S. emitida com sucesso.', 'success')
         preview.fecharPreview()
+
+        if (!osId && pedidosOrigem.pedidoIds.length > 0) {
+          vincularOS.mutate(
+            { pedidoIds: pedidosOrigem.pedidoIds, ordemServicoId: osCriada.id },
+            { onError: () => showToast('O.S. emitida, mas houve erro ao vincular ao(s) pedido(s).', 'error') },
+          )
+        }
+
         router.push('/os')
       },
       onError: () => showToast('Erro ao salvar a O.S. Tente novamente.', 'error'),
